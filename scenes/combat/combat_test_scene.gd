@@ -29,7 +29,7 @@ const ENEMY_SLOT_POSITIONS = [
 ]
 
 # UI Labels
-# UI Labels
+
 @onready var combat_status_label = $UI/Panel/VBoxContainer/CombatStatus
 @onready var target_label = $UI/Panel/VBoxContainer/TargetLabel
 @onready var last_action_label = $UI/Panel/VBoxContainer/LastAction
@@ -42,6 +42,9 @@ const ENEMY_SLOT_POSITIONS = [
 # Barras de enemigos generadas dinámicamente en _build_enemy_bars()
 # { enemy_id: { "container": HBoxContainer, "bar": ProgressBar, "label": Label } }
 var _enemy_bars: Dictionary = {}
+
+## Barras de los compañeros del player
+var _companion_bars: Dictionary = {}
 
 # Damage number label
 @onready var damage_numbers_parent = $DamageNumbers
@@ -156,16 +159,22 @@ func _initialize_player():
 ## Instancia dinámicamente un EnemyCombatNode por cada enemigo en GameLoop.participants.
 ## Construye también las barras de HP en la UI para cada uno.
 func _initialize_enemies_from_gameloop() -> void:
-	var enemy_ids: Array = game_loop.participants.filter(func(id): return id != "player")
-
-	if enemy_ids.is_empty():
-		push_warning("[CombatTest] No enemies in participants — nothing to spawn")
-		return
+	var party: Node = get_node_or_null("/root/Party")
+	var party_ids: Array = party.get_party_members() if party else []
+ 
+	var enemy_ids: Array = game_loop.participants.filter(
+		func(id: String) -> bool:
+			return id != "player" and not party_ids.has(id)
+	)
 
 	print("\n[CombatTest] Spawning %d enemies dynamically..." % enemy_ids.size())
 
 	# 1. Construir barras de UI antes del spawn (así están listas cuando _update_ui corre)
 	_build_enemy_bars(enemy_ids)
+
+	## Barras y nodos de los compañeros del player 
+	_build_companion_bars()
+	_spawn_companion_nodes()
 
 	# 2. Instanciar un nodo visual por cada enemigo
 	for i in range(enemy_ids.size()):
@@ -262,6 +271,132 @@ func _initialize_enemy(enemy_id: String, enemy_node: Node2D):
 	ai.set("attack_skill_id", "skill.enemy.basic_attack")
 	
 	print("  ✓ %s initialized with AI" % enemy_id)
+
+# ============================================
+# COMPANION
+# ============================================
+
+func _build_companion_bars() -> void:
+	var party := get_node_or_null("/root/Party")
+	if not party or not party.has_companions():
+		return
+ 
+	# Limpiar barras anteriores
+	for entry in _companion_bars.values():
+		entry["container"].queue_free()
+	_companion_bars.clear()
+ 
+	var vbox := $UI/Panel/VBoxContainer
+ 
+	for companion_id in party.get_party_members():
+		var hbox := HBoxContainer.new()
+		hbox.name = "%sHPContainer" % companion_id
+ 
+		var lbl := Label.new()
+		lbl.custom_minimum_size = Vector2(100, 0)
+		lbl.text = "%s HP:" % companion_id.replace("companion_", "").capitalize()
+		lbl.modulate = Color(0.4, 0.8, 1.0)  # azul para companions
+ 
+		var bar := ProgressBar.new()
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.step = 0.1
+		bar.value = 100.0
+		bar.modulate = Color(0.4, 0.8, 1.0)
+ 
+		hbox.add_child(lbl)
+		hbox.add_child(bar)
+ 
+		# Insertar antes de las barras de enemigos
+		vbox.add_child(hbox)
+		vbox.move_child(hbox, 2)  # Después de player HP y stamina
+ 
+		_companion_bars[companion_id] = { "container": hbox, "bar": bar, "label": lbl }
+ 
+	print("[CombatTestScene] Built %d companion HP bars" % _companion_bars.size())
+ 
+ 
+func _spawn_companion_nodes() -> void:
+	var party := get_node_or_null("/root/Party")
+	if not party or not party.has_companions():
+		return
+ 
+	# Posiciones de companions: lado izquierdo del jugador en combate
+	var companion_positions := [
+		Vector2(200, 300),
+		Vector2(200, 220),
+	]
+ 
+	var idx := 0
+	for companion_id in party.get_party_members():
+		# Crear nodo visual simple para combate
+		var node := Node2D.new()
+		node.name = companion_id
+		node.add_to_group(companion_id)
+		node.add_to_group("companion")
+ 
+		var pos: Vector2 = companion_positions[min(idx, companion_positions.size() - 1)]
+		node.position = pos
+ 
+		# Label identificativo
+		var lbl := Label.new()
+		lbl.text = companion_id.replace("companion_", "").capitalize()
+		lbl.position = Vector2(-20, -30)
+		node.add_child(lbl)
+ 
+		# Sprite
+		var sprite := Sprite2D.new()
+		sprite.name = "SpriteCompanion"
+		var portrait_path := "res://data/characters/portrait/%s.png" % companion_id.replace("companion_", "")
+		if ResourceLoader.exists(portrait_path):
+			sprite.texture = load(portrait_path)
+		else:
+			sprite.texture = load("res://icon.svg")
+			sprite.modulate = Color(0.4, 0.8, 1.0)
+		sprite.scale = Vector2(0.3, 0.3)
+		node.add_child(sprite)
+ 
+		# AnimationController
+		var anim := Node.new()
+		anim.set_script(load("res://ui/entity_animation_controller.gd"))
+		anim.name = "AnimationController"
+		node.add_child(anim)
+		# Asignar visual_node después de add_child para que _ready() lo encuentre
+		anim.set("visual_node", sprite)
+ 
+		# CompanionAI
+		var ai := Node.new()
+		ai.set_script(load("res://core/companions/companion_ai.gd"))
+		ai.name = "CompanionAI"
+		ai.set("companion_id", companion_id)
+		ai.set("attack_skill_id", "skill.attack.light")
+		node.add_child(ai)
+ 
+		$EnemyContainer.add_child(node)  # Reutiliza el contenedor o crea CompanionContainer
+		idx += 1
+ 
+	print("[CombatTestScene] Spawned %d companion nodes" % idx)
+ 
+ 
+func _update_companion_bar(companion_id: String, bar: ProgressBar, label: Label) -> void:
+	var state := Resources.get_resource_state(companion_id, "health")
+	if state == null:
+		return
+ 
+	var hp := Resources.get_resource_amount(companion_id, "health")
+	var hp_max := state.max_effective
+	var pct := (hp / hp_max) * 100.0 if hp_max > 0 else 0.0
+ 
+	_update_bar_smooth(bar, pct)
+ 
+	var party := get_node_or_null("/root/Party")
+	if party and party.is_incapacitated(companion_id):
+		bar.modulate = Color(0.5, 0.5, 0.5)
+		label.text = "[INCAP] %s" % companion_id.replace("companion_", "").capitalize()
+		label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		bar.modulate = Color(0.4, 0.8, 1.0)
+		label.text = "%s HP:" % companion_id.replace("companion_", "").capitalize()
+		label.modulate = Color(0.4, 0.8, 1.0)
 
 # ============================================
 # GESTIÓN DE COMBATE
@@ -422,6 +557,11 @@ func _update_ui():
 	for enemy_id in _enemy_bars.keys():
 		var entry = _enemy_bars[enemy_id]
 		_update_enemy_bar(enemy_id, entry["bar"], entry["label"])
+
+	## Barras de los compañeros del player generadas dinamicamente
+	for companion_id in _companion_bars.keys():
+		var entry = _companion_bars[companion_id]
+		_update_companion_bar(companion_id, entry["bar"], entry["label"])
 	
 		# ✨ FASE A.5: Escape Info
 	_update_escape_info(player_stamina)

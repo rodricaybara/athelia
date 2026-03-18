@@ -1,0 +1,63 @@
+{
+  "dialogue": {
+    "id": "DLG_COMPANION_MIRA_01",
+    "nodes": [
+      {
+        "id": "N1",
+        "speaker_id": "mira",
+        "text_key": "DLG_MIRA_01_INTRO",
+        "portrait_id": "mira",
+        "options": [
+          {
+            "id": "O1_JOIN",
+            "text_key": "DLG_MIRA_OPT_JOIN",
+            "required_flags": [],
+            "blocked_flags": ["flag.companion_mira_joined", "flag.companion_mira_dead"],
+            "narrative_events": [],
+            "next_node_id": "N2"
+          },
+          {
+            "id": "O2_DECLINE",
+            "text_key": "DLG_MIRA_OPT_DECLINE",
+            "required_flags": [],
+            "blocked_flags": [],
+            "narrative_events": [],
+            "next_node_id": "N3"
+          }
+        ]
+      },
+      {
+        "id": "N2",
+        "speaker_id": "mira",
+        "text_key": "DLG_MIRA_01_JOIN_CONFIRM",
+        "portrait_id": "mira",
+        "options": [
+          {
+            "id": "O3_CONFIRM",
+            "text_key": "DLG_OPT_CONFIRM",
+            "required_flags": [],
+            "blocked_flags": [],
+            "narrative_events": ["EVT_COMPANION_MIRA_JOINS"],
+            "next_node_id": ""
+          }
+        ]
+      },
+      {
+        "id": "N3",
+        "speaker_id": "mira",
+        "text_key": "DLG_MIRA_01_DECLINE",
+        "portrait_id": "mira",
+        "options": [
+          {
+            "id": "O4_LEAVE",
+            "text_key": "DLG_OPT_LEAVE",
+            "required_flags": [],
+            "blocked_flags": [],
+            "narrative_events": [],
+            "next_node_id": ""
+          }
+        ]
+      }
+    ]
+  }
+}

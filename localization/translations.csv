@@ -15,3 +15,7 @@ SKILL_ATTACK_SWEEP_NAME,Sweep Attack,Ataque en barrido
 SKILL_ATTACK_SWEEP_DESC,A wide melee swing that strikes up to 2 adjacent enemies.,Un amplio golpe cuerpo a cuerpo que alcanza hasta 2 enemigos adyacentes.
 SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
 SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.
+character_companion_base_name,Companion,Compañero
+character_companion_base_desc,A traveling companion.,Un compañero de viaje.
+character_companion_mira_name,Mira,Mira
+character_companion_mira_desc,A skilled wanderer who joins your cause.,Una hábil viajera que se une a tu causa.

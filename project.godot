@@ -48,6 +48,8 @@ SkillEventHandler="*uid://dnue7sfprlep3"
 WorldObjects="*uid://fda3k8kxtwlp"
 WorldObjectSystem="*uid://ci3tyggc14jqn"
 CombatLootSpawner="*uid://bqxbuiko8c4iy"
+Party="*uid://bsgelk03ryah"
+PartyEventHandler="*uid://krqxj71rudvc"
 
 [input]
 

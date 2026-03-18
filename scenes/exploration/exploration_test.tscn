@@ -194,6 +194,20 @@ shape = SubResource("CircleShape2D_trainer")
 scale = Vector2(0.35, 0.35)
 texture = ExtResource("11_mq0ej")
 
+[node name="NPC_Entrenador2" type="Node2D" parent="NPCs" unique_id=1521976060]
+position = Vector2(-100, -200)
+
+[node name="Interactable" type="Area2D" parent="NPCs/NPC_Entrenador2" unique_id=745631714]
+script = ExtResource("4_07imp")
+target_id = "DLG_COMPANION_MIRA_01"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/NPC_Entrenador2/Interactable" unique_id=1727387884]
+shape = SubResource("CircleShape2D_trainer")
+
+[node name="Sprite2D" type="Sprite2D" parent="NPCs/NPC_Entrenador2" unique_id=678341877]
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("11_mq0ej")
+
 [node name="NPC_Maestro" type="Node2D" parent="NPCs" unique_id=1100000005]
 position = Vector2(0, 120)
 

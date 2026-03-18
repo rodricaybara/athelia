@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://companion_mira_001"]
+
+[ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
+
+[resource]
+script = ExtResource("1_char_def")
+id = "companion_mira"
+name_key = "character_companion_mira_name"
+description_key = "character_companion_mira_desc"
+base_attributes = {
+"charisma": 12,
+"constitution": 10,
+"dexterity": 14,
+"intelligence": 11,
+"strength": 10,
+"wisdom": 11
+}
+starting_resources = {
+"focus": 0,
+"gold": 0,
+"health": 28,
+"stamina": 22
+}
+skills = Array[String](["skill.attack.light", "skill.combat.dodge"])
+starting_skill_values = {
+"skill.attack.light": 40,
+"skill.combat.dodge": 35
+}
+inventory_slots = 15
+loot_table_id = ""
+equipment_slots = Array[String](["head", "body", "hands", "feet", "weapon", "shield"])

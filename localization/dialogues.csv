@@ -15,3 +15,9 @@ DLG_PROLOGUE_OPT_CONTINUE,"Approach cautiously","Acercarte con cautela"
 DLG_PROLOGUE_INTRO_03,"The figure looks at you silently.","La figura te mira en silencio."
 DLG_PROLOGUE_OPT_TALK,"Talk to the figure","Hablar con la figura"
 DLG_PROLOGUE_OPT_IGNORE,"Ignore and move on","Ignorar y continuar"
+DLG_MIRA_01_INTRO,"I've seen you around. You look like you could use some help. I'm Mira — I go where the coin and adventure take me.","Te he visto por aquí. Parece que podrías usar algo de ayuda. Soy Mira — voy donde me llevan la moneda y la aventura."
+DLG_MIRA_OPT_JOIN,"I'd welcome a capable companion.",Agradecería un compañero capaz.
+DLG_MIRA_OPT_DECLINE,"I prefer to travel alone for now.",Prefiero viajar solo por ahora.
+DLG_MIRA_01_JOIN_CONFIRM,"Then we have a deal. I'll watch your back.","Trato hecho entonces. Yo te cubro las espaldas."
+DLG_MIRA_01_DECLINE,"Suit yourself. The offer stands if you change your mind.",Como quieras. La oferta sigue en pie si cambias de opinión.
+SPEAKER_MIRA,Mira,Mira

@@ -152,6 +152,22 @@
 	  "set_variables": {
 		"traps_triggered": 1
 	  }
-	}
+	},
+	{
+	  "id": "EVT_COMPANION_MIRA_JOINS",
+	  "description": "Mira se une al grupo del jugador como companion",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_COMPANION_MIRA_01",
+	  "add_flags": ["flag.companion_mira_joined"],
+	  "remove_flags": [],
+	  "set_variables": {},
+	  "game_effects": [
+		{
+		  "type": "join_party",
+		  "companion_id": "companion_mira",
+		  "definition_id": "companion_mira"
+		}
+	  ]
+	}	
   ]
 }

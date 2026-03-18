@@ -165,6 +165,9 @@ func _collect_player_state(save_data: SaveData) -> bool:
 
 	# Estado narrativo (flags, variables, eventos, checkpoints)
 	_collect_narrative_state(save_data)
+	
+	# Estado del grupo de compañeros del player
+	_collect_party_state(save_data)
 
 	return true
 
@@ -312,6 +315,8 @@ func _restore_state(save_data: SaveData) -> bool:
 			else:
 				push_warning("[SaveSystem] Economy restoration had errors")
 
+	# 8.5 Grupo de compañeros del player
+	_restore_party_state(save_data)
 	# 9. Cambio de escena (futuro — descomenta cuando esté implementado)
 	# var target_scene = save_data.world_state.get("current_scene", "")
 	# if target_scene and target_scene != get_tree().current_scene.scene_file_path:
@@ -350,7 +355,22 @@ func _restore_narrative_state(save_data: SaveData):
 
 	print("[SaveSystem] Narrative state restored successfully")
 
-
+func _collect_party_state(save_data: SaveData) -> void:
+	var party := get_node_or_null("/root/Party")
+	if not party:
+		return
+	save_data.player_state["party"] = party.get_save_state()
+	print("[SaveSystem] Party collected: %d companions" % party.get_party_members().size())
+ 
+func _restore_party_state(save_data: SaveData) -> void:
+	var party := get_node_or_null("/root/Party")
+	if not party:
+		return
+	var party_data: Dictionary = save_data.player_state.get("party", {})
+	if not party_data.is_empty():
+		party.load_save_state(party_data)
+		print("[SaveSystem] Party restored: %d companions" % party.get_party_members().size())
+		
 # ============================================
 # UTILIDADES
 # ============================================

@@ -59,22 +59,23 @@ func _ready():
 
 ## Carga todas las definiciones desde data/characters/
 func _load_character_definitions():
-	var characters_dir = "res://data/characters/"
-	var dir = DirAccess.open(characters_dir)
+	_load_from_directory("res://data/characters/")
 	
+func _load_from_directory(path: String):
+	var dir = DirAccess.open(path)
 	if not dir:
-		push_warning("[CharacterSystem] Directory not found: %s" % characters_dir)
-		push_warning("[CharacterSystem] Creating empty character catalog")
+		push_warning("[CharacterSystem] Directory not found: %s" % path)
 		return
 	
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
 	
 	while file_name != "":
-		if file_name.ends_with(".tres"):
-			var file_path = characters_dir + file_name
-			_load_character_from_resource(file_path)
-		
+		if dir.current_is_dir() and not file_name.begins_with("."):
+			# Entrar en subdirectorio recursivamente
+			_load_from_directory(path + file_name + "/")
+		elif file_name.ends_with(".tres"):
+			_load_character_from_resource(path + file_name)
 		file_name = dir.get_next()
 	
 	dir.list_dir_end()

@@ -35,7 +35,7 @@ func _ready() -> void:
 
 	if exploration_hud:
 		exploration_hud.refresh()
-
+	_register_companions()
 	print("[ExplorationTest] Ready")
 
 
@@ -92,8 +92,61 @@ func _register_player() -> void:
 
 	_unlock_starting_skills()
 
-
-
+## Instancia nodos visuales para los companions que ya están en el grupo.
+## Se llama en _ready() y también cuando un companion se une durante la sesión.
+func _register_companions() -> void:
+	# Conectar señales SIEMPRE — antes del return, para capturar companions
+	# que se unan más tarde durante la sesión (ej: via diálogo)
+	if not EventBus.companion_joined.is_connected(_on_companion_joined):
+		EventBus.companion_joined.connect(_on_companion_joined)
+	if not EventBus.companion_left.is_connected(_on_companion_left):
+		EventBus.companion_left.connect(_on_companion_left)
+ 
+	var party: Node = get_node_or_null("/root/Party")
+	if not party or not party.has_companions():
+		return
+ 
+	for companion_id: String in party.get_party_members():
+		_spawn_companion_node(companion_id)
+ 
+	print("[ExplorationTest] Companions registered: %s" % str(party.get_party_members()))
+ 
+func _spawn_companion_node(companion_id: String) -> void:
+	# Evitar duplicados
+	if get_node_or_null("NPCs/%s" % companion_id):
+		return
+ 
+	var party := get_node_or_null("/root/Party")
+	var formation_index: int = party.get_formation_index(companion_id) if party else 0
+ 
+	var companion_script := load("res://scenes/exploration/companion_follow_node.gd")
+	if not companion_script:
+		push_error("[ExplorationTest] companion_follow_node.gd not found")
+		return
+ 
+	var node := CharacterBody2D.new()
+	node.set_script(companion_script)
+	$NPCs.add_child(node)
+ 
+	# setup() DESPUÉS de add_child() en este caso porque no hay AnimationController
+	# que necesite visual_node antes de entrar al árbol
+	node.setup(companion_id, $Player, formation_index)
+ 
+	print("[ExplorationTest] Companion node spawned: %s (formation index %d)" % [
+		companion_id, formation_index
+	])
+ 
+ 
+func _on_companion_joined(companion_id: String) -> void:
+	_spawn_companion_node(companion_id)
+ 
+ 
+func _on_companion_left(companion_id: String) -> void:
+	var node := get_node_or_null("NPCs/%s" % companion_id)
+	if node:
+		node.queue_free()
+		print("[ExplorationTest] Companion node removed: %s" % companion_id)
+		
 func _unlock_starting_skills() -> void:
 	## skill.attack.light comienza desbloqueada para el jugador.
 	## skill.attack.heavy requiere unlock explícito (via NPC_Maestro).
