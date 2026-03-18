@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3 uid="uid://duta5a546kayw"]
+
+[ext_resource type="Script" uid="uid://brpajd07w4urf" path="res://core/items/modifier_definition.gd" id="1_moddef"]
+[ext_resource type="Texture2D" uid="uid://cmy15aqndoeu4" path="res://data/items/lockpick.png" id="1_pupvc"]
+[ext_resource type="Script" uid="uid://b1aa4t2pb83xl" path="res://core/items/item_definition.gd" id="2_itemdef"]
+
+[resource]
+script = ExtResource("2_itemdef")
+id = "lockpick_quality"
+name_key = "ITEM_LOCKPICK_QUALITY_NAME"
+description_key = "ITEM_LOCKPICK_QUALITY_DESC"
+icon = ExtResource("1_pupvc")
+base_value = 25
+item_type = "CONSUMABLE"
+max_stack = 10
+usable = false
+tags = Array[String](["tool", "lockpick", "thievery"])
+modifiers = Array[ExtResource("1_moddef")]([])

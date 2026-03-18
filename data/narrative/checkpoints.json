@@ -1,0 +1,53 @@
+{
+  "checkpoints": [
+	{
+	  "checkpoint_id": "ACT1_END",
+	  "description": "Fin del Acto 1 - Encuentro con el Príncipe",
+	  "accumulated_vectors": ["reputation", "community", "cynicism"],
+	  "flags_preserved": ["PRINCE_MET", "ACADEMY_JOINED"],
+	  "variables_preserved": ["gold", "reputation", "community", "cynicism"],
+	  "initial_values": {},
+	  "initial_flags": [],
+	  "normalization_ranges": {
+		"reputation": {"min": -100, "max": 100},
+		"community": {"min": 0, "max": 50},
+		"cynicism": {"min": 0, "max": 50}
+	  }
+	},
+	{
+	  "checkpoint_id": "ACT2_START",
+	  "description": "Inicio del Acto 2 - Entrada a la Academia",
+	  "accumulated_vectors": ["reputation", "magic_affinity", "discipline"],
+	  "flags_preserved": ["PRINCE_MET", "ACADEMY_JOINED", "FOREST_DISCOVERED"],
+	  "variables_preserved": ["gold", "reputation", "community", "cynicism"],
+	  "initial_values": {
+		"magic_affinity": 0,
+		"discipline": 0
+	  },
+	  "initial_flags": ["TUTORIAL_COMPLETE", "ACT2_ACTIVE"],
+	  "normalization_ranges": {
+		"reputation": {"min": -100, "max": 100},
+		"magic_affinity": {"min": 0, "max": 100},
+		"discipline": {"min": 0, "max": 100}
+	  }
+	},
+	{
+	  "checkpoint_id": "ACT2_END",
+	  "description": "Fin del Acto 2 - Primera Prueba Mágica",
+	  "accumulated_vectors": ["reputation", "magic_affinity", "discipline", "wisdom"],
+	  "flags_preserved": ["PRINCE_MET", "ACADEMY_JOINED", "FIRST_SPELL_LEARNED"],
+	  "variables_preserved": ["gold", "reputation", "magic_affinity", "discipline"],
+	  "initial_values": {
+		"wisdom": 0,
+		"combat_experience": 0
+	  },
+	  "initial_flags": ["ACT3_ACTIVE", "MAGIC_TRAINING_COMPLETE"],
+	  "normalization_ranges": {
+		"reputation": {"min": -100, "max": 100},
+		"magic_affinity": {"min": 0, "max": 100},
+		"discipline": {"min": 0, "max": 100},
+		"wisdom": {"min": 0, "max": 100}
+	  }
+	}
+  ]
+}

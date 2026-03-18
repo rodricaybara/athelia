@@ -1,0 +1,95 @@
+[gd_scene format=3 uid="uid://drwa61i551gmy"]
+
+[ext_resource type="Script" uid="uid://uj6bl5ealsx" path="res://ui/dialogue/dialogue_panel_test.gd" id="1_e5hxe"]
+[ext_resource type="Script" uid="uid://bqcpvo36n47d3" path="res://ui/dialogue/dialogue_panel.gd" id="2_sepj6"]
+[ext_resource type="PackedScene" uid="uid://c6xfpdj2h4yb8" path="res://ui/dialogue/option_button.tscn" id="3_option"]
+
+[node name="DialoguePanelTest" type="Control" unique_id=1646163433]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_e5hxe")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=903279827]
+
+[node name="DialoguePanel" type="Control" parent="CanvasLayer" unique_id=1258332080]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_sepj6")
+option_button_scene = ExtResource("3_option")
+
+[node name="Background" type="TextureRect" parent="CanvasLayer/DialoguePanel" unique_id=583808918]
+unique_name_in_owner = true
+layout_mode = 1
+expand_mode = 1
+
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/DialoguePanel" unique_id=459219358]
+layout_mode = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/DialoguePanel/PanelContainer" unique_id=544509909]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer" unique_id=651681798]
+layout_mode = 2
+
+[node name="PortraitsHBoxContainer" type="HBoxContainer" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=754979191]
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="PortraitLeftFrame" type="Panel" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer" unique_id=1850012515]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PortraitLeft" type="TextureRect" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer/PortraitLeftFrame" unique_id=906184457]
+unique_name_in_owner = true
+layout_mode = 1
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Spacer" type="Control" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer" unique_id=1338121472]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+
+[node name="PortraitRightFrame" type="Panel" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer" unique_id=444964022]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PortraitRight" type="TextureRect" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer/PortraitRightFrame" unique_id=288233332]
+unique_name_in_owner = true
+layout_mode = 1
+expand_mode = 1
+stretch_mode = 6
+
+[node name="SpeakerNameLabel" type="Label" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=877819690]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 20
+text = "Speaker Name"
+
+[node name="DialogueText" type="RichTextLabel" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=623946730]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 2
+text = "Dialogue text will appear here..."
+fit_content = true
+
+[node name="OptionsContainer" type="VBoxContainer" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=571336529]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0

@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="WorldObjectDefinition" format=3 uid="uid://c767chs2m32r"]
+
+[ext_resource type="Script" uid="uid://cpxfg831512ra" path="res://core/world_objects/world_object_definition.gd" id="1_wodef"]
+[ext_resource type="Script" uid="uid://lt5x85g36fe8" path="res://core/world_objects/interaction_definition.gd" id="2_idef"]
+[ext_resource type="Script" uid="uid://7tcutdq4xpkr" path="res://core/world_objects/interaction_outcome.gd" id="3_iout"]
+
+[sub_resource type="Resource" id="OutcomeCollect"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_LOOT_BAG_COLLECTED"
+depletes_object = true
+
+[sub_resource type="Resource" id="InteractionCollect"]
+script = ExtResource("2_idef")
+id = "collect"
+label_key = "INTERACTION_LOOT_BAG_LABEL"
+description_key = "INTERACTION_LOOT_BAG_DESC"
+required_skill = "skill.any"
+required_flags = Array[String](["ready"])
+consumed_flags = Array[String](["ready"])
+outcome_critical = SubResource("OutcomeCollect")
+outcome_success = SubResource("OutcomeCollect")
+outcome_failure = SubResource("OutcomeCollect")
+outcome_fumble = SubResource("OutcomeCollect")
+
+[resource]
+script = ExtResource("1_wodef")
+id = "loot_bag_01"
+display_name_key = "WORLD_OBJECT_LOOT_BAG_NAME"
+description_key = "WORLD_OBJECT_LOOT_BAG_DESC"
+initial_flags = Array[String](["ready"])
+interactions = Array[ExtResource("2_idef")]([SubResource("InteractionCollect")])

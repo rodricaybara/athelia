@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.attack.light"
+name_key = "SKILL_ATTACK_LIGHT_NAME"
+description_key = "SKILL_ATTACK_LIGHT_DESC"
+mode = "COMBAT"
+category = "PHYSICAL"
+costs = {
+"stamina": 10.0
+}
+base_cooldown = 1.5
+target_type = "SINGLE_ENEMY"
+range_type = "MELEE"
+effects = [{
+"type": "DAMAGE",
+"value": 1.2,
+"duration": 0.4
+}]
+tags = ["attack", "melee", "basic", "physical"]
+base_success_rate = 40
+stress_type = "PHYSICAL"
+attribute_weights = {
+"dexterity": 0.6,
+"strength": 0.4
+}
+max_ticks_per_combat = 2

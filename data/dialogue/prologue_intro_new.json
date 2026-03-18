@@ -1,0 +1,71 @@
+{
+  "dialogue": {
+	"id": "DLG_PROLOGUE_INTRO_01",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "narrator",
+		"text_key": "DLG_PROLOGUE_INTRO_01",
+		"portrait_id": "test",
+		"options": [
+		  {
+			"id": "O1",
+			"text_key": "DLG_PROLOGUE_OPT_ENTER",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_ENTER_ROOM"],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O2",
+			"text_key": "DLG_PROLOGUE_OPT_LEAVE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_LEAVE_ROOM"],
+			"next_node_id": ""
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "narrator",
+		"text_key": "DLG_PROLOGUE_INTRO_02",
+		"portrait_id": "narrator",
+		"options": [
+		  {
+			"id": "O3",
+			"text_key": "DLG_PROLOGUE_OPT_CONTINUE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_MEET_MYSTERIOUS_FIGURE"],
+			"next_node_id": "N3"
+		  }
+		]
+	  },
+	  {
+		"id": "N3",
+		"speaker_id": "mysterious_figure",
+		"text_key": "DLG_PROLOGUE_INTRO_03",
+		"portrait_id": "mysterious_figure",
+		"options": [
+		  {
+			"id": "O4",
+			"text_key": "DLG_PROLOGUE_OPT_TALK",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_START_DIALOGUE_FIGURE"],
+			"next_node_id": ""
+		  },
+		  {
+			"id": "O5",
+			"text_key": "DLG_PROLOGUE_OPT_IGNORE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  }
+		]
+	  }
+	]
+  }
+}

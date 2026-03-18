@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cg8p03wa2e0pp"
+
+[deps]
+
+files=["res://localization/world_objects.en.translation", "res://localization/world_objects.es.translation"]
+
+source_file="res://localization/world_objects.csv"
+dest_files=["res://localization/world_objects.en.translation", "res://localization/world_objects.es.translation"]
+
+[params]
+
+compress=true
+delimiter=0
+unescape_keys=false
+unescape_translations=true

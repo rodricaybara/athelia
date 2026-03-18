@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://c1rf2qpj5vdo3"]
+
+[ext_resource type="Script" uid="uid://bi081vnx2npp2" path="res://test/test_eventbus.gd" id="1_mcppe"]
+
+[node name="TestEventBusModifier" type="Node2D"]
+
+[node name="Node" type="Node" parent="."]
+script = ExtResource("1_mcppe")

@@ -1,0 +1,60 @@
+{
+  "dialogue": {
+	"id": "DLG_TEST_DECISION",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "npc_merchant",
+		"text_key": "DLG_TEST_DECISION_OFFER",
+		"portrait_id": "merchant_neutral",
+		"options": [
+		  {
+			"id": "O1_FAIR",
+			"text_key": "DLG_TEST_DECISION_FAIR",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_REPUTATION_FAIR"],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O2_HAGGLE",
+			"text_key": "DLG_TEST_DECISION_HAGGLE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_REPUTATION_HAGGLE"],
+			"next_node_id": "N3"
+		  },
+		  {
+			"id": "O3_STEAL",
+			"text_key": "DLG_TEST_DECISION_STEAL",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_REPUTATION_STEAL"],
+			"next_node_id": "N4"
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "npc_merchant",
+		"text_key": "DLG_TEST_DECISION_FAIR_RESPONSE",
+		"portrait_id": "merchant_pleased",
+		"options": []
+	  },
+	  {
+		"id": "N3",
+		"speaker_id": "npc_merchant",
+		"text_key": "DLG_TEST_DECISION_HAGGLE_RESPONSE",
+		"portrait_id": "merchant_annoyed",
+		"options": []
+	  },
+	  {
+		"id": "N4",
+		"speaker_id": "npc_merchant",
+		"text_key": "DLG_TEST_DECISION_STEAL_RESPONSE",
+		"portrait_id": "merchant_angry",
+		"options": []
+	  }
+	]
+  }
+}

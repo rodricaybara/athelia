@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://skill_attack_sweep"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.attack.sweep"
+name_key = "SKILL_ATTACK_SWEEP_NAME"
+description_key = "SKILL_ATTACK_SWEEP_DESC"
+mode = "COMBAT"
+category = "PHYSICAL"
+costs = {
+"stamina": 20.0
+}
+base_cooldown = 2.5
+target_type = "MULTI_ENEMY"
+range_type = "MELEE"
+effects = [{
+"type": "DAMAGE",
+"value": 0.9,
+"base_damage_attribute": "melee_damage",
+"max_targets": 2,
+"duration": 0.5
+}]
+tags = Array[String](["attack", "melee", "sweep", "physical", "multi"])
+base_success_rate = 30
+stress_type = "PHYSICAL"
+attribute_weights = {
+"strength": 0.6,
+"dexterity": 0.4
+}
+max_ticks_per_combat = 2
+prerequisites = Array[String](["skill.attack.light"])
+requires_unlock = false

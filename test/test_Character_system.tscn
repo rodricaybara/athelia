@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://ds3w1npf5p0c4"]
+
+[ext_resource type="Script" uid="uid://bjvp4vc67urug" path="res://test/test_character_validation.gd" id="2_p44io"]
+
+[node name="TestCharacterSystem" type="Node2D" unique_id=651612440]
+
+[node name="test_validation" type="Node" parent="." unique_id=1575949386]
+script = ExtResource("2_p44io")

@@ -1,0 +1,80 @@
+[gd_scene load_steps=4 format=3 uid="uid://dyf8y5kt7ab7m"]
+
+[ext_resource type="Script" uid="uid://bj2qjuia0ujoa" path="res://scenes/player/player_ui.gd" id="1_32d7b"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_m6sn8"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_fatww"]
+
+[node name="PlayerUi" type="CanvasLayer"]
+script = ExtResource("1_32d7b")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 101.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HPBar" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HPBar"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "HP:"
+
+[node name="HPProgress" type="ProgressBar" parent="MarginContainer/VBoxContainer/HPBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxTexture_m6sn8")
+theme_override_styles/fill = SubResource("StyleBoxTexture_fatww")
+value = 100.0
+
+[node name="HPValue" type="Label" parent="MarginContainer/VBoxContainer/HPBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "100"
+
+[node name="StaminaBar" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/StaminaBar"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "STA:"
+
+[node name="StaminaProgress" type="ProgressBar" parent="MarginContainer/VBoxContainer/StaminaBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 20)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="StaminaValue" type="Label" parent="MarginContainer/VBoxContainer/StaminaBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "100"
+
+[node name="SkillsContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="DashIndicator" type="HBoxContainer" parent="MarginContainer/VBoxContainer/SkillsContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/SkillsContainer/DashIndicator"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "DASH:"
+
+[node name="DashStatus" type="Label" parent="MarginContainer/VBoxContainer/SkillsContainer/DashIndicator"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ready"

@@ -1,0 +1,119 @@
+[gd_scene format=3 uid="uid://ctv0qusk4wmu6"]
+
+[ext_resource type="Script" uid="uid://bsfal2a0ho2qo" path="res://ui/shop/shop_ui.gd" id="1_kmvet"]
+
+[node name="ShopUi" type="CanvasLayer" unique_id=872390202]
+script = ExtResource("1_kmvet")
+
+[node name="ShopPanel" type="PanelContainer" parent="." unique_id=114841244]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -300.0
+offset_right = 400.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="ShopPanel" unique_id=1924287601]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ShopPanel/MarginContainer" unique_id=893673554]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1905980232]
+layout_mode = 2
+
+[node name="ShopNameLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/Header" unique_id=687410299]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_font_sizes/font_size = 24
+text = "Shop Name"
+
+[node name="ShopGoldLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/Header" unique_id=910534729]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+text = "Shop: 1500 gold"
+horizontal_alignment = 2
+
+[node name="HSeparator" type="HSeparator" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1311131059]
+layout_mode = 2
+
+[node name="ShopSlotsLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1426845264]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Shop Inventory (3/10 slots)"
+
+[node name="ShopItemsScroll" type="ScrollContainer" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1518978873]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ShopItemsContainer" type="HFlowContainer" parent="ShopPanel/MarginContainer/VBoxContainer/ShopItemsScroll" unique_id=947765247]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="HSeparator2" type="HSeparator" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=685418365]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1216406169]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=77575994]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Your Inventory"
+
+[node name="PlayerGoldLabel" type="Label" parent="ShopPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=993983890]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Player Gold: 1000"
+horizontal_alignment = 2
+
+[node name="PlayerItemsScroll" type="ScrollContainer" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1278559312]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerItemsContainer" type="HFlowContainer" parent="ShopPanel/MarginContainer/VBoxContainer/PlayerItemsScroll" unique_id=309099385]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator3" type="HSeparator" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=1749841725]
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="ShopPanel/MarginContainer/VBoxContainer" unique_id=837057604]
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="ShopPanel/MarginContainer/VBoxContainer/Footer" unique_id=896018101]
+unique_name_in_owner = true
+layout_mode = 2
+text = "CLOSE"
+
+[node name="FeedbackLabel" type="Label" parent="ShopPanel" unique_id=149091995]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "✓ Transaction successful"
+horizontal_alignment = 1
+vertical_alignment = 1

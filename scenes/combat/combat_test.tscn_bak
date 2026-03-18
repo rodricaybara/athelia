@@ -1,0 +1,262 @@
+[gd_scene format=3 uid="uid://cq48g0ywg5l76"]
+
+[ext_resource type="Script" uid="uid://bmbobbojfd8u7" path="res://scenes/combat/combat_test_scene.gd" id="1_scene_script"]
+[ext_resource type="Script" uid="uid://bkb3vs4mdsq5l" path="res://scenes/player/player_combat_controller.gd" id="2_controller"]
+[ext_resource type="Script" uid="uid://bru0fnpkmq7wy" path="res://ui/entity_animation_controller.gd" id="3_00qyv"]
+[ext_resource type="Texture2D" uid="uid://bjveekbrwrf51" path="res://data/characters/portrait/guard_neutral.png" id="4_qkusl"]
+[ext_resource type="Texture2D" uid="uid://b62ssa6f83tis" path="res://data/characters/portrait/orco.png" id="5_w3ufp"]
+[ext_resource type="PackedScene" path="res://ui/damage_number.tscn" id="6_00qyv"]
+
+[node name="CombatTest" type="Node2D" unique_id=864875039]
+script = ExtResource("1_scene_script")
+
+[node name="Player" type="Node2D" parent="." unique_id=1057909425 groups=["player"]]
+position = Vector2(300, 300)
+
+[node name="Sprite" type="ColorRect" parent="Player" unique_id=1202142169]
+visible = false
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Label" type="Label" parent="Player" unique_id=1838870947]
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -20.0
+text = "PLAYER"
+horizontal_alignment = 1
+
+[node name="PlayerCombatController" type="Node" parent="Player" unique_id=422695084]
+script = ExtResource("2_controller")
+
+[node name="AnimationController" type="Node" parent="Player" unique_id=1363706303 node_paths=PackedStringArray("visual_node")]
+script = ExtResource("3_00qyv")
+visual_node = NodePath("../SpritePlayer")
+
+[node name="SpritePlayer" type="Sprite2D" parent="Player" unique_id=1760835630]
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("4_qkusl")
+
+[node name="Enemy1" type="Node2D" parent="." unique_id=1844221069 groups=["enemy_1"]]
+position = Vector2(600, 300)
+
+[node name="Sprite" type="ColorRect" parent="Enemy1" unique_id=81365232]
+visible = false
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(1, 0.2, 0.2, 1)
+
+[node name="Label" type="Label" parent="Enemy1" unique_id=966675041]
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -20.0
+text = "ENEMY"
+horizontal_alignment = 1
+
+[node name="AnimationController" type="Node" parent="Enemy1" unique_id=224315262 node_paths=PackedStringArray("visual_node")]
+script = ExtResource("3_00qyv")
+visual_node = NodePath("../SpriteEnemy_1")
+
+[node name="SpriteEnemy_1" type="Sprite2D" parent="Enemy1" unique_id=288039293]
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("5_w3ufp")
+
+[node name="Enemy3" type="Node2D" parent="." unique_id=641999374 groups=["enemy_3"]]
+position = Vector2(600, 200)
+
+[node name="Sprite" type="ColorRect" parent="Enemy3" unique_id=159123017]
+visible = false
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.6589902, 0.38813037, 0.9914234, 1)
+
+[node name="Label" type="Label" parent="Enemy3" unique_id=1822514926]
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -20.0
+text = "ENEMY"
+horizontal_alignment = 1
+
+[node name="AnimationController" type="Node" parent="Enemy3" unique_id=14147024 node_paths=PackedStringArray("visual_node")]
+script = ExtResource("3_00qyv")
+visual_node = NodePath("../SpriteEnemy_3")
+
+[node name="SpriteEnemy_3" type="Sprite2D" parent="Enemy3" unique_id=1051453675]
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("5_w3ufp")
+
+[node name="Enemy2" type="Node2D" parent="." unique_id=1376615391 groups=["enemy_2"]]
+position = Vector2(500, 250)
+
+[node name="Sprite" type="ColorRect" parent="Enemy2" unique_id=1724631596]
+visible = false
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(1, 0.76612836, 0.19966345, 1)
+
+[node name="Label" type="Label" parent="Enemy2" unique_id=1476666814]
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -20.0
+text = "ENEMY"
+horizontal_alignment = 1
+
+[node name="AnimationController" type="Node" parent="Enemy2" unique_id=798076680 node_paths=PackedStringArray("visual_node")]
+script = ExtResource("3_00qyv")
+visual_node = NodePath("../SpriteEnemy2")
+
+[node name="SpriteEnemy2" type="Sprite2D" parent="Enemy2" unique_id=1030764250]
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("5_w3ufp")
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=845936249]
+
+[node name="Panel" type="Panel" parent="UI" unique_id=1834805041]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -3.0
+offset_top = -276.0
+offset_bottom = -1.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/Panel" unique_id=726638629]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 5
+
+[node name="CombatStatus" type="Label" parent="UI/Panel/VBoxContainer" unique_id=123244195]
+layout_mode = 2
+text = "Combat Status: IDLE"
+horizontal_alignment = 1
+
+[node name="TargetLabel" type="Label" parent="UI/Panel/VBoxContainer" unique_id=651969832]
+layout_mode = 2
+text = "Target: NONE"
+
+[node name="LastAction" type="Label" parent="UI/Panel/VBoxContainer" unique_id=342262017]
+layout_mode = 2
+text = "Last Action: -"
+
+[node name="PlayerHPContainer" type="HBoxContainer" parent="UI/Panel/VBoxContainer" unique_id=728209371]
+layout_mode = 2
+
+[node name="PlayerHPLabel" type="Label" parent="UI/Panel/VBoxContainer/PlayerHPContainer" unique_id=1016737963]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Player HP:"
+
+[node name="PlayerHPBar" type="ProgressBar" parent="UI/Panel/VBoxContainer/PlayerHPContainer" unique_id=388411583]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/outline_size = 1
+step = 0.1
+value = 100.0
+
+[node name="PlayerStaminaContainer" type="HBoxContainer" parent="UI/Panel/VBoxContainer" unique_id=1050318582]
+layout_mode = 2
+
+[node name="PlayerStaminaLabel" type="Label" parent="UI/Panel/VBoxContainer/PlayerStaminaContainer" unique_id=641227771]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Player Stam:"
+
+[node name="PlayerStaminaBar" type="ProgressBar" parent="UI/Panel/VBoxContainer/PlayerStaminaContainer" unique_id=1033101307]
+layout_mode = 2
+size_flags_horizontal = 3
+step = 0.1
+value = 100.0
+
+[node name="Enemy1HPContainer" type="HBoxContainer" parent="UI/Panel/VBoxContainer" unique_id=1561700569]
+layout_mode = 2
+
+[node name="Enemy1HPLabel" type="Label" parent="UI/Panel/VBoxContainer/Enemy1HPContainer" unique_id=725542782]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Enemy_1 HP:"
+
+[node name="Enemy1HPBar" type="ProgressBar" parent="UI/Panel/VBoxContainer/Enemy1HPContainer" unique_id=1590894507]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/outline_size = 1
+step = 0.1
+value = 100.0
+
+[node name="Enemy2HPContainer" type="HBoxContainer" parent="UI/Panel/VBoxContainer" unique_id=174212281]
+layout_mode = 2
+
+[node name="Enemy2HPLabel" type="Label" parent="UI/Panel/VBoxContainer/Enemy2HPContainer" unique_id=1027190735]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Enemy_2 HP:"
+
+[node name="Enemy2HPBar" type="ProgressBar" parent="UI/Panel/VBoxContainer/Enemy2HPContainer" unique_id=1005104030]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/outline_size = 1
+step = 0.1
+value = 100.0
+
+[node name="Enemy3HPContainer" type="HBoxContainer" parent="UI/Panel/VBoxContainer" unique_id=1077984970]
+layout_mode = 2
+
+[node name="Enemy3HPLabel" type="Label" parent="UI/Panel/VBoxContainer/Enemy3HPContainer" unique_id=1366381454]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Enemy_3 HP:"
+
+[node name="Enemy3HPBar" type="ProgressBar" parent="UI/Panel/VBoxContainer/Enemy3HPContainer" unique_id=399982034]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/outline_size = 1
+step = 0.1
+value = 100.0
+
+[node name="EscapeInfoLabel" type="Label" parent="UI/Panel/VBoxContainer" unique_id=413267155]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Instructions" type="Label" parent="UI" unique_id=1671380214]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 400.0
+offset_bottom = 150.0
+text = "COMBAT TEST SCENE
+
+Controls:
+  [Q] - Attack Light (10 stamina, 1.5s cooldown)
+  [W] - Attack Heavy (25 stamina, 3s cooldown)
+  [E] - Dodge (15 stamina, 2s cooldown)
+  [R] - Defensa
+  [F] - Defensa
+  [Tab] - Cycle Target
+  [F5] - Start Combat
+  [F6] - End Combat
+  [F7] - Print Debug Info"
+
+[node name="DamageNumbers" type="Control" parent="." unique_id=1012228175]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="DamageNumber" parent="DamageNumbers" unique_id=911825543 instance=ExtResource("6_00qyv")]
+layout_mode = 0

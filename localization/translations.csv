@@ -1,0 +1,17 @@
+id,en,es
+RESOURCE_HEALTH_NAME,Health,Vida
+RESOURCE_HEALTH_DESC,Life points,Puntos de vida
+RESOURCE_STAMINA_NAME,Stamina,Resistencia
+RESOURCE_STAMINA_DESC,Physical energy,Energía física
+RESOURCE_GOLD_NAME,Gold,Oro
+RESOURCE_GOLD_DESC,Currency,Moneda
+SKILL_DASH_NAME,Dash,Impulso
+SKILL_DASH_DESC,Quick burst of speed,Ráfaga rápida de velocidad
+SHOP_BLACKSMITH_NAME,Blacksmith,Herrería
+SHOP_BLACKSMITH_DESC,A sturdy blacksmith shop,Una robusta herrería
+SKILL_ATTACK_RANGED_NAME,Ranged Attack,Ataque a distancia
+SKILL_ATTACK_RANGED_DESC,A precise ranged attack using a bow or thrown weapon.,Un ataque preciso a distancia usando un arco o arma arrojadiza.
+SKILL_ATTACK_SWEEP_NAME,Sweep Attack,Ataque en barrido
+SKILL_ATTACK_SWEEP_DESC,A wide melee swing that strikes up to 2 adjacent enemies.,Un amplio golpe cuerpo a cuerpo que alcanza hasta 2 enemigos adyacentes.
+SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
+SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.

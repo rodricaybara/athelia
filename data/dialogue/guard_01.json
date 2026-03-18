@@ -1,0 +1,47 @@
+{
+  "dialogue": {
+	"id": "guard_01",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "guard",
+		"text_key": "Alto. Nadie pasa sin permiso del Capitan.",
+		"portrait_id": "",
+		"options": [
+		  {
+			"id": "O1",
+			"text_key": "Entendido, me voy.",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  },
+		  {
+			"id": "O2",
+			"text_key": "Tengo asuntos urgentes.",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N2"
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "guard",
+		"text_key": "Urgentes o no, sin permiso no entras. Habla con el Capitan primero.",
+		"portrait_id": "",
+		"options": [
+		  {
+			"id": "O3",
+			"text_key": "De acuerdo.",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  }
+		]
+	  }
+	]
+  }
+}

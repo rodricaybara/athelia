@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3 uid="uid://b123ynw13nj7c"]
+
+[sub_resource type="Animation" id="Animation_l40f0"]
+resource_name = "new_animation"
+length = 2.0
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_gfebm"]
+_data = {
+&"new_animation": SubResource("Animation_l40f0")
+}
+
+[node name="FeedbackPopup" type="PanelContainer"]
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+
+[node name="MessageLabel" type="Label" parent="MarginContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_gfebm")
+}

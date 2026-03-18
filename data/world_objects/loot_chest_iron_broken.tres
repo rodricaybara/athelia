@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="LootTableDefinition" format=3 uid="uid://spike_loot_broken_001"]
+
+[ext_resource type="Script" uid="uid://m7pv87pnyqjj" path="res://core/world_objects/loot_table_definition.gd" id="1_ltdef"]
+[ext_resource type="Script" uid="uid://b0f01pn2b4lec" path="res://core/world_objects/loot_entry.gd" id="2_lentry"]
+
+[sub_resource type="Resource" id="Entry_Gold"]
+script   = ExtResource("2_lentry")
+item_id  = "gold"
+quantity = 8
+chance   = 1.0
+
+[sub_resource type="Resource" id="Entry_HealthPotion"]
+script   = ExtResource("2_lentry")
+item_id  = "health_potion"
+quantity = 1
+chance   = 0.4
+
+[resource]
+script   = ExtResource("1_ltdef")
+id       = "chest_iron_broken"
+entries  = Array[ExtResource("2_lentry")]([SubResource("Entry_Gold"), SubResource("Entry_HealthPotion")])

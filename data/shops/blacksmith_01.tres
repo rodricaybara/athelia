@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ShopDefinition" format=3 uid="uid://ds6lypuvy8mi6"]
+
+[ext_resource type="Script" uid="uid://cv8kag3cpospy" path="res://core/economy/shop_definition.gd" id="1_eoqii"]
+
+[resource]
+script = ExtResource("1_eoqii")
+id = "blacksmith_01"
+name_key = "SHOP_BLACKSMITH_NAME"
+description_key = "SHOP_BLACKSMITH_DESC"
+initial_budget = 1500
+max_slots = 12
+sell_price_factor = 0.75
+initial_inventory = {
+"amulet_strength": 1,
+"health_potion": 2,
+"iron_helmet": 1,
+"iron_sword": 1,
+"leather_armor": 1,
+"leather_boots": 1,
+"ring_health": 1,
+"ring_stamina": 1,
+"shortbow": 1,
+"stamina_potion_small": 5,
+"wooden_shield": 1
+}
+accepted_tags = Array[String](["weapon", "armor", "shield", "accessory", "material"])
+metadata/_custom_type_script = "uid://cv8kag3cpospy"

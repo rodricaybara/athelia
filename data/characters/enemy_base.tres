@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://dq4txtfumoukh"]
+
+[ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
+
+[resource]
+script = ExtResource("1_char_def")
+id = "enemy_base"
+name_key = "character_enemy_base_name"
+description_key = "character_enemy_base_desc"
+base_attributes = {
+"charisma": 5,
+"constitution": 8,
+"dexterity": 8,
+"intelligence": 5,
+"strength": 8,
+"wisdom": 5
+}
+starting_resources = {
+"focus": 0,
+"gold": 0,
+"health": 50,
+"stamina": 999
+}
+skills = Array[String](["skill.enemy.basic_attack"])
+starting_skill_values = {
+"skill.enemy.basic_attack": 30
+}
+inventory_slots = 10
+loot_table_id = "enemy_base_drops"
+equipment_slots = Array[String]([])

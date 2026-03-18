@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://drnqay6altcn7"]
+
+[ext_resource type="PackedScene" uid="uid://6qxndb5fqnxv" path="res://debug/narrative/narrative_debug_panel.tscn" id="1_rs376"]
+[ext_resource type="Script" uid="uid://vnc8d3guhb7a" path="res://test/TestHelper.gd" id="2_vycey"]
+
+[node name="TestDebugPanel" type="Node2D" unique_id=1233898814]
+
+[node name="Instructions" type="Label" parent="." unique_id=1946198486]
+offset_right = 40.0
+offset_bottom = 23.0
+text = "Narrative Debug Panel Test
+Press ESC to toggle panel
+(Configure F12 in Project Settings)
+Panel should appear in top-right corner.
+Test:
+1. Check that checkpoint shows 'None'
+2. Press Refresh
+3. Create some narrative state
+4. Press Refresh again
+5. Check that data appears"
+
+[node name="NarrativeDebugPanel" parent="." unique_id=1229074069 instance=ExtResource("1_rs376")]
+
+[node name="TestHelper" type="Node" parent="." unique_id=497485800]
+script = ExtResource("2_vycey")

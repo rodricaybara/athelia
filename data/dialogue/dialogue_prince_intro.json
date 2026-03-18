@@ -1,0 +1,71 @@
+{
+  "dialogue": {
+	"id": "DLG_PRINCE_INTRO",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "prince",
+		"text_key": "DLG_PRINCE_01",
+		"portrait_id": "prince_neutral",
+		"options": [
+		  {
+			"id": "O1",
+			"text_key": "DLG_OPT_POLITE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_MEET_PRINCE"],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O2",
+			"text_key": "DLG_OPT_RUDE",
+			"required_flags": [],
+			"blocked_flags": ["PRINCE_MET"],
+			"narrative_events": [],
+			"next_node_id": "N3"
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "prince",
+		"text_key": "DLG_PRINCE_02_POLITE",
+		"portrait_id": "prince_smile",
+		"options": [
+		  {
+			"id": "O3",
+			"text_key": "DLG_OPT_GOODBYE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  }
+		]
+	  },
+	  {
+		"id": "N3",
+		"speaker_id": "prince",
+		"text_key": "DLG_PRINCE_03_RUDE",
+		"portrait_id": "prince_angry",
+		"options": [
+		  {
+			"id": "O4",
+			"text_key": "DLG_OPT_APOLOGIZE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O5",
+			"text_key": "DLG_OPT_LEAVE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  }
+		]
+	  }
+	]
+  }
+}

@@ -1,0 +1,120 @@
+extends Label
+class_name DamageNumber
+
+## DamageNumber - Label flotante que muestra daño
+## Se auto-destruye después de la animación
+##
+## Uso:
+##   var dmg_num = DamageNumber.instantiate()
+##   dmg_num.setup(damage, position, is_critical)
+##   add_child(dmg_num)
+
+# ============================================
+# CONFIGURACIÓN
+# ============================================
+
+## Duración de la animación (segundos)
+const ANIMATION_DURATION: float = 0.8
+
+## Altura que sube el número
+const FLOAT_HEIGHT: float = 60.0
+
+## Colores por tipo de daño
+const COLOR_NORMAL: Color = Color.WHITE
+const COLOR_CRITICAL: Color = Color(1.0, 0.3, 0.3)  # Rojo brillante
+const COLOR_HEAL: Color = Color(0.3, 1.0, 0.3)      # Verde
+const COLOR_MISS: Color = Color(0.356, 0.69, 0.354, 1.0)      # Gris
+
+## Tamaños de fuente
+const FONT_SIZE_NORMAL: int = 24
+const FONT_SIZE_CRITICAL: int = 36
+const FONT_SIZE_MISS: int = 20
+
+
+# ============================================
+# SETUP
+# ============================================
+
+## Configura el damage number antes de mostrarlo
+func setup(damage: float, spawn_pos: Vector2, is_critical: bool = false, is_heal: bool = false, is_miss: bool = false) -> void:
+	# Posición inicial
+	global_position = spawn_pos
+	
+	# Configurar texto
+	if is_miss:
+		text = "MISS"
+		modulate = COLOR_MISS
+		add_theme_font_size_override("font_size", FONT_SIZE_MISS)
+	elif is_heal:
+		text = "+%.0f" % damage
+		modulate = COLOR_HEAL
+		add_theme_font_size_override("font_size", FONT_SIZE_NORMAL)
+	elif is_critical:
+		text = "%.0f!" % damage
+		modulate = COLOR_CRITICAL
+		add_theme_font_size_override("font_size", FONT_SIZE_CRITICAL)
+	else:
+		text = "%.0f" % damage
+		modulate = COLOR_NORMAL
+		add_theme_font_size_override("font_size", FONT_SIZE_NORMAL)
+	
+	# Centrar el texto
+	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	
+	# Outline para mejor visibilidad
+	add_theme_color_override("font_outline_color", Color.BLACK)
+	add_theme_constant_override("outline_size", 2)
+	
+	# Iniciar animación
+	_animate()
+
+
+## Animación de float + fade
+func _animate() -> void:
+	var tween = create_tween()
+	tween.set_parallel(true)  # Ejecutar tweens en paralelo
+	
+	# Movimiento hacia arriba
+	tween.tween_property(
+		self,
+		"position:y",
+		position.y - FLOAT_HEIGHT,
+		ANIMATION_DURATION
+	).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	
+	# Fade out (empezar a 0.5s para que dure más visible)
+	tween.tween_property(
+		self,
+		"modulate:a",
+		0.0,
+		ANIMATION_DURATION * 0.6
+	).set_ease(Tween.EASE_IN).set_delay(ANIMATION_DURATION * 0.4)
+	
+	# Pequeño movimiento lateral aleatorio para variedad
+	var random_x = randf_range(-20, 20)
+	tween.tween_property(
+		self,
+		"position:x",
+		position.x + random_x,
+		ANIMATION_DURATION
+	).set_ease(Tween.EASE_OUT)
+	
+	# Auto-destruirse al terminar
+	tween.tween_callback(_on_animation_finished).set_delay(ANIMATION_DURATION)
+
+
+## Callback cuando termina la animación
+func _on_animation_finished() -> void:
+	queue_free()
+
+
+# ============================================
+# FACTORY METHOD (opcional)
+# ============================================
+
+## Crea una instancia configurada (uso estático)
+static func create(damage: float, spawn_pos: Vector2, is_critical: bool = false, is_heal: bool = false, is_miss: bool = false) -> DamageNumber:
+	var instance = DamageNumber.new()
+	instance.setup(damage, spawn_pos, is_critical, is_heal, is_miss)
+	return instance

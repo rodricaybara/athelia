@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="LootTableDefinition" format=3 uid="uid://dcl1kr2gyocpk"]
+
+[ext_resource type="Script" uid="uid://m7pv87pnyqjj" path="res://core/world_objects/loot_table_definition.gd" id="1_ltdef"]
+[ext_resource type="Script" uid="uid://b0f01pn2b4lec" path="res://core/world_objects/loot_entry.gd" id="2_lentry"]
+
+[sub_resource type="Resource" id="Entry_HealthPotion"]
+script = ExtResource("2_lentry")
+item_id = "health_potion"
+quantity = 2
+
+[sub_resource type="Resource" id="Entry_StaminaPotion"]
+script = ExtResource("2_lentry")
+item_id = "stamina_potion_small"
+chance = 0.5
+
+[sub_resource type="Resource" id="Entry_Gold"]
+script = ExtResource("2_lentry")
+item_id = "gold"
+quantity = 30
+
+[resource]
+script = ExtResource("1_ltdef")
+id = "chest_iron_rich"
+entries = Array[ExtResource("2_lentry")]([SubResource("Entry_HealthPotion"), SubResource("Entry_StaminaPotion"), SubResource("Entry_Gold")])

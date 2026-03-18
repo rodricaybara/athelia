@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://d3ciqkvw2djru"]
+
+[node name="TestNarrativeSystem" type="Node2D" unique_id=1992350042]
+
+[node name="Node" type="Node" parent="." unique_id=202110239]
+
+[node name="testDialogueDefinitions" type="Node" parent="." unique_id=2073132925]
+
+[node name="testDialogueSystem" type="Node" parent="." unique_id=203292432]
+
+[node name="testDialogueDefinitions2" type="Node" parent="." unique_id=2113794757]
+
+[node name="testCheckPoints" type="Node" parent="." unique_id=1922849622]
+
+[node name="testCleanup" type="Node" parent="." unique_id=332217065]
+
+[node name="TestCheckpointApplication" type="Node" parent="." unique_id=1558745766]
+
+[node name="TestCheckpointPersistence" type="Node" parent="." unique_id=81549801]

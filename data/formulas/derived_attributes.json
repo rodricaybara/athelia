@@ -1,0 +1,152 @@
+{
+  "_comment": "Data-driven formulas for derived character attributes",
+  "_version": "1.1",
+  "_created": "2025-02-03",
+  "_updated": "2026-03-17",
+  "_validation_method": "character_spike_test.gd (5/5 tests passed)",
+  "_status": "PRODUCTION-READY",
+  "_spike_doc": "AttributeResolver Data-Driven Formulas Spike - COMPLETED",
+  
+  "_format_notes": [
+	"All formulas use type 'linear_combination' for this version",
+	"base_constant is optional (defaults to 0.0)",
+	"terms is an array of {attribute, coefficient} pairs",
+	"Mathematical interpretation: result = base_constant + sum(attribute_value x coefficient)",
+	"Attributes referenced must exist in CharacterDefinition.base_attributes",
+    "To add new derived attributes: add entries to this file and restart Godot"
+  ],
+
+  "_extension_guide": [
+	"To add a new derived attribute:",
+	"1. Add new entry below with unique key (e.g., 'critical_chance')",
+	"2. Set type to 'linear_combination'",
+	"3. Define base_constant (optional) and terms array",
+	"4. Restart Godot to load new formula",
+	"5. Access via AttributeResolver.resolve(entity_id, 'your_new_attribute')",
+	"",
+	"Example:",
+	"{",
+	"  \"critical_chance\": {",
+	"    \"type\": \"linear_combination\",",
+	"    \"description\": \"Base critical hit chance\",",
+	"    \"base_constant\": 5.0,",
+	"    \"terms\": [",
+	"      { \"attribute\": \"dexterity\", \"coefficient\": 0.5 },",
+	"      { \"attribute\": \"intelligence\", \"coefficient\": 0.25 }",
+	"    ]",
+	"  }",
+    "}"
+  ],
+
+  "base_damage": {
+	"type": "linear_combination",
+	"description": "Base physical damage for attacks. Formula: 5 + (strength x 0.8) + (dexterity x 0.2)",
+	"base_constant": 5,
+	"terms": [
+	  {
+		"attribute": "strength",
+		"coefficient": 0.8,
+		"description": "Primary damage stat"
+	  },
+	  {
+		"attribute": "dexterity",
+		"coefficient": 0.2,
+		"description": "Secondary damage stat (finesse)"
+	  }
+	]
+  },
+
+  "melee_damage": {
+	"type": "linear_combination",
+	"description": "Base melee damage bonus from strength. Increased by melee weapons via equipped modifier.",
+	"base_constant": 0.0,
+	"terms": [
+	  {
+		"attribute": "strength",
+		"coefficient": 0.5,
+		"description": "Melee power scales with strength"
+	  }
+	]
+  },
+
+  "ranged_damage": {
+	"type": "linear_combination",
+	"description": "Base ranged damage bonus. Increased by ranged weapons via equipped modifier.",
+	"base_constant": 0.0,
+	"terms": [
+	  {
+		"attribute": "dexterity",
+		"coefficient": 0.7,
+		"description": "Primary stat for ranged attacks (aim, precision)"
+	  },
+	  {
+		"attribute": "strength",
+		"coefficient": 0.3,
+		"description": "Secondary stat (draw weight, throw force)"
+	  }
+	]
+  },
+
+  "armor_rating": {
+	"type": "linear_combination",
+	"description": "Flat damage reduction applied to every incoming hit. Base 0 — entirely driven by equipped armor items. Formula: damage_final = max(1, damage - armor_rating).",
+	"base_constant": 0.0,
+	"terms": []
+  },
+
+  "health_max": {
+	"type": "linear_combination",
+	"description": "Maximum health points",
+	"base_constant": 0.0,
+	"terms": [
+	  {
+		"attribute": "constitution",
+		"coefficient": 5.0
+	  }
+	]
+  },
+
+  "stamina_max": {
+	"type": "linear_combination",
+	"description": "Maximum stamina points",
+	"base_constant": 0.0,
+	"terms": [
+	  {
+		"attribute": "constitution",
+		"coefficient": 2.0
+	  },
+	  {
+		"attribute": "strength",
+		"coefficient": 1.5
+	  }
+	]
+  },
+
+  "initiative": {
+	"type": "linear_combination",
+	"description": "Initiative bonus for turn order",
+	"base_constant": 0.0,
+	"terms": [
+	  {
+		"attribute": "dexterity",
+		"coefficient": 1.0
+	  },
+	  {
+		"attribute": "wisdom",
+		"coefficient": 0.5
+	  }
+	]
+  },
+
+  "armor_class": {
+	"type": "linear_combination",
+	"description": "Armor class (defense rating) — legacy field, kept for compatibility",
+	"base_constant": 10.0,
+	"terms": [
+	  {
+		"attribute": "dexterity",
+		"coefficient": 1.0
+	  }
+	]
+  }
+}

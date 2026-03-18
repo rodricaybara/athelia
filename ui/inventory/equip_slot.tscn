@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://cxi21wsjjyfwq"]
+
+[ext_resource type="Script" uid="uid://cydp21m8np6j8" path="res://ui/inventory/equip_slot.gd" id="1_5fsji"]
+
+[node name="EquipSlot" type="PanelContainer" unique_id=844412102]
+custom_minimum_size = Vector2(80, 80)
+offset_right = 80.0
+offset_bottom = 80.0
+script = ExtResource("1_5fsji")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=510295367]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=186741647]
+layout_mode = 2
+alignment = 1
+
+[node name="IconRect" type="TextureRect" parent="MarginContainer/VBoxContainer" unique_id=1930486366]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="SlotLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1742938171]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+
+[node name="Button" type="Button" parent="." unique_id=539330554]
+layout_mode = 2
+mouse_filter = 1
+flat = true

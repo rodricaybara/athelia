@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://0ctspfwtop78"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.attack.ranged"
+name_key = "SKILL_ATTACK_RANGED_NAME"
+description_key = "SKILL_ATTACK_RANGED_DESC"
+mode = "COMBAT"
+costs = {
+"stamina": 12.0
+}
+base_cooldown = 2.0
+target_type = "SINGLE_ENEMY"
+range_type = "MEDIUM"
+effects = [{
+"base_damage_attribute": "ranged_damage",
+"duration": 0.3,
+"type": "DAMAGE",
+"value": 1.1
+}]
+tags = Array[String](["attack", "ranged", "basic", "physical"])
+base_success_rate = 35
+attribute_weights = {
+"dexterity": 0.8,
+"strength": 0.2
+}
+max_ticks_per_combat = 3

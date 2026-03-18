@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ResourceDefinition" load_steps=2 format=3 uid="uid://bndilpxi6ggva"]
+
+[ext_resource type="Script" uid="uid://baqglcfoa4xva" path="res://core/resources/resource_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "stamina"
+name_key = "RESOURCE_STAMINA_NAME"
+description_key = "RESOURCE_STAMINA_DESC"
+regen_rate = 5.0
+regen_delay = 2.0
+debug_color = Color(0.2, 0.8, 0.2, 1)

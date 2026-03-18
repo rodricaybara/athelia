@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://dc2bv2otbte76"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.attack.heavy"
+name_key = "SKILL_ATTACK_HEAVY_NAME"
+description_key = "SKILL_ATTACK_HEAVY_DESC"
+mode = "COMBAT"
+costs = {
+"stamina": 25.0
+}
+base_cooldown = 3.0
+target_type = "SINGLE_ENEMY"
+effects = [{
+"duration": 0.6,
+"type": "DAMAGE",
+"value": 2.0
+}]
+tags = Array[String](["attack", "melee", "heavy", "physical"])
+base_success_rate = 5

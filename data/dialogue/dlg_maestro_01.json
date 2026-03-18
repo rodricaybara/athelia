@@ -1,0 +1,71 @@
+{
+  "dialogue": {
+	"id": "DLG_MAESTRO_01",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "maestro",
+		"text_key": "DLG_MAESTRO_01_GREET",
+		"portrait_id": "maestro",
+		"options": [
+		  {
+			"id": "O1",
+			"text_key": "DLG_MAESTRO_OPT_TEACH",
+			"required_flags": ["flag.attack_light_practiced"],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O2",
+			"text_key": "DLG_MAESTRO_OPT_NOT_READY",
+			"required_flags": [],
+			"blocked_flags": ["flag.attack_light_practiced"],
+			"narrative_events": [],
+			"next_node_id": "N3"
+		  },
+		  {
+			"id": "O3",
+			"text_key": "DLG_OPT_LEAVE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "maestro",
+		"text_key": "DLG_MAESTRO_01_TEACH",
+		"portrait_id": "maestro",
+		"options": [
+		  {
+			"id": "O4",
+			"text_key": "DLG_OPT_CONFIRM",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_UNLOCK_HEAVY_ATTACK"],
+			"next_node_id": ""
+		  }
+		]
+	  },
+	  {
+		"id": "N3",
+		"speaker_id": "maestro",
+		"text_key": "DLG_MAESTRO_01_NOT_READY",
+		"portrait_id": "maestro",
+		"options": [
+		  {
+			"id": "O5",
+			"text_key": "DLG_OPT_LEAVE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": ""
+		  }
+		]
+	  }
+	]
+  }
+}

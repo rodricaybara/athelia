@@ -1,0 +1,170 @@
+[gd_scene format=4 uid="uid://dtts1n3voh8vo"]
+
+[ext_resource type="PackedScene" uid="uid://7h51sd8ork6m" path="res://scenes/player/player.tscn" id="1_da6vm"]
+[ext_resource type="PackedScene" uid="uid://dyf8y5kt7ab7m" path="res://scenes/player/player_ui.tscn" id="2_da6vm"]
+[ext_resource type="PackedScene" uid="uid://wp4548e2r22d" path="res://scenes/player/save_feedback_ui.tscn" id="3_st4qh"]
+[ext_resource type="PackedScene" uid="uid://dxe7qq2pgp6jg" path="res://ui/inventory/inventory_ui.tscn" id="4_51e2l"]
+[ext_resource type="Script" uid="uid://dfrvr13jdsce3" path="res://test/manual_test_setup.gd" id="5_oj4i3"]
+[ext_resource type="Script" uid="uid://d3rrj23mtsncg" path="res://test/test_e2e_manual_inventory.gd" id="7_1suh2"]
+[ext_resource type="Texture2D" uid="uid://bfhk4bcdwtso3" path="res://assets/map_tile.png" id="7_2ns80"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_da6vm"]
+size = Vector2(2000, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_st4qh"]
+size = Vector2(2000, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_51e2l"]
+size = Vector2(50, 2000)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oj4i3"]
+size = Vector2(50, 2000)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_51e2l"]
+radius = 30.0
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1suh2"]
+texture = ExtResource("7_2ns80")
+texture_region_size = Vector2i(64, 64)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+2:1/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_2ns80"]
+tile_size = Vector2i(64, 64)
+sources/0 = SubResource("TileSetAtlasSource_1suh2")
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2ns80"]
+texture = ExtResource("7_2ns80")
+texture_region_size = Vector2i(64, 64)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+0:1/0 = 0
+0:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-32, -32, 0.28222656, -32, 0.28222656, 32, -32, 32)
+1:1/0 = 0
+2:1/0 = 0
+2:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-0.8467102, -32, 32, -32, 32, 32, -32, 32, -32, 2.5401306, -1.4111938, 2.5401306)
+
+[sub_resource type="TileSet" id="TileSet_5unt0"]
+tile_size = Vector2i(64, 64)
+physics_layer_0/collision_layer = 1
+sources/0 = SubResource("TileSetAtlasSource_2ns80")
+
+[node name="TestWorld" type="Node2D" unique_id=514688377]
+
+[node name="Background" type="ColorRect" parent="." unique_id=282135478]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1764706, 0.3137255, 0.08627451, 1)
+
+[node name="Player" parent="." unique_id=1941823145 instance=ExtResource("1_da6vm")]
+
+[node name="Walls" type="Node2D" parent="." unique_id=319724418]
+
+[node name="WallTop" type="StaticBody2D" parent="Walls" unique_id=1843497569]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTop" unique_id=1383983622]
+position = Vector2(0, -500)
+shape = SubResource("RectangleShape2D_da6vm")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallTop" unique_id=1536413744]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1000.0
+offset_top = -525.0
+offset_right = 1000.0
+offset_bottom = -475.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="WallBotom" type="StaticBody2D" parent="Walls" unique_id=1999449729]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBotom" unique_id=289901664]
+position = Vector2(0, 500)
+shape = SubResource("RectangleShape2D_st4qh")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallBotom" unique_id=1171246556]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1000.0
+offset_top = 475.0
+offset_right = 1000.0
+offset_bottom = 525.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="WallRight" type="StaticBody2D" parent="Walls" unique_id=1134776443]
+position = Vector2(500, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRight" unique_id=807886641]
+shape = SubResource("RectangleShape2D_51e2l")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallRight" unique_id=1841405269]
+offset_left = -25.0
+offset_top = -1000.0
+offset_right = 25.0
+offset_bottom = 1000.0
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="StaticBody2D" type="StaticBody2D" parent="Walls" unique_id=660200482]
+position = Vector2(-500, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/StaticBody2D" unique_id=606542406]
+shape = SubResource("RectangleShape2D_oj4i3")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/StaticBody2D" unique_id=828796185]
+offset_left = -25.0
+offset_top = -1000.0
+offset_right = 25.0
+offset_bottom = 1000.0
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="Obstacules" type="Node2D" parent="." unique_id=155459768]
+
+[node name="Rock1" type="StaticBody2D" parent="Obstacules" unique_id=535957063]
+position = Vector2(100, -200)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacules/Rock1" unique_id=185602411]
+shape = SubResource("CircleShape2D_51e2l")
+
+[node name="ColorRect" type="ColorRect" parent="Obstacules/Rock1" unique_id=972207941]
+offset_left = -30.0
+offset_top = -30.0
+offset_right = 30.0
+offset_bottom = 30.0
+color = Color(0.39607844, 0.2627451, 0.12941177, 1)
+
+[node name="PlayerUi" parent="." unique_id=1958740302 instance=ExtResource("2_da6vm")]
+visible = false
+
+[node name="SaveFeedbackUI" parent="." unique_id=720615375 instance=ExtResource("3_st4qh")]
+visible = false
+
+[node name="InventoryUI" parent="." unique_id=70760509 instance=ExtResource("4_51e2l")]
+visible = false
+
+[node name="testInventario" type="Node" parent="." unique_id=394919828]
+script = ExtResource("5_oj4i3")
+
+[node name="TestE2EManual" type="Node" parent="." unique_id=916385194]
+script = ExtResource("7_1suh2")
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=451915301]
+z_index = -1
+tile_map_data = PackedByteArray("AAD9//v/AAAAAAAAAAD+//v/AAAAAAAAAAD///v/AAAAAAAAAAAAAPv/AAAAAAAAAAABAPv/AAAAAAAAAAACAPv/AAAAAAAAAAADAPv/AAAAAAAAAAD9//z/AAAAAAAAAAD+//z/AAAAAAAAAAD///z/AAAAAAAAAAAAAPz/AAAAAAAAAAABAPz/AAAAAAAAAAACAPz/AAAAAAAAAAADAPz/AAAAAAAAAAD9//3/AAAAAAAAAAD+//3/AAAAAAAAAAD///3/AAAAAAAAAAAAAP3/AAAAAAAAAAABAP3/AAAAAAAAAAACAP3/AAAAAAAAAAADAP3/AAAAAAAAAAD9//7/AAAAAAAAAAD+//7/AAAAAAAAAAD///7/AAAAAAAAAAAAAP7/AAAAAAAAAAABAP7/AAAAAAAAAAACAP7/AAAAAAAAAAADAP7/AAAAAAAAAAD9////AAAAAAAAAAD+////AAAAAAAAAAD/////AAAAAAAAAAAAAP//AAAAAAAAAAABAP//AAAAAAAAAAACAP//AAAAAAAAAAADAP//AAAAAAAAAAD9/wAAAAAAAAAAAAD+/wAAAAAAAAAAAAD//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAADAAAAAAAAAAAAAAA=")
+tile_set = SubResource("TileSet_2ns80")
+
+[node name="TileMapLayer2" type="TileMapLayer" parent="." unique_id=181331859]
+tile_map_data = PackedByteArray("AAD9//7/AAACAAAAADD9//3/AAACAAAAADD9//z/AAACAAAAADD9////AAACAAAAADD+/wAAAAACAAEAAAD//wAAAAAAAAEAAGAAAAAAAAAAAAEAAGABAAAAAAAAAAEAAGACAAAAAAACAAEAAFD+//v/AAACAAAAAGD///v/AAACAAAAAGAAAPv/AAACAAAAAGABAPv/AAACAAAAAGACAPv/AAACAAAAAGADAPz/AAACAAAAAAADAP3/AAACAAAAAAADAP7/AAACAAAAAAADAP//AAACAAAAAAD9/wAAAAACAAEAAFD9//v/AAACAAEAADADAPv/AAACAAEAAGADAAAAAAACAAEAAAD+////AAACAAAAAAA=")
+tile_set = SubResource("TileSet_5unt0")

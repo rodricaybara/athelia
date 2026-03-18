@@ -1,0 +1,157 @@
+{
+  "narrative_events": [
+	{
+	  "id": "EVT_MEET_PRINCE",
+	  "description": "El protagonista conoce al príncipe",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_PRINCE_INTRO",
+	  "add_flags": ["PRINCE_MET"],
+	  "remove_flags": [],
+	  "set_variables": {
+		"reputation": 10
+	  }
+	},
+	{
+	  "id": "EVT_JOIN_ACADEMY",
+	  "description": "El protagonista se une a la academia",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_ACADEMY_ACCEPT",
+	  "add_flags": ["ACADEMY_JOINED"],
+	  "remove_flags": ["TUTORIAL_ACTIVE"],
+	  "set_variables": {
+		"academy_reputation": 0,
+		"student_rank": 1
+	  }
+	},
+	{
+	  "id": "EVT_FIRST_BATTLE",
+	  "description": "Primera batalla del protagonista",
+	  "trigger_type": "COMBAT_END",
+	  "trigger_ref_id": "COMBAT_TUTORIAL_01",
+	  "add_flags": ["FIRST_BATTLE_COMPLETED"],
+	  "remove_flags": [],
+	  "set_variables": {
+		"battles_won": 1
+	  }
+	},
+	{
+	  "id": "EVT_ENTER_FOREST",
+	  "description": "El protagonista entra al bosque oscuro",
+	  "trigger_type": "AREA_ENTER",
+	  "trigger_ref_id": "AREA_DARK_FOREST",
+	  "add_flags": ["FOREST_DISCOVERED"],
+	  "remove_flags": [],
+	  "set_variables": {}
+	},
+	{
+	  "id": "EVT_USE_MAGIC_ITEM",
+	  "description": "El protagonista usa un objeto mágico",
+	  "trigger_type": "ITEM_USED",
+	  "trigger_ref_id": "ITEM_MAGIC_ORB",
+	  "add_flags": ["MAGIC_AWAKENED"],
+	  "remove_flags": [],
+	  "set_variables": {
+		"magic_power": 5
+	  }
+	},
+	{
+	  "id": "EVT_BETRAY_PRINCE",
+	  "description": "El protagonista traiciona al príncipe",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_PRINCE_BETRAY",
+	  "add_flags": ["PRINCE_BETRAYED"],
+	  "remove_flags": ["PRINCE_MET"],
+	  "set_variables": {
+		"reputation": -50,
+		"karma": -100
+	  }
+	},
+	{
+	  "id": "EVT_TEMP_FLAG",
+	  "description": "Flag temporal que debe morir en el siguiente checkpoint",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_TEST_SIMPLE",
+	  "add_flags": ["TEMP_RUDE_TO_GUARD"],
+	  "remove_flags": [],
+	  "set_variables": {}
+	},
+	{
+	  "id": "EVT_REPUTATION_FAIR",
+	  "description": "Decisión justa con el mercader — contribuye positiva al vector reputation",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_TEST_DECISION",
+	  "add_flags": [],
+	  "remove_flags": [],
+	  "set_variables": {
+		"reputation_act1_fair": 10
+	  }
+	},
+	{
+	  "id": "EVT_REPUTATION_HAGGLE",
+	  "description": "Regateo con el mercader — contribución negativa menor al vector reputation",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_TEST_DECISION",
+	  "add_flags": [],
+	  "remove_flags": [],
+	  "set_variables": {
+		"reputation_act1_haggle": -5
+	  }
+	},
+	{
+	  "id": "EVT_REPUTATION_STEAL",
+	  "description": "Robo al mercader — contribución negativa fuerte al vector reputation",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_TEST_DECISION",
+	  "add_flags": [],
+	  "remove_flags": [],
+	  "set_variables": {
+		"reputation_act1_steal": -20
+	  }
+	},
+	{
+	  "id": "EVT_UNLOCK_HEAVY_ATTACK",
+	  "description": "El maestro enseña el ataque pesado al jugador tras demostrar dominio del ataque básico",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_MAESTRO_01",
+	  "add_flags": ["flag.heavy_attack_learned"],
+	  "remove_flags": [],
+	  "set_variables": {},
+	  "game_effects": [
+		{
+		  "type": "unlock_skill",
+		  "entity_id": "player",
+		  "skill_id": "skill.attack.heavy"
+		}
+	  ]
+	},
+	{
+	  "id": "EVT_TRAINING_COMPLETE",
+	  "description": "El entrenador completa una sesión de entrenamiento con el jugador",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_TRAINER_01",
+	  "add_flags": ["flag.attack_light_practiced"],
+	  "remove_flags": [],
+	  "set_variables": {},
+	  "game_effects": [
+		{
+		  "type": "start_learning",
+		  "entity_id": "player",
+		  "skill_id": "skill.attack.light",
+		  "source_level": 45,
+		  "source_type": "TRAINER"
+		}
+	  ]
+	},
+	{
+	  "id": "evt.trap_triggered",
+	  "description": "Una trampa se activa al fallar una interacción con un objeto del mundo (pifia)",
+	  "trigger_type": "WORLD_OBJECT_FUMBLE",
+	  "trigger_ref_id": "",
+	  "add_flags": ["flag.trap_triggered"],
+	  "remove_flags": [],
+	  "set_variables": {
+		"traps_triggered": 1
+	  }
+	}
+  ]
+}

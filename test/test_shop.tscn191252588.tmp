@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://dvxwd52sps6ke"]
+
+[ext_resource type="Script" uid="uid://baw37rijc1qj2" path="res://test/test_shop_data.gd" id="1_tocf4"]
+[ext_resource type="Script" uid="uid://rqwaqva2bhru" path="res://test/test_economy_system.gd" id="2_ak7bt"]
+[ext_resource type="PackedScene" uid="uid://7h51sd8ork6m" path="res://scenes/player/player.tscn" id="3_j78fy"]
+[ext_resource type="PackedScene" uid="uid://dxe7qq2pgp6jg" path="res://ui/inventory/inventory_ui.tscn" id="4_whw3h"]
+[ext_resource type="PackedScene" uid="uid://dyf8y5kt7ab7m" path="res://scenes/player/player_ui.tscn" id="5_rwqf0"]
+
+[node name="TestShop" type="Node2D" unique_id=813542885]
+
+[node name="test_shop_data" type="Node" parent="." unique_id=1812233713]
+script = ExtResource("1_tocf4")
+
+[node name="test_economy_system" type="Node" parent="." unique_id=270227814]
+script = ExtResource("2_ak7bt")
+
+[node name="Player" parent="." unique_id=927894603 instance=ExtResource("3_j78fy")]
+
+[node name="InventoryUi" parent="." unique_id=273446129 instance=ExtResource("4_whw3h")]
+
+[node name="PlayerUi" parent="." unique_id=1641958405 instance=ExtResource("5_rwqf0")]

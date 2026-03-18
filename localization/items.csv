@@ -1,0 +1,27 @@
+id,en,es
+ITEM_STAMINA_POTION_SMALL_NAME,Small Stamina Potion,Poción Menor de Estamina
+ITEM_STAMINA_POTION_SMALL_DESC,Restores 50 stamina. A humble but effective brew.,Restaura 50 de resistencia. Una poción humilde pero efectiva.
+ITEM_HEALTH_POTION_NAME,Health Potion, Pocion de vida
+ITEM_HEALTH_POTION_DESC,Restores 10 health, Restaura 50 de vida
+ITEM_IRON_SWORD_NAME,Iron Sword,Espada de hierro
+ITEM_IRON_SWORD_DESC,Old iron sword. Adds 5 damage points,Vieja espada de hierro. Añade 5 puntos de daño
+ITEM_STEEL_SWORD_NAME,Steel Sword,Espada de acero 
+ITEM_STEEL_SWORD_DESC,Steel sword. Adds 10 damage points,Espada de acero. Añade 10 puntos de daño básico
+ITEM_BOOK_COMBAT_BASICS_NAME,Basic combat learning book,Libro de aprendizaje de combate básico
+ITEM_BOOK_COMBAT_BASICS_DESC,Basic combat learning book,Libro de aprendizaje de combate básico
+ITEM_LEATHER_ARMOR_NAME,Leather Armor,Armadura de cuero
+ITEM_LEATHER_ARMOR_DESC,Light armor made of tanned leather. Reduces incoming damage by 5.,Armadura ligera de cuero curtido. Reduce el daño recibido en 5.
+ITEM_IRON_HELMET_NAME,Iron Helmet,Casco de hierro
+ITEM_IRON_HELMET_DESC,A sturdy iron helmet. Reduces incoming damage by 3.,Un resistente casco de hierro. Reduce el daño recibido en 3.
+ITEM_LEATHER_BOOTS_NAME,Leather Boots,Botas de cuero
+ITEM_LEATHER_BOOTS_DESC,Supple boots that improve agility. Adds 2 dexterity.,Botas flexibles que mejoran la agilidad. Añade 2 de destreza.
+ITEM_WOODEN_SHIELD_NAME,Wooden Shield,Escudo de madera
+ITEM_WOODEN_SHIELD_DESC,A basic wooden shield reinforced with iron bands. Reduces incoming damage by 4.,Un escudo de madera básico reforzado con bandas de hierro. Reduce el daño recibido en 4.
+ITEM_AMULET_STRENGTH_NAME,Amulet of Strength,Amuleto de fuerza
+ITEM_AMULET_STRENGTH_DESC,An enchanted amulet that enhances physical power. Adds 2 strength.,Un amuleto encantado que potencia la fuerza física. Añade 2 de fuerza.
+ITEM_SHORTBOW_NAME,Shortbow,Arco corto
+ITEM_SHORTBOW_DESC,A light bow suited for quick shots at medium range. Adds 4 ranged damage.,Un arco ligero para disparos rápidos a distancia media. Añade 4 de daño a distancia.
+ITEM_RING_STAMINA_NAME,Ring of Endurance,Anillo de resistencia
+ITEM_RING_STAMINA_DESC,An enchanted ring that increases maximum stamina by 10.,Un anillo encantado que aumenta la stamina máxima en 10.
+ITEM_RING_HEALTH_NAME,Ring of Vitality,Anillo de vitalidad
+ITEM_RING_HEALTH_DESC,An enchanted ring that increases maximum health by 10%.,Un anillo encantado que aumenta la salud máxima en un 10%.

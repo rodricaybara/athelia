@@ -1,0 +1,211 @@
+[gd_scene format=3 uid="uid://6fg28vckl2hf"]
+
+[ext_resource type="Script" uid="uid://b46wygfvqy2dq" path="res://scenes/exploration/exploration_test.gd" id="1_bbrv3"]
+[ext_resource type="Script" uid="uid://dadcx7potxl5c" path="res://scenes/exploration/exploration_controller.gd" id="2_xugn0"]
+[ext_resource type="Script" uid="uid://h4ojab1vgp2b" path="res://scenes/exploration/exploration_hud.gd" id="3_xugn0"]
+[ext_resource type="Script" uid="uid://ce0i30sbroo7t" path="res://scenes/exploration/interactable.gd" id="4_07imp"]
+[ext_resource type="Script" uid="uid://dgjotf8dgubju" path="res://scenes/exploration/player_exploration.gd" id="4_w2e4g"]
+[ext_resource type="Texture2D" uid="uid://dnut51qxnwtej" path="res://data/characters/portrait/personanje.png" id="5_bnndc"]
+[ext_resource type="Texture2D" uid="uid://b62ssa6f83tis" path="res://data/characters/portrait/orco.png" id="6_qxi36"]
+[ext_resource type="Texture2D" uid="uid://c5i7abr31flbv" path="res://data/characters/portrait/merchant.png" id="6_ropoi"]
+[ext_resource type="Texture2D" uid="uid://754lop13kjbm" path="res://data/characters/portrait/guard.png" id="7_bnndc"]
+[ext_resource type="Texture2D" uid="uid://bh6kr40xpjmoo" path="res://data/items/chest.png" id="9_sn42a"]
+[ext_resource type="Texture2D" uid="uid://cvs1apmklntn0" path="res://data/characters/portrait/trainer_02.png" id="11_mq0ej"]
+[ext_resource type="Texture2D" uid="uid://7mjew4yofi6g" path="res://data/characters/portrait/trainer_01.png" id="12_rcxvn"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_rv4np"]
+radius = 8.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ropoi"]
+radius = 20.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_07imp"]
+radius = 30.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_w2e4g"]
+radius = 30.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_qxi36"]
+radius = 30.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vuvxv"]
+radius = 30.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_trainer"]
+radius = 30.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_maestro"]
+radius = 30.0
+
+[node name="ExplorationTest" type="Node2D" unique_id=1153919779]
+script = ExtResource("1_bbrv3")
+
+[node name="ExplorationController" type="Node" parent="." unique_id=742659171]
+script = ExtResource("2_xugn0")
+
+[node name="ExplorationHUD" type="CanvasLayer" parent="." unique_id=187875432]
+layer = 5
+script = ExtResource("3_xugn0")
+
+[node name="InteractPrompt" type="Label" parent="ExplorationHUD" unique_id=1390790745]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -56.0
+offset_top = -23.0
+offset_right = 56.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "[E] Interactuar"
+
+[node name="ResourcesPanel" type="HBoxContainer" parent="ExplorationHUD" unique_id=648093782]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="HP" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=2077429644]
+layout_mode = 2
+text = "HP: --"
+
+[node name="Stamina" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=2113438706]
+layout_mode = 2
+text = "ST: --"
+
+[node name="Gold" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1475006863]
+layout_mode = 2
+text = "G: --"
+
+[node name="StateDebugLabel" type="Label" parent="ExplorationHUD" unique_id=74094148]
+modulate = Color(1, 1, 0, 0.70000005)
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -110.0
+offset_bottom = 23.0
+grow_horizontal = 0
+text = "EXPLORATION"
+
+[node name="World" type="Node2D" parent="." unique_id=1111400345]
+
+[node name="TileMapLayer" type="TileMapLayer" parent="World" unique_id=1293839924]
+
+[node name="TileMapLayer2" type="TileMapLayer" parent="World" unique_id=2035819982]
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=436042887 groups=["player"]]
+script = ExtResource("4_w2e4g")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1669050105]
+shape = SubResource("CircleShape2D_rv4np")
+
+[node name="InteractRange" type="Area2D" parent="Player" unique_id=379244232]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/InteractRange" unique_id=249927980]
+shape = SubResource("CircleShape2D_ropoi")
+
+[node name="Personaje" type="Sprite2D" parent="Player" unique_id=987687245]
+position = Vector2(0, -2)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("5_bnndc")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player" unique_id=337764098]
+visible = false
+
+[node name="NPCs" type="Node2D" parent="." unique_id=889700127]
+
+[node name="NPC_Mercader" type="Node2D" parent="NPCs" unique_id=1920384991]
+position = Vector2(100, -60)
+
+[node name="Interactable" type="Area2D" parent="NPCs/NPC_Mercader" unique_id=357104041]
+script = ExtResource("4_07imp")
+interaction_type = "shop"
+target_id = "blacksmith_01"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/NPC_Mercader/Interactable" unique_id=1034836046]
+shape = SubResource("CircleShape2D_07imp")
+
+[node name="Merchant" type="Sprite2D" parent="NPCs/NPC_Mercader" unique_id=89523798]
+position = Vector2(-4, -1)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("6_ropoi")
+
+[node name="NPC_Guardia" type="Node2D" parent="NPCs" unique_id=277889958]
+position = Vector2(-100, -60)
+
+[node name="Interactable" type="Area2D" parent="NPCs/NPC_Guardia" unique_id=314271488]
+script = ExtResource("4_07imp")
+target_id = "guard_01"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/NPC_Guardia/Interactable" unique_id=1028740778]
+shape = SubResource("CircleShape2D_w2e4g")
+
+[node name="Guard" type="Sprite2D" parent="NPCs/NPC_Guardia" unique_id=73994964]
+position = Vector2(6, 2)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("7_bnndc")
+
+[node name="Enemigo" type="Node2D" parent="NPCs" unique_id=1012887027]
+position = Vector2(-100, 60)
+
+[node name="Interactable" type="Area2D" parent="NPCs/Enemigo" unique_id=2115506682]
+script = ExtResource("4_07imp")
+interaction_type = "combat"
+target_id = "enemy_1"
+enemy_ids_override = Array[String](["enemy_1", "enemy_2"])
+enemy_definitions = {
+"enemy_1": "enemy_base",
+"enemy_2": "enemy_base",
+"enemy_3": "enemy_base"
+}
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/Enemigo/Interactable" unique_id=449423337]
+shape = SubResource("CircleShape2D_qxi36")
+
+[node name="Sprite2D" type="Sprite2D" parent="NPCs/Enemigo" unique_id=406127288]
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("6_qxi36")
+
+[node name="Cofre" type="Node2D" parent="NPCs" unique_id=446774745]
+position = Vector2(100, 60)
+
+[node name="Interactable" type="Area2D" parent="NPCs/Cofre" unique_id=455625055]
+script = ExtResource("4_07imp")
+interaction_type = "item"
+target_id = "chest_01"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/Cofre/Interactable" unique_id=409496472]
+shape = SubResource("CircleShape2D_vuvxv")
+
+[node name="Chest" type="Sprite2D" parent="NPCs/Cofre" unique_id=1453948999]
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("9_sn42a")
+
+[node name="NPC_Entrenador" type="Node2D" parent="NPCs" unique_id=1100000001]
+position = Vector2(0, -120)
+
+[node name="Interactable" type="Area2D" parent="NPCs/NPC_Entrenador" unique_id=1100000002]
+script = ExtResource("4_07imp")
+target_id = "DLG_TRAINER_01"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/NPC_Entrenador/Interactable" unique_id=1100000003]
+shape = SubResource("CircleShape2D_trainer")
+
+[node name="Sprite2D" type="Sprite2D" parent="NPCs/NPC_Entrenador" unique_id=1100000004]
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("11_mq0ej")
+
+[node name="NPC_Maestro" type="Node2D" parent="NPCs" unique_id=1100000005]
+position = Vector2(0, 120)
+
+[node name="Interactable" type="Area2D" parent="NPCs/NPC_Maestro" unique_id=1100000006]
+script = ExtResource("4_07imp")
+target_id = "DLG_MAESTRO_01"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/NPC_Maestro/Interactable" unique_id=1100000007]
+shape = SubResource("CircleShape2D_maestro")
+
+[node name="Sprite2D" type="Sprite2D" parent="NPCs/NPC_Maestro" unique_id=1100000008]
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("12_rcxvn")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=854381526]

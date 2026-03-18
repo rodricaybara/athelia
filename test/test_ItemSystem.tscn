@@ -1,0 +1,24 @@
+[gd_scene load_steps=6 format=3 uid="uid://dqm3wh8m55e2s"]
+
+[ext_resource type="Script" uid="uid://iubn2ohb3b74" path="res://test/test_item_definition.gd" id="1_bsy66"]
+[ext_resource type="Script" uid="uid://cds5hmp4qfg8c" path="res://test/test_localization.gd" id="2_74cnh"]
+[ext_resource type="Script" uid="uid://bct8fouiubmnf" path="res://test/test_item_instance.gd" id="3_74cnh"]
+[ext_resource type="Script" uid="uid://dpam05vhfy4ex" path="res://test/test_inventory_system.gd" id="4_vrb6u"]
+[ext_resource type="Script" uid="uid://htn87v4vw1nt" path="res://test/test_integration.gd" id="5_6amip"]
+
+[node name="TestItemSystem" type="Node2D"]
+
+[node name="ItemDefinition" type="Node" parent="."]
+script = ExtResource("1_bsy66")
+
+[node name="Location" type="Node" parent="."]
+script = ExtResource("2_74cnh")
+
+[node name="ItemInstance" type="Node" parent="."]
+script = ExtResource("3_74cnh")
+
+[node name="InventorySystem" type="Node" parent="."]
+script = ExtResource("4_vrb6u")
+
+[node name="TestIntegration" type="Node" parent="."]
+script = ExtResource("5_6amip")

@@ -1,0 +1,44 @@
+id,en,es
+WORLD_OBJECT_CHEST_IRON_NAME,Iron Chest,Cofre de hierro
+WORLD_OBJECT_CHEST_IRON_DESC,An iron chest with a lock.,Un cofre de hierro con cerradura.
+INTERACTION_FORCE_LOCK_LABEL,Force Lock,Forzar cerradura
+INTERACTION_FORCE_LOCK_DESC_INTACT,You attempt to open the chest by forcing the lock with your tools.,Intentas abrir el cofre forzando la cerradura con tus herramientas.
+INTERACTION_FORCE_LOCK_DESC_DAMAGED,The lock is damaged. It will be harder to open it cleanly.,La cerradura está dañada. Será más difícil abrirla con maña.
+INTERACTION_FORCE_LOCK_DESC_BREAKING,The lock is about to break. One last careful attempt.,La cerradura está a punto de romperse. Un último intento con cuidado.
+INTERACTION_FORCE_LOCK_CRITICAL,You open the chest with surgical precision and leave no trace!,¡Abres el cofre con precisión quirúrgica y sin dejar rastro!
+INTERACTION_FORCE_LOCK_SUCCESS,You manage to force the lock after several attempts.,Logras forzar la cerradura tras varios intentos.
+INTERACTION_FORCE_LOCK_FAILURE_INTACT,You fail. The mechanism does not give way but something crunches inside.,Fallas. El mecanismo no cede pero algo cruje en el interior.
+INTERACTION_FORCE_LOCK_FAILURE_DAMAGED,You fail again. The lock is now badly damaged.,Fallas de nuevo. La cerradura ha quedado muy deteriorada.
+INTERACTION_FORCE_LOCK_FAILURE_BREAKING,You fail. The lock breaks. Only brute force remains.,Fallas. La cerradura se rompe. Solo queda la fuerza bruta.
+INTERACTION_FORCE_LOCK_FUMBLE_INTACT,The lockpick breaks inside the lock and triggers a trap!,¡La ganzúa se rompe dentro de la cerradura y activa una trampa!
+INTERACTION_FORCE_LOCK_FUMBLE_DAMAGED,The lockpick slips and triggers a trap!,¡La ganzúa resbala y activa una trampa!
+INTERACTION_FORCE_LOCK_FUMBLE_BREAKING,The lockpick snaps and triggers a trap!,¡La ganzúa se parte y activa una trampa!
+INTERACTION_BREAK_OPEN_LABEL,Force Open,Forzar (fuerza)
+INTERACTION_BREAK_OPEN_DESC,The lock is broken. A good blow should be enough.,La cerradura está rota. Un buen golpe debería bastar.
+INTERACTION_BREAK_OPEN_CRITICAL,Perfect strike. The chest opens without damaging the contents.,Golpe perfecto. El cofre se abre sin destrozar el contenido.
+INTERACTION_BREAK_OPEN_SUCCESS,The chest gives way to your blows. Part of the contents was crushed.,El cofre cede a golpes. Parte del contenido quedó aplastado.
+INTERACTION_BREAK_OPEN_FAILURE,The blow was not enough. The chest holds.,El golpe no fue suficiente. El cofre aguanta.
+INTERACTION_BREAK_OPEN_FUMBLE,The blow bounces back. The contents were crushed.,El golpe rebota. El contenido quedó aplastado.
+INTERACTION_INSPECT_LABEL,Inspect,Inspeccionar
+INTERACTION_INSPECT_DESC,You examine the chest looking for traps or clues.,Examinas el cofre en busca de trampas o pistas.
+INTERACTION_INSPECT_CRITICAL,You detect a hidden trap in the mechanism and carefully disarm it!,Detectas que el cofre tiene una trampa oculta en el mecanismo. ¡La desactivas con cuidado!
+INTERACTION_INSPECT_SUCCESS,The chest looks handmade. You notice the lock is an old model.,El cofre parece hecho a mano. Notas que la cerradura es de un modelo antiguo.
+INTERACTION_INSPECT_FAILURE,You find nothing relevant at first glance.,No encuentras nada relevante a simple vista.
+INTERACTION_INSPECT_FUMBLE,While clumsily handling the chest you almost trigger something inside.,Al manipular el cofre torpemente casi activas algo en su interior.
+LORE_CHEST_01_INSPECT_BASIC,A forged iron chest. The lock bears the seal of a local blacksmith.,Un cofre de hierro forjado. La cerradura lleva el sello de un herrero local.
+LORE_CHEST_01_INSPECT_FULL,"A forged iron chest from decades ago. It has a poisoned needle trap in the left mechanism, already disarmed.","Un cofre de hierro forjado hace décadas. Lleva una trampa de aguja envenenada en el mecanismo izquierdo, ya desactivada."
+WORLD_OBJECT_DEPLETED,Nothing left to interact with.,No queda nada con lo que interactuar.
+SKILL_BRUTE_FORCE_NAME,Brute Force,Fuerza bruta
+SKILL_BRUTE_FORCE_DESC,Use raw physical strength to force open or destroy obstacles.,Usar la fuerza física bruta para abrir o destruir obstáculos.
+ITEM_LOCKPICK_QUALITY_NAME,Quality Lockpick,Ganzúa de calidad
+ITEM_LOCKPICK_QUALITY_DESC,A finely crafted lockpick. Grants a skill bonus for a single attempt. Consumed on use.,Una ganzúa de precisión artesanal. Otorga un bonus de habilidad para un único intento. Se consume al usarla.
+INTERACTION_USE_LOCKPICK_QUALITY_LABEL,Use quality lockpick  [item],Usar ganzúa de calidad  [objeto]
+INTERACTION_USE_LOCKPICK_QUALITY_DESC_INTACT,Apply a quality lockpick to the intact lock. +15 to lockpick for the next attempt.,Aplicar una ganzúa de calidad a la cerradura intacta. +15 a cerrajería para el próximo intento.
+INTERACTION_USE_LOCKPICK_QUALITY_DESC_DAMAGED,Apply a quality lockpick to the damaged lock. +15 to lockpick for the next attempt.,Aplicar una ganzúa de calidad a la cerradura dañada. +15 a cerrajería para el próximo intento.
+INTERACTION_USE_LOCKPICK_QUALITY_DESC_BREAKING,A last chance — apply a quality lockpick to the failing lock. +15 to lockpick for the next attempt.,Última oportunidad — aplicar una ganzúa de calidad a la cerradura al límite. +15 a cerrajería para el próximo intento.
+INTERACTION_USE_LOCKPICK_QUALITY_SUCCESS,You carefully insert the quality lockpick. Your hands feel steadier. (+15 lockpick),Insertas la ganzúa de calidad con cuidado. Sientes tus manos más firmes. (+15 cerrajería)
+INTERACTION_USE_LOCKPICK_QUALITY_FUMBLE,The quality lockpick slips and breaks. Wasted.,La ganzúa de calidad se resbala y se rompe. Desperdiciada.
+WORLD_OBJECT_LOOT_BAG_NAME,Loot Bag,Bolsa de botín
+WORLD_OBJECT_LOOT_BAG_DESC,A loot bag.,Una bolsa de botín.
+INTERACTION_LOOT_BAG_LABEL,Take loot,Recoger botín
+INTERACTION_LOOT_BAG_COLLECTED,Loot took,Botín recogido

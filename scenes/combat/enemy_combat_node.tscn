@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://86wy7uagx7tx"]
+
+[ext_resource type="Script" uid="uid://i7vn3kwvrig7" path="res://scenes/combat/enemy_combat_node.gd" id="1_yomvq"]
+[ext_resource type="Script" uid="uid://bru0fnpkmq7wy" path="res://ui/entity_animation_controller.gd" id="2_vk4ge"]
+
+[node name="EnemyCombatNode" type="Node2D" unique_id=41526382]
+script = ExtResource("1_yomvq")
+
+[node name="Label" type="Label" parent="." unique_id=425483850]
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="SpriteEnemy" type="Sprite2D" parent="." unique_id=1192124306]
+
+[node name="AnimationController" type="Node" parent="." unique_id=1978756394]
+script = ExtResource("2_vk4ge")

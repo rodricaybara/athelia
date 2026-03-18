@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://bjlufxt58rmqb"]
+
+[ext_resource type="PackedScene" uid="uid://ctv0qusk4wmu6" path="res://ui/shop/shop_ui.tscn" id="1_igqwr"]
+[ext_resource type="Script" uid="uid://b77pw2pkj24xa" path="res://test/test_shop_ui.gd" id="1_mi666"]
+
+[node name="TestShopUi" type="Node" unique_id=131026768]
+script = ExtResource("1_mi666")
+
+[node name="ShopUI" parent="." unique_id=872390202 instance=ExtResource("1_igqwr")]
+unique_name_in_owner = true

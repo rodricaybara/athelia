@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.exploration.sprint"
+name_key = "SKILL_SPRINT_NAME"
+description_key = "SKILL_SPRINT_DESC"
+mode = "EXPLORATION"
+category = "UTILITY"
+costs = {
+"stamina": 5.0
+}
+base_cooldown = 0.5
+target_type = "SELF"
+range_type = "MELEE"
+effects = [{
+"type": "SPEED_BOOST",
+"value": 1.5,
+"duration": 2.0
+}]
+tags = ["movement", "utility", "exploration"]

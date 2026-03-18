@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://de4sccwc7xart"]
+
+[ext_resource type="Script" uid="uid://c5xs6dlypjxbu" path="res://test/test_save_load.gd" id="1_ivdnp"]
+
+[node name="TestSaveInventory" type="Node"]
+script = ExtResource("1_ivdnp")

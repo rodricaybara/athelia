@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://biytyn7uhdtnn"]
+
+[ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_y21mp"]
+
+[resource]
+script = ExtResource("1_y21mp")
+id = "player_base"
+name_key = "character_player_name"
+description_key = "character_player_desc"
+base_attributes = {
+"charisma": 13,
+"constitution": 11,
+"dexterity": 14,
+"intelligence": 10,
+"strength": 12,
+"wisdom": 9
+}
+starting_resources = {
+"focus": 0,
+"gold": 0,
+"health": 35,
+"stamina": 24
+}
+skills = Array[String](["skill.attack.light", "skill.attack.heavy", "skill.combat.dodge", "skill.attack.ranged", "skill.attack.sweep", "skill.attack.throw_rock"])
+starting_skill_values = {
+"skill.attack.heavy": 25,
+"skill.attack.light": 40,
+"skill.attack.ranged": 50,
+"skill.attack.sweep": 50,
+"skill.attack.throw_rock": 50,
+"skill.combat.dodge": 50,
+"skill.exploration.brute_force": 40,
+"skill.exploration.lockpick": 35,
+"skill.exploration.perception": 45,
+"skill.exploration.sprint": 50,
+"skill.magic.fireball": 15
+}
+metadata/_custom_type_script = "uid://cmvsxyq5sohf4"

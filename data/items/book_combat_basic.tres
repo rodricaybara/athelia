@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3 uid="uid://difol5c23h6so"]
+
+[ext_resource type="Script" uid="uid://b1aa4t2pb83xl" path="res://core/items/item_definition.gd" id="1_itemdef"]
+[ext_resource type="Script" uid="uid://brpajd07w4urf" path="res://core/items/modifier_definition.gd" id="1_ogkww"]
+[ext_resource type="Texture2D" uid="uid://cmnv57kfekyky" path="res://data/items/book_combat_basic.png" id="1_r1yh0"]
+
+[resource]
+script = ExtResource("1_itemdef")
+id = "item.book.combat_basics"
+name_key = "ITEM_BOOK_COMBAT_BASICS_NAME"
+description_key = "ITEM_BOOK_COMBAT_BASICS_DESC"
+icon = ExtResource("1_r1yh0")
+weight = 0.5
+durability_max = 1
+base_value = 40
+item_type = "CONSUMABLE"
+stackable = false
+max_stack = 1
+usable = true
+use_action = "read"
+tags = Array[String](["book", "learning", "combat", "consumable"])
+learning_data = {
+"skill_id": "skill.attack.light",
+"source_level": 35,
+"source_type": "BOOK"
+}

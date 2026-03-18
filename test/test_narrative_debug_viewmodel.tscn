@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bwki8ea6cev6y"]
+
+[ext_resource type="Script" uid="uid://b2geqprg7wprv" path="res://test/test_narrative_debug_viewmodel.gd" id="1_q8qe7"]
+
+[node name="TestNarrativeDebugViewmodel" type="Node2D" unique_id=480760604]
+
+[node name="TestNarrativeDebugViewModel" type="Node" parent="." unique_id=1306042122]
+script = ExtResource("1_q8qe7")

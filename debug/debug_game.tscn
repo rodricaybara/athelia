@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://ciy7072xljo0b"]
+
+[ext_resource type="Script" uid="uid://di848dsap7oa6" path="res://debug/debug_game.gd" id="1_7750v"]
+[ext_resource type="PackedScene" uid="uid://d35xkd7wc33eo" path="res://debug/resource_debug_panel.tscn" id="1_r0f2a"]
+[ext_resource type="Script" uid="uid://bnuk2k14bu8cm" path="res://core/resources/resource_system.gd" id="2_exing"]
+
+[node name="DebugGame" type="Node" unique_id=1178534367]
+script = ExtResource("1_7750v")
+
+[node name="ResourceSystem" type="Node" parent="." unique_id=526409739]
+script = ExtResource("2_exing")
+metadata/_custom_type_script = "uid://bnuk2k14bu8cm"
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=683344593]
+
+[node name="ResourceDebugPanel" parent="CanvasLayer" unique_id=1003940478 instance=ExtResource("1_r0f2a")]

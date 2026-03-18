@@ -1,0 +1,130 @@
+[gd_scene load_steps=13 format=3 uid="uid://dtts1n3voh8vo"]
+
+[ext_resource type="PackedScene" uid="uid://7h51sd8ork6m" path="res://scenes/player/player.tscn" id="1_da6vm"]
+[ext_resource type="PackedScene" uid="uid://dyf8y5kt7ab7m" path="res://scenes/player/player_ui.tscn" id="2_da6vm"]
+[ext_resource type="PackedScene" uid="uid://wp4548e2r22d" path="res://scenes/player/save_feedback_ui.tscn" id="3_st4qh"]
+[ext_resource type="PackedScene" uid="uid://dxe7qq2pgp6jg" path="res://ui/inventory/inventory_ui.tscn" id="4_51e2l"]
+[ext_resource type="Script" uid="uid://dfrvr13jdsce3" path="res://test/manual_test_setup.gd" id="5_oj4i3"]
+[ext_resource type="Script" uid="uid://8mq6jq1lwnj5" path="res://debug/debug_inventory.gd" id="6_k6n02"]
+[ext_resource type="Script" uid="uid://d3rrj23mtsncg" path="res://test/test_e2e_manual_inventory.gd" id="7_1suh2"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_da6vm"]
+size = Vector2(2000, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_st4qh"]
+size = Vector2(2000, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_51e2l"]
+size = Vector2(50, 2000)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oj4i3"]
+size = Vector2(50, 2000)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_51e2l"]
+radius = 30.0
+
+[node name="TestWorld" type="Node2D"]
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1764706, 0.3137255, 0.08627451, 1)
+
+[node name="Player" parent="." instance=ExtResource("1_da6vm")]
+
+[node name="Walls" type="Node2D" parent="."]
+
+[node name="WallTop" type="StaticBody2D" parent="Walls"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTop"]
+position = Vector2(0, -500)
+shape = SubResource("RectangleShape2D_da6vm")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallTop"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1000.0
+offset_top = -525.0
+offset_right = 1000.0
+offset_bottom = -475.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="WallBotom" type="StaticBody2D" parent="Walls"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBotom"]
+position = Vector2(0, 500)
+shape = SubResource("RectangleShape2D_st4qh")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallBotom"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1000.0
+offset_top = 475.0
+offset_right = 1000.0
+offset_bottom = 525.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="WallRight" type="StaticBody2D" parent="Walls"]
+position = Vector2(500, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRight"]
+shape = SubResource("RectangleShape2D_51e2l")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallRight"]
+offset_left = -25.0
+offset_top = -1000.0
+offset_right = 25.0
+offset_bottom = 1000.0
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="StaticBody2D" type="StaticBody2D" parent="Walls"]
+position = Vector2(-500, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/StaticBody2D"]
+shape = SubResource("RectangleShape2D_oj4i3")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/StaticBody2D"]
+offset_left = -25.0
+offset_top = -1000.0
+offset_right = 25.0
+offset_bottom = 1000.0
+color = Color(0.54509807, 0, 0, 1)
+
+[node name="Obstacules" type="Node2D" parent="."]
+
+[node name="Rock1" type="StaticBody2D" parent="Obstacules"]
+position = Vector2(100, -200)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacules/Rock1"]
+shape = SubResource("CircleShape2D_51e2l")
+
+[node name="ColorRect" type="ColorRect" parent="Obstacules/Rock1"]
+offset_left = -30.0
+offset_top = -30.0
+offset_right = 30.0
+offset_bottom = 30.0
+color = Color(0.39607844, 0.2627451, 0.12941177, 1)
+
+[node name="PlayerUi" parent="." instance=ExtResource("2_da6vm")]
+
+[node name="SaveFeedbackUI" parent="." instance=ExtResource("3_st4qh")]
+
+[node name="InventoryUI" parent="." instance=ExtResource("4_51e2l")]
+
+[node name="testInventario" type="Node" parent="."]
+script = ExtResource("5_oj4i3")
+
+[node name="debugInventory" type="Node" parent="."]
+script = ExtResource("6_k6n02")
+
+[node name="TestE2EManual" type="Node" parent="."]
+script = ExtResource("7_1suh2")

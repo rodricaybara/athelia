@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://d1qnm5nuqllhu"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.combat.dodge"
+name_key = "SKILL_DODGE_NAME"
+description_key = "SKILL_DODGE_DESC"
+mode = "COMBAT"
+category = "UTILITY"
+costs = {
+"stamina": 15.0
+}
+base_cooldown = 2.0
+effects = [{
+"buff_type": "guaranteed_hit",
+"description": "Next attack has 100% hit chance",
+"duration": 1,
+"type": "BUFF"
+}, {
+"buff_type": "evasion",
+"description": "Dodge next incoming attack",
+"duration": 0.5,
+"type": "BUFF",
+"value": 100.0
+}]
+tags = Array[String](["dodge", "defensive", "buff", "tactical"])

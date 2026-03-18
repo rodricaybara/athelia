@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ResourceDefinition" load_steps=2 format=3 uid="uid://douchxccu3uw3"]
+
+[ext_resource type="Script" uid="uid://baqglcfoa4xva" path="res://core/resources/resource_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "health"
+name_key = "RESOURCE_HEALTH_NAME"
+description_key = "RESOURCE_HEALTH_DESC"
+debug_color = Color(0.8, 0.2, 0.2, 1)

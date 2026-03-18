@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.magic.fireball"
+name_key = "SKILL_FIREBALL_NAME"
+description_key = "SKILL_FIREBALL_DESC"
+mode = "COMBAT"
+category = "MAGIC"
+costs = {
+"stamina": 15.0,
+"focus": 10.0
+}
+base_cooldown = 2.0
+target_type = "SINGLE_ENEMY"
+range_type = "LONG"
+effects = [{
+"type": "DAMAGE",
+"value": 1.5,
+"duration": 0.5
+}]
+tags = ["magic", "ranged", "fire", "elemental"]

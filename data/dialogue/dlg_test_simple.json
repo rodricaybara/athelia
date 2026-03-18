@@ -1,0 +1,38 @@
+{
+  "dialogue": {
+	"id": "DLG_TEST_SIMPLE",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "npc_guard",
+		"text_key": "DLG_TEST_SIMPLE_GREETING",
+		"portrait_id": "guard_neutral",
+		"options": [
+		  {
+			"id": "O1_POLITE",
+			"text_key": "DLG_TEST_SIMPLE_POLITE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O2_RUDE",
+			"text_key": "DLG_TEST_SIMPLE_RUDE",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_TEMP_FLAG"],
+			"next_node_id": "N2"
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "npc_guard",
+		"text_key": "DLG_TEST_SIMPLE_FAREWELL",
+		"portrait_id": "guard_neutral",
+		"options": []
+	  }
+	]
+  }
+}

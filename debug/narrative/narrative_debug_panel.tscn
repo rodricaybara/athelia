@@ -1,0 +1,187 @@
+[gd_scene format=3 uid="uid://6qxndb5fqnxv"]
+
+[ext_resource type="Script" uid="uid://dnxbpx4ljjppl" path="res://debug/narrative/narrative_debug_panel.gd" id="1_85i34"]
+
+[node name="NarrativeDebugPanel" type="CanvasLayer" unique_id=1229074069]
+process_mode = 3
+layer = 100
+visible = false
+script = ExtResource("1_85i34")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=1105745004]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_bottom = 40.0
+grow_horizontal = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=1201083719]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer" unique_id=1544528428]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=2103703723]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Narrative Debug Panel"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=310013614]
+layout_mode = 2
+
+[node name="CheckpointContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=250827769]
+layout_mode = 2
+
+[node name="CheckpointLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/CheckpointContainer" unique_id=1621191070]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Current Checkpoint:"
+
+[node name="CheckpointValue" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/CheckpointContainer" unique_id=796496820]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.66668326, 0.9063318, 1, 1)
+text = "None"
+
+[node name="HSeparator2" type="HSeparator" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1924933263]
+layout_mode = 2
+
+[node name="FlagsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=286716834]
+layout_mode = 2
+
+[node name="FlagsLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/FlagsContainer" unique_id=1525828990]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Flags:"
+
+[node name="FlagsScroll" type="ScrollContainer" parent="PanelContainer/MarginContainer/VBoxContainer/FlagsContainer/FlagsLabel" unique_id=1722284873]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 0
+offset_right = 177.0
+offset_bottom = 80.0
+
+[node name="FlagsGrid" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/FlagsContainer/FlagsLabel/FlagsScroll" unique_id=2008804819]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="HSeparator3" type="HSeparator" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1382919059]
+layout_mode = 2
+
+[node name="VariablesContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1550081339]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="VariablesLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VariablesContainer" unique_id=1878033133]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Variables:"
+
+[node name="VariablesScroll" type="ScrollContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VariablesContainer" unique_id=1600685802]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+
+[node name="VariablesGrid" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VariablesContainer/VariablesScroll" unique_id=1531882907]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="HSeparator4" type="HSeparator" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1845715390]
+layout_mode = 2
+
+[node name="VectorsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=230676867]
+layout_mode = 2
+
+[node name="VectorsLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VectorsContainer" unique_id=2045629332]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Vectors (Consolidated):"
+
+[node name="VectorsScroll" type="ScrollContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VectorsContainer" unique_id=441656657]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+
+[node name="VectorsGrid" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VectorsContainer/VectorsScroll" unique_id=1621975885]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator5" type="HSeparator" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1098420938]
+layout_mode = 2
+
+[node name="CheckpointsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=19643869]
+layout_mode = 2
+
+[node name="CheckpointsLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/CheckpointsContainer" unique_id=1325807599]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Checkpoints Reached:"
+
+[node name="CheckpointsScroll" type="ScrollContainer" parent="PanelContainer/MarginContainer/VBoxContainer/CheckpointsContainer" unique_id=376719574]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="CheckpointsList" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/CheckpointsContainer/CheckpointsScroll" unique_id=1699232423]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="HSeparator6" type="HSeparator" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1399907736]
+layout_mode = 2
+
+[node name="ActionsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=633141397]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RefreshButton" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/ActionsContainer" unique_id=642688108]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔄 Refresh"
+
+[node name="CheckpointActions" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/ActionsContainer" unique_id=1492036870]
+layout_mode = 2
+
+[node name="CheckpointOptionButton" type="OptionButton" parent="PanelContainer/MarginContainer/VBoxContainer/ActionsContainer/CheckpointActions" unique_id=1971462339]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ApplyButton" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/ActionsContainer/CheckpointActions" unique_id=1070539075]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Apply"
+
+[node name="ResetButton" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/ActionsContainer" unique_id=1443047916]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⚠️ Reset Narrative"
+
+[node name="FeedbackLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/ActionsContainer" unique_id=836234732]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="ConfirmationDialog" type="ConfirmationDialog" parent="PanelContainer/MarginContainer" unique_id=193936119]
+unique_name_in_owner = true
+oversampling_override = 1.0
+title = "Reset Narrative"
+initial_position = 2
+size = Vector2i(397, 106)
+visible = true
+dialog_text = "This will clear ALL narrative state.
+Are you sure?"
+
+[node name="FeedbackTimer" type="Timer" parent="PanelContainer/MarginContainer" unique_id=1800538287]
+unique_name_in_owner = true
+wait_time = 3.0
+one_shot = true

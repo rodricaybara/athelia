@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3 uid="uid://bqiggje7rkafx"]
+
+[ext_resource type="Texture2D" uid="uid://vmwbrlhjgk5e" path="res://data/items/weapons/accesory/amulet_gem_red.png" id="1_lu2wn"]
+[ext_resource type="Script" uid="uid://brpajd07w4urf" path="res://core/items/modifier_definition.gd" id="1_mod"]
+[ext_resource type="Script" uid="uid://b1aa4t2pb83xl" path="res://core/items/item_definition.gd" id="2_item"]
+
+[sub_resource type="Resource" id="Resource_mod"]
+script = ExtResource("1_mod")
+target = "attribute.strength"
+value = 2.0
+condition = "equipped"
+metadata/_custom_type_script = "uid://brpajd07w4urf"
+
+[resource]
+script = ExtResource("2_item")
+id = "amulet_strength"
+name_key = "ITEM_AMULET_STRENGTH_NAME"
+description_key = "ITEM_AMULET_STRENGTH_DESC"
+icon = ExtResource("1_lu2wn")
+weight = 0.2
+base_value = 300
+item_type = "EQUIPMENT"
+stackable = false
+usable = true
+use_action = "toggle_equip"
+tags = Array[String](["accessory", "equipment", "magic"])
+modifiers = Array[ExtResource("1_mod")]([SubResource("Resource_mod")])
+metadata/_custom_type_script = "uid://b1aa4t2pb83xl"

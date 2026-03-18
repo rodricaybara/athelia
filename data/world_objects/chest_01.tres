@@ -1,0 +1,196 @@
+[gd_resource type="Resource" script_class="WorldObjectDefinition" format=3 uid="uid://b1naug73nynaf"]
+
+[ext_resource type="Script" uid="uid://cpxfg831512ra" path="res://core/world_objects/world_object_definition.gd" id="1_wodef"]
+[ext_resource type="Script" uid="uid://lt5x85g36fe8" path="res://core/world_objects/interaction_definition.gd" id="2_idef"]
+[ext_resource type="Script" uid="uid://7tcutdq4xpkr" path="res://core/world_objects/interaction_outcome.gd" id="3_iout"]
+
+[sub_resource type="Resource" id="OutcomeIntactCritical"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_CRITICAL"
+loot_table_id = "chest_iron_rich"
+
+[sub_resource type="Resource" id="OutcomeIntactSuccess"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_SUCCESS"
+loot_table_id = "chest_iron_normal"
+
+[sub_resource type="Resource" id="OutcomeIntactFailure"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_FAILURE_INTACT"
+
+[sub_resource type="Resource" id="OutcomeIntactFumble"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_FUMBLE_INTACT"
+narrative_event_id = "evt.trap_triggered"
+
+[sub_resource type="Resource" id="InteractionForceIntact"]
+script = ExtResource("2_idef")
+id = "force_lock_intact"
+label_key = "INTERACTION_FORCE_LOCK_LABEL"
+description_key = "INTERACTION_FORCE_LOCK_DESC_INTACT"
+required_skill = "skill.exploration.lockpick"
+difficulty = 1.2
+stamina_cost = 5.0
+required_flags = Array[String](["locked"])
+excluded_by_flags = Array[String](["lock_damaged"])
+consumed_flags = Array[String](["locked"])
+produced_flags = Array[String](["opened"])
+failure_produced_flags = Array[String](["lock_damaged"])
+optional_item = "lockpick_quality"
+optional_item_bonus = 15
+optional_item_skill_target = "skill.exploration.lockpick"
+outcome_critical = SubResource("OutcomeIntactCritical")
+outcome_success = SubResource("OutcomeIntactSuccess")
+outcome_failure = SubResource("OutcomeIntactFailure")
+outcome_fumble = SubResource("OutcomeIntactFumble")
+
+[sub_resource type="Resource" id="OutcomeDamagedCritical"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_CRITICAL"
+loot_table_id = "chest_iron_rich"
+
+[sub_resource type="Resource" id="OutcomeDamagedSuccess"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_SUCCESS"
+loot_table_id = "chest_iron_normal"
+
+[sub_resource type="Resource" id="OutcomeDamagedFailure"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_FAILURE_DAMAGED"
+
+[sub_resource type="Resource" id="OutcomeDamagedFumble"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_FUMBLE_DAMAGED"
+narrative_event_id = "evt.trap_triggered"
+
+[sub_resource type="Resource" id="InteractionForceDamaged"]
+script = ExtResource("2_idef")
+id = "force_lock_damaged"
+label_key = "INTERACTION_FORCE_LOCK_LABEL"
+description_key = "INTERACTION_FORCE_LOCK_DESC_DAMAGED"
+required_skill = "skill.exploration.lockpick"
+difficulty = 1.6
+stamina_cost = 5.0
+required_flags = Array[String](["locked", "lock_damaged"])
+excluded_by_flags = Array[String](["lock_breaking"])
+consumed_flags = Array[String](["locked"])
+produced_flags = Array[String](["opened"])
+failure_produced_flags = Array[String](["lock_breaking"])
+optional_item = "lockpick_quality"
+optional_item_bonus = 15
+optional_item_skill_target = "skill.exploration.lockpick"
+outcome_critical = SubResource("OutcomeDamagedCritical")
+outcome_success = SubResource("OutcomeDamagedSuccess")
+outcome_failure = SubResource("OutcomeDamagedFailure")
+outcome_fumble = SubResource("OutcomeDamagedFumble")
+
+[sub_resource type="Resource" id="OutcomeBreakingCritical"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_CRITICAL"
+loot_table_id = "chest_iron_rich"
+
+[sub_resource type="Resource" id="OutcomeBreakingSuccess"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_SUCCESS"
+loot_table_id = "chest_iron_normal"
+
+[sub_resource type="Resource" id="OutcomeBreakingFailure"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_FAILURE_BREAKING"
+
+[sub_resource type="Resource" id="OutcomeBreakingFumble"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_FORCE_LOCK_FUMBLE_BREAKING"
+narrative_event_id = "evt.trap_triggered"
+
+[sub_resource type="Resource" id="InteractionForceBreaking"]
+script = ExtResource("2_idef")
+id = "force_lock_breaking"
+label_key = "INTERACTION_FORCE_LOCK_LABEL"
+description_key = "INTERACTION_FORCE_LOCK_DESC_BREAKING"
+required_skill = "skill.exploration.lockpick"
+difficulty = 2.0
+stamina_cost = 5.0
+required_flags = Array[String](["locked", "lock_damaged", "lock_breaking"])
+consumed_flags = Array[String](["locked"])
+produced_flags = Array[String](["opened"])
+failure_consumed_flags = Array[String](["locked"])
+failure_produced_flags = Array[String](["lock_broken"])
+optional_item = "lockpick_quality"
+optional_item_bonus = 15
+optional_item_skill_target = "skill.exploration.lockpick"
+outcome_critical = SubResource("OutcomeBreakingCritical")
+outcome_success = SubResource("OutcomeBreakingSuccess")
+outcome_failure = SubResource("OutcomeBreakingFailure")
+outcome_fumble = SubResource("OutcomeBreakingFumble")
+
+[sub_resource type="Resource" id="OutcomeBreakCritical"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_BREAK_OPEN_CRITICAL"
+loot_table_id = "chest_iron_normal"
+
+[sub_resource type="Resource" id="OutcomeBreakSuccess"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_BREAK_OPEN_SUCCESS"
+loot_table_id = "chest_iron_broken"
+
+[sub_resource type="Resource" id="OutcomeBreakFailure"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_BREAK_OPEN_FAILURE"
+
+[sub_resource type="Resource" id="OutcomeBreakFumble"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_BREAK_OPEN_FUMBLE"
+
+[sub_resource type="Resource" id="InteractionBreakOpen"]
+script = ExtResource("2_idef")
+id = "break_open"
+label_key = "INTERACTION_BREAK_OPEN_LABEL"
+description_key = "INTERACTION_BREAK_OPEN_DESC"
+required_skill = "skill.exploration.brute_force"
+stamina_cost = 10.0
+required_flags = Array[String](["lock_broken"])
+consumed_flags = Array[String](["lock_broken"])
+produced_flags = Array[String](["opened"])
+outcome_critical = SubResource("OutcomeBreakCritical")
+outcome_success = SubResource("OutcomeBreakSuccess")
+outcome_failure = SubResource("OutcomeBreakFailure")
+outcome_fumble = SubResource("OutcomeBreakFumble")
+
+[sub_resource type="Resource" id="OutcomeInspectCritical"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_INSPECT_CRITICAL"
+revealed_info_key = "LORE_CHEST_01_INSPECT_FULL"
+
+[sub_resource type="Resource" id="OutcomeInspectSuccess"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_INSPECT_SUCCESS"
+revealed_info_key = "LORE_CHEST_01_INSPECT_BASIC"
+
+[sub_resource type="Resource" id="OutcomeInspectFailure"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_INSPECT_FAILURE"
+
+[sub_resource type="Resource" id="OutcomeInspectFumble"]
+script = ExtResource("3_iout")
+feedback_key = "INTERACTION_INSPECT_FUMBLE"
+
+[sub_resource type="Resource" id="InteractionInspect"]
+script = ExtResource("2_idef")
+id = "inspect"
+label_key = "INTERACTION_INSPECT_LABEL"
+description_key = "INTERACTION_INSPECT_DESC"
+required_skill = "skill.exploration.perception"
+difficulty = 0.8
+outcome_critical = SubResource("OutcomeInspectCritical")
+outcome_success = SubResource("OutcomeInspectSuccess")
+outcome_failure = SubResource("OutcomeInspectFailure")
+outcome_fumble = SubResource("OutcomeInspectFumble")
+
+[resource]
+script = ExtResource("1_wodef")
+id = "chest_01"
+display_name_key = "WORLD_OBJECT_CHEST_IRON_NAME"
+description_key = "WORLD_OBJECT_CHEST_IRON_DESC"
+initial_flags = Array[String](["locked"])
+interactions = Array[ExtResource("2_idef")]([SubResource("InteractionForceIntact"), SubResource("InteractionForceDamaged"), SubResource("InteractionForceBreaking"), SubResource("InteractionBreakOpen"), SubResource("InteractionInspect")])
