@@ -88,7 +88,10 @@ func _on_combat_ended(result) -> void:
 
 	print("[SkillProgressionService] Combat ended (%s) - processing improvement rolls" % str(result))
 	_process_improvement_rolls(PLAYER_ID)
-
+	var party: Node = get_node_or_null("/root/Party")
+	if party:
+		for companion_id in party.get_active_members():
+			_process_improvement_rolls(companion_id)
 
 func _on_skill_used(_entity_id: String, _skill_id: String) -> void:
 	pass  # El outcome real llega por notify_skill_outcome()
@@ -108,7 +111,10 @@ func notify_skill_outcome(
 ) -> void:
 	if not _combat_active:
 		return
-	if entity_id != PLAYER_ID:
+	# Aceptar jugador y companions — rechazar enemigos
+	var party: Node = Engine.get_main_loop().root.get_node_or_null("/root/Party")
+	var is_ally: bool = entity_id == PLAYER_ID or (party != null and party.is_in_party(entity_id))
+	if not is_ally:
 		return
 
 	var instance = _get_skill_instance(entity_id, skill_id)
@@ -287,15 +293,15 @@ func _attempt_improvement(entity_id: String, skill_id: String, instance: SkillIn
 		var new_value: int    = _character_system.get_skill_value(entity_id, skill_id)
 
 		EventBus.skill_improved.emit(entity_id, skill_id, old_value, new_value)
-		print("[SkillProgressionService] %s IMPROVED: %d → %d (roll %d vs threshold %d)" % [
-			skill_id, old_value, new_value, improvement_roll, threshold
+		print("[SkillProgressionService] [%s] %s IMPROVED: %d → %d (roll %d vs threshold %d)" % [
+			entity_id, skill_id, old_value, new_value, improvement_roll, threshold
 		])
 		return { "improved": true,  "old_value": old_value, "new_value": new_value,
 				 "roll": improvement_roll, "threshold": threshold, "reason": "improved" }
 	else:
 		EventBus.skill_improvement_failed.emit(entity_id, skill_id, improvement_roll, threshold)
-		print("[SkillProgressionService] %s: no improvement (roll %d vs threshold %d)" % [
-			skill_id, improvement_roll, threshold
+		print("[SkillProgressionService] [%s] %s: no improvement (roll %d vs threshold %d)" % [
+			entity_id, skill_id, improvement_roll, threshold
 		])
 		return { "improved": false, "old_value": current_value, "new_value": current_value,
 				 "roll": improvement_roll, "threshold": threshold, "reason": "roll_failed" }
@@ -397,10 +403,11 @@ func _get_max_ticks(instance: SkillInstance) -> int:
 
 
 func _reset_all_combat_state(entity_id: String) -> void:
-	if not _skill_system:
+	if not _skill_system or not _character_system:
 		return
-	for skill_id in _skill_system.list_skills():
-		var instance = _get_skill_instance(entity_id, skill_id)
+	var known_skills: Array[String] = _character_system.list_known_skills(entity_id)
+	for skill_id in known_skills:
+		var instance: SkillInstance = _get_skill_instance(entity_id, skill_id)
 		if instance:
 			instance.reset_combat_state()
 

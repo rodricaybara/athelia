@@ -3,10 +3,11 @@ extends CharacterBody2D
 
 ## CompanionFollowNode - Nodo visual de companion en exploración
 ##
-## Sigue al jugador con offset fijo según índice en la formación.
-## Usa lerp para suavizar el movimiento.
+## v2: Usa NavigationAgent2D para esquivar obstáculos.
+## Si no hay NavigationRegion2D en la escena, hace fallback a lerp directo
+## para que no rompa en escenas sin navmesh configurado.
 ##
-## Uso desde ExplorationTest:
+## Uso desde ExplorationTest._ready():
 ##   var node = CompanionFollowNode.new()
 ##   node.setup("companion_mira", player_node, 0)
 ##   add_child(node)
@@ -16,18 +17,20 @@ extends CharacterBody2D
 # ============================================
 
 ## Offsets de formación por índice (hasta 3 companions)
-## Índice 0: izquierda-atrás, 1: derecha-atrás, 2: centro-más-atrás
 const FORMATION_OFFSETS: Array[Vector2] = [
-	Vector2(-28, 12),
-	Vector2( 28, 12),
-	Vector2(  0, 24),
+	Vector2(-32, 16),
+	Vector2( 32, 16),
+	Vector2(  0, 28),
 ]
 
-## Velocidad de interpolación del seguimiento (mayor = más pegado)
-@export var follow_speed: float = 8.0
+## Velocidad de movimiento (px/s) — misma que el jugador para no rezagarse
+@export var move_speed: float = 115.0
 
-## Distancia mínima para empezar a moverse (evita vibración)
-@export var follow_threshold: float = 2.0
+## Distancia mínima al objetivo antes de moverse (evita vibración)
+@export var arrival_threshold: float = 8.0
+
+## Umbral para hacer fallback a lerp directo (si nav no está disponible)
+@export var nav_fallback_distance: float = 600.0
 
 # ============================================
 # ESTADO
@@ -36,14 +39,15 @@ const FORMATION_OFFSETS: Array[Vector2] = [
 var companion_id: String = ""
 var _player_node: Node2D = null
 var _formation_index: int = 0
-var _target_position: Vector2 = Vector2.ZERO
+var _nav_agent: NavigationAgent2D = null
+var _has_nav: bool = false
 var _sprite: Sprite2D = null
 
 # ============================================
 # SETUP
 # ============================================
 
-## Configurar antes de add_child()
+## Configurar ANTES de add_child()
 func setup(p_companion_id: String, player_node: Node2D, formation_index: int) -> void:
 	companion_id = p_companion_id
 	_player_node = player_node
@@ -53,60 +57,117 @@ func setup(p_companion_id: String, player_node: Node2D, formation_index: int) ->
 	add_to_group(p_companion_id)
 	add_to_group("companion")
 
-	# Sprite placeholder — la escena real cargará el sprite correcto
+	# Sprite
 	_sprite = Sprite2D.new()
 	_sprite.name = "Sprite"
 	add_child(_sprite)
 
-	# Intentar cargar sprite del companion si existe
-	var portrait_path := "res://data/characters/portrait/%s.png" % p_companion_id.replace("companion_", "")
+	var portrait_path: String = "res://data/characters/portrait/%s.png" % p_companion_id.replace("companion_", "")
 	if ResourceLoader.exists(portrait_path):
 		_sprite.texture = load(portrait_path)
 		_sprite.scale = Vector2(0.3, 0.3)
 	else:
-		# Placeholder de color si no hay sprite
 		_sprite.texture = load("res://icon.svg")
-		_sprite.modulate = Color(0.4, 0.8, 1.0)  # azul claro para distinguir
+		_sprite.modulate = Color(0.4, 0.8, 1.0)
 		_sprite.scale = Vector2(0.3, 0.3)
 
-	# CollisionShape para no bloquear el movimiento del jugador
+	# Collision shape — necesaria para CharacterBody2D.move_and_slide()
 	var col := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 6.0
 	col.shape = circle
 	add_child(col)
 
-	print("[CompanionFollowNode] Setup: %s (index %d)" % [companion_id, _formation_index])
+	# NavigationAgent2D
+	_nav_agent = NavigationAgent2D.new()
+	_nav_agent.name = "NavigationAgent2D"
+	_nav_agent.path_desired_distance = arrival_threshold
+	_nav_agent.target_desired_distance = arrival_threshold
+	_nav_agent.max_speed = move_speed
+	_nav_agent.avoidance_enabled = true  # evita colisiones con otros companions
+	add_child(_nav_agent)
+
+	print("[CompanionFollowNode] Setup: %s (formación índice %d)" % [companion_id, _formation_index])
 
 
 func _ready() -> void:
-	if _player_node:
-		# Posición inicial: directamente en el offset para evitar el "viaje" inicial
-		var offset := FORMATION_OFFSETS[_formation_index]
-		global_position = _player_node.global_position + offset
-		_target_position = global_position
+	# Verificar si hay NavigationRegion2D activo en la escena
+	# Lo hacemos diferido para que la escena esté completamente cargada
+	call_deferred("_check_nav_available")
 
-	# Escuchar incapacitación para mostrar estado visual
+	if _player_node:
+		var offset: Vector2 = FORMATION_OFFSETS[_formation_index]
+		global_position = _player_node.global_position + offset
+
 	EventBus.companion_incapacitated.connect(_on_companion_incapacitated)
 	EventBus.companion_revived.connect(_on_companion_revived)
 
+
+func _check_nav_available() -> void:
+	## Busca un NavigationRegion2D en la escena para decidir si usar nav o lerp
+	var regions: Array[Node] = get_tree().get_nodes_in_group("navigation_region")
+	if not regions.is_empty():
+		_has_nav = true
+		print("[CompanionFollowNode] %s: NavigationAgent2D activo" % companion_id)
+		return
+
+	# Fallback: buscar por tipo directamente
+	var scene_root: Node = get_tree().current_scene
+	if scene_root:
+		for child in scene_root.get_children():
+			if child is NavigationRegion2D:
+				_has_nav = true
+				print("[CompanionFollowNode] %s: NavigationRegion2D encontrado → nav activo" % companion_id)
+				return
+
+	_has_nav = false
+	print("[CompanionFollowNode] %s: sin NavigationRegion2D → modo lerp directo" % companion_id)
+
+
+# ============================================
+# MOVIMIENTO
+# ============================================
 
 func _physics_process(delta: float) -> void:
 	if not _player_node or not is_instance_valid(_player_node):
 		return
 
-	# Posición objetivo: posición del jugador + offset de formación
-	var offset := FORMATION_OFFSETS[_formation_index]
-	_target_position = _player_node.global_position + offset
+	var offset: Vector2 = FORMATION_OFFSETS[_formation_index]
+	var target_pos: Vector2 = _player_node.global_position + offset
+	var dist: float = global_position.distance_to(target_pos)
 
-	# Solo mover si está suficientemente lejos (evita vibración)
-	var dist := global_position.distance_to(_target_position)
-	if dist > follow_threshold:
-		var new_pos := global_position.lerp(_target_position, follow_speed * delta)
-		velocity = (new_pos - global_position) / delta
-		move_and_slide()
-	else:
+	# No moverse si ya está suficientemente cerca
+	if dist < arrival_threshold:
 		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
+	if _has_nav and _nav_agent:
+		_move_with_nav(target_pos, delta)
+	else:
+		_move_lerp(target_pos, delta)
+
+
+func _move_with_nav(target_pos: Vector2, _delta: float) -> void:
+	## Movimiento con NavigationAgent2D — rodea obstáculos
+	_nav_agent.target_position = target_pos
+
+	if _nav_agent.is_navigation_finished():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
+	var next_pos: Vector2 = _nav_agent.get_next_path_position()
+	var direction: Vector2 = (next_pos - global_position).normalized()
+	velocity = direction * move_speed
+	move_and_slide()
+
+
+func _move_lerp(target_pos: Vector2, delta: float) -> void:
+	## Fallback: interpolación directa sin navmesh
+	var direction: Vector2 = (target_pos - global_position).normalized()
+	velocity = direction * move_speed
+	move_and_slide()
 
 
 # ============================================
@@ -116,16 +177,14 @@ func _physics_process(delta: float) -> void:
 func _on_companion_incapacitated(cid: String) -> void:
 	if cid != companion_id:
 		return
-	# Visual: semi-transparente y grisáceo
 	if _sprite:
 		_sprite.modulate = Color(0.5, 0.5, 0.5, 0.5)
-	print("[CompanionFollowNode] %s incapacitated — visual updated" % companion_id)
+	print("[CompanionFollowNode] %s incapacitado — visual actualizado" % companion_id)
 
 
 func _on_companion_revived(cid: String) -> void:
 	if cid != companion_id:
 		return
-	# Restaurar visual
 	if _sprite:
 		_sprite.modulate = Color(0.4, 0.8, 1.0)
-	print("[CompanionFollowNode] %s revived — visual updated" % companion_id)
+	print("[CompanionFollowNode] %s reanimado — visual actualizado" % companion_id)

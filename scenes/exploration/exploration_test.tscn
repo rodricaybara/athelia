@@ -37,6 +37,11 @@ radius = 30.0
 [sub_resource type="CircleShape2D" id="CircleShape2D_maestro"]
 radius = 30.0
 
+[sub_resource type="NavigationPolygon" id="NavigationPolygon_mq0ej"]
+vertices = PackedVector2Array(401, -289.0078, 401, 289.0078, -453, 289.97656, -453, -289.97656)
+polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3)])
+outlines = Array[PackedVector2Array]([PackedVector2Array(-463, -300, 411, -299, 411, 299, -463, 300)])
+
 [node name="ExplorationTest" type="Node2D" unique_id=1153919779]
 script = ExtResource("1_bbrv3")
 
@@ -223,3 +228,7 @@ scale = Vector2(0.35, 0.35)
 texture = ExtResource("12_rcxvn")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=854381526]
+
+[node name="NavigationRegion2D" type="NavigationRegion2D" parent="." unique_id=1148244588]
+position = Vector2(-1, 0)
+navigation_polygon = SubResource("NavigationPolygon_mq0ej")

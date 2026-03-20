@@ -276,7 +276,10 @@ func _on_skill_used(entity_id: String, skill_id: String):
 		if result.fumble:
 			print("[CombatSystem] ⚠️ FUMBLE!")
 
-	if entity_id == PLAYER_ID:
+	# Notificar progresión a todos los aliados (jugador + companions)
+	var party: Node = get_node_or_null("/root/Party")
+	var is_ally: bool = entity_id == PLAYER_ID or (party != null and party.is_in_party(entity_id))
+	if is_ally:
 		SkillProgression.notify_skill_outcome(
 			entity_id,
 			skill_id,
@@ -691,19 +694,18 @@ func _spawn_damage_number(entity_id: String, damage: float, is_critical: bool, i
 
 ## Obtiene la posición para mostrar damage number
 func _get_entity_damage_number_position(entity_id: String) -> Vector2:
-	var entity_node = get_tree().get_first_node_in_group(entity_id)
+	# Intentar leer posición del nodo real en la escena
+	var entity_node: Node = get_tree().get_first_node_in_group(entity_id)
+	if entity_node and entity_node is Node2D:
+		# Convertir posición del mundo a posición de pantalla
+		var canvas: CanvasItem = entity_node as CanvasItem
+		if canvas:
+			return entity_node.get_global_transform_with_canvas().origin + Vector2(0, -40)
 	
-	if not entity_node:
-		return Vector2.ZERO
-	
-	# Posiciones hardcodeadas para MVP (debería venir de config)
+	# Fallback hardcodeado para entidades sin nodo visual
 	match entity_id:
-		"player":
-			return Vector2(300, 450)
-		"enemy_1":
-			return Vector2(600, 450)
-		_:
-			return Vector2.ZERO
+		"player":  return Vector2(300, 450)
+		_:         return Vector2.ZERO
 
 
 # ============================================
