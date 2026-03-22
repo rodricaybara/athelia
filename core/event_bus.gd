@@ -49,7 +49,8 @@ signal character_damaged(character_id: String, damage: float, current_hp: float)
 signal character_died(character_id: String)
 signal buff_applied(character_id: String, buff_type: String, duration: float)
 signal buff_expired(character_id: String, buff_type: String)
-
+signal player_incapacitated()
+signal player_rescued_by_companions()
 # ==============================================
 # EVENTOS DE ECONOMÍA
 # ==============================================

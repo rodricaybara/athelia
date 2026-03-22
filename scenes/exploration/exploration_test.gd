@@ -112,31 +112,33 @@ func _register_companions() -> void:
 	print("[ExplorationTest] Companions registered: %s" % str(party.get_party_members()))
  
 func _spawn_companion_node(companion_id: String) -> void:
-	# Evitar duplicados
 	if get_node_or_null("NPCs/%s" % companion_id):
 		return
  
-	var party := get_node_or_null("/root/Party")
+	var party: Node = get_node_or_null("/root/Party")
 	var formation_index: int = party.get_formation_index(companion_id) if party else 0
  
-	var companion_script := load("res://scenes/exploration/companion_follow_node.gd")
-	if not companion_script:
-		push_error("[ExplorationTest] companion_follow_node.gd not found")
+	# Buscar escena específica del companion, fallback a base genérica
+	var scene_path: String = "res://scenes/companions/companion_%s.tscn" % companion_id.replace("companion_", "")
+	if not ResourceLoader.exists(scene_path):
+		scene_path = "res://scenes/companions/companion_base.tscn"
+		push_warning("[ExplorationTest] No scene for %s — using base" % companion_id)
+ 
+	var packed: PackedScene = load(scene_path)
+	if not packed:
+		push_error("[ExplorationTest] Cannot load scene: %s" % scene_path)
 		return
  
-	var node := CharacterBody2D.new()
-	node.set_script(companion_script)
+	var node: CompanionFollowNode = packed.instantiate() as CompanionFollowNode
+	if not node:
+		push_error("[ExplorationTest] Scene is not a CompanionFollowNode: %s" % scene_path)
+		return
+ 
+	# setup() ANTES de add_child()
+	node.setup(companion_id, $Player, formation_index)
 	$NPCs.add_child(node)
  
-	# setup() DESPUÉS de add_child() en este caso porque no hay AnimationController
-	# que necesite visual_node antes de entrar al árbol
-	node.setup(companion_id, $Player, formation_index)
- 
-	print("[ExplorationTest] Companion node spawned: %s (formation index %d)" % [
-		companion_id, formation_index
-	])
- 
- 
+	print("[ExplorationTest] Companion spawned: %s (scene: %s)" % [companion_id, scene_path.get_file()])  
 func _on_companion_joined(companion_id: String) -> void:
 	_spawn_companion_node(companion_id)
  

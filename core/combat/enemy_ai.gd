@@ -23,11 +23,31 @@ func _on_enemy_turn_started(acting_enemy_id: String) -> void:
 	_decide_and_act()
 
 func _decide_and_act() -> void:
+	var target := _pick_target()
+	if target.is_empty():
+		print("[EnemyAI] %s: no valid target — skipping" % enemy_id)
+		EventBus.emit_signal("combat_action_completed", {"skipped": true})
+		return
+
 	var action_data = {
 		"actor": enemy_id,
 		"skill_id": attack_skill_id,
-		"target": PLAYER_ID
+		"target": target
 	}
-	
-	print("[EnemyAI] %s attacks %s" % [enemy_id, PLAYER_ID])
+	print("[EnemyAI] %s attacks %s" % [enemy_id, target])
 	EventBus.emit_signal("player_action_requested", action_data)
+
+
+func _pick_target() -> String:
+	# Jugador si está vivo
+	if Resources.get_resource_amount(PLAYER_ID, "health") > 0:
+		return PLAYER_ID
+	
+	# Si el jugador está incapacitado, atacar companions activos
+	var party: Node = Engine.get_main_loop().root.get_node_or_null("/root/Party")
+	if party:
+		for companion_id in party.get_active_members():
+			if Resources.get_resource_amount(companion_id, "health") > 0:
+				return companion_id
+	
+	return ""

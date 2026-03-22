@@ -1,0 +1,263 @@
+[gd_scene format=3 uid="uid://dfsq0pey035yv"]
+
+[ext_resource type="Script" uid="uid://b0ba1c76munax" path="res://ui/party/party_ui.gd" id="1_partyui"]
+[ext_resource type="PackedScene" uid="uid://cxi21wsjjyfwq" path="res://ui/inventory/equip_slot.tscn" id="2_equipslot"]
+[ext_resource type="PackedScene" uid="uid://bjhhutorjk73l" path="res://ui/inventory/item_slot.tscn" id="3_itemslot"]
+
+[node name="PartyUi" type="CanvasLayer" unique_id=751784587]
+layer = 10
+script = ExtResource("1_partyui")
+
+[node name="Background" type="ColorRect" parent="." unique_id=817140446]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=976916339]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -500.0
+offset_top = -320.0
+offset_right = 500.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=1210842954]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=1490068844]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=550780463]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBox/Header" unique_id=146738538]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "PARTY"
+
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBox/Header" unique_id=156800277]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+text = "X"
+
+[node name="HSep" type="HSeparator" parent="Panel/MarginContainer/VBox" unique_id=4129975]
+layout_mode = 2
+
+[node name="Columns" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=2022204745]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="PlayerColumn" type="VBoxContainer" parent="Panel/MarginContainer/VBox/Columns" unique_id=77427873]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PlayerLabel" type="Label" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn" unique_id=756061766]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Jugador"
+
+[node name="PlayerEquipGrid" type="GridContainer" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn" unique_id=96687537]
+layout_mode = 2
+columns = 3
+
+[node name="PlayerEquipHead" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerEquipGrid" unique_id=1133181609 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "head"
+slot_label_key = "head"
+
+[node name="PlayerEquipBody" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerEquipGrid" unique_id=808159897 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "body"
+slot_label_key = "body"
+
+[node name="PlayerEquipHands" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerEquipGrid" unique_id=1832109056 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "hands"
+slot_label_key = "hands"
+
+[node name="PlayerEquipFeet" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerEquipGrid" unique_id=325472974 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "feet"
+slot_label_key = "feet"
+
+[node name="PlayerEquipWeapon" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerEquipGrid" unique_id=1380565831 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "weapon"
+slot_label_key = "weapon"
+
+[node name="PlayerEquipShield" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerEquipGrid" unique_id=1025291928 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "shield"
+slot_label_key = "shield"
+
+[node name="PlayerBagLabel" type="Label" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn" unique_id=1275612048]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Mochila"
+
+[node name="PlayerGrid" type="GridContainer" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn" unique_id=822014869]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 4
+
+[node name="ItemSlot" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=380051934 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot2" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=874189464 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot3" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=1030407129 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot4" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=360335548 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot5" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=1847174001 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot6" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=948649666 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot7" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=2020691051 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot8" parent="Panel/MarginContainer/VBox/Columns/PlayerColumn/PlayerGrid" unique_id=590914770 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="VSep" type="VSeparator" parent="Panel/MarginContainer/VBox/Columns" unique_id=236637973]
+layout_mode = 2
+
+[node name="CompanionColumn" type="VBoxContainer" parent="Panel/MarginContainer/VBox/Columns" unique_id=1892168119]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CompanionHeader" type="HBoxContainer" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn" unique_id=753214606]
+layout_mode = 2
+
+[node name="CompanionPrevButton" type="Button" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionHeader" unique_id=800973343]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+text = "<"
+
+[node name="CompanionNameLabel" type="Label" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionHeader" unique_id=765899797]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+text = "Companion"
+horizontal_alignment = 1
+
+[node name="CompanionNextButton" type="Button" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionHeader" unique_id=1189894195]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+text = ">"
+
+[node name="StrategyOption" type="OptionButton" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn" unique_id=516970876]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="NoCompanionsLabel" type="Label" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn" unique_id=371737111]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+text = "Sin companions en el grupo"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CompanionEquipGrid" type="GridContainer" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn" unique_id=110402822]
+layout_mode = 2
+columns = 3
+
+[node name="CompanionEquipHead" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionEquipGrid" unique_id=1915546842 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "head"
+slot_label_key = "head"
+
+[node name="CompanionEquipBody" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionEquipGrid" unique_id=62060288 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "body"
+slot_label_key = "body"
+
+[node name="CompanionEquipHands" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionEquipGrid" unique_id=1155687170 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "hands"
+slot_label_key = "hands"
+
+[node name="CompanionEquipFeet" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionEquipGrid" unique_id=405412900 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "feet"
+slot_label_key = "feet"
+
+[node name="CompanionEquipWeapon" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionEquipGrid" unique_id=1178968767 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "weapon"
+slot_label_key = "weapon"
+
+[node name="CompanionEquipShield" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionEquipGrid" unique_id=312715026 instance=ExtResource("2_equipslot")]
+unique_name_in_owner = true
+layout_mode = 2
+slot_id = "shield"
+slot_label_key = "shield"
+
+[node name="CompanionBagLabel" type="Label" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn" unique_id=615410695]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Mochila"
+
+[node name="CompanionGrid" type="GridContainer" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn" unique_id=1171109146]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 4
+
+[node name="ItemSlot" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=1496088974 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot2" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=624125727 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot3" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=544015192 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot4" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=1268243710 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot5" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=852626935 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot6" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=781857481 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot7" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=1883185909 instance=ExtResource("3_itemslot")]
+layout_mode = 2
+
+[node name="ItemSlot8" parent="Panel/MarginContainer/VBox/Columns/CompanionColumn/CompanionGrid" unique_id=749832498 instance=ExtResource("3_itemslot")]
+layout_mode = 2

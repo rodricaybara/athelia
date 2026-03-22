@@ -40,6 +40,7 @@ enum TurnPhase {
 	PLAYER_TURN_START,
 	PLAYER_ACTION_SELECT,
 	PLAYER_ACTION_RESOLVE,
+	PLAYER_INCAPACITATED,
 	COMPANION_ACTION_RESOLVE,   ## ← NUEVO: companions actúan tras el jugador
 	ENEMY_TURN_START,
 	ENEMY_ACTION_RESOLVE,
@@ -281,15 +282,24 @@ func _start_new_round() -> void:
 
 	_start_player_turn()
 
-
 func _start_player_turn() -> void:
 	_transition_to_phase(TurnPhase.PLAYER_TURN_START)
+	await get_tree().process_frame
+
+	if _is_player_incapacitated():
+		print("[GameLoopSystem] Player incapacitated — skipping to PLAYER_INCAPACITATED")
+		_transition_to_phase(TurnPhase.PLAYER_INCAPACITATED)
+		if not _check_combat_conditions():
+			var party: Node = get_node_or_null("/root/Party")
+			if party and party.has_companions():
+				_start_companion_turns()
+			else:
+				_start_enemy_turns()
+		return
+
 	EventBus.emit_signal("player_turn_started")
 	print("[GameLoopSystem] 👤 Player turn started")
-
-	await get_tree().process_frame
 	_transition_to_phase(TurnPhase.PLAYER_ACTION_SELECT)
-
 
 func _end_player_turn() -> void:
 	print("[GameLoopSystem] Player turn ended")
@@ -471,49 +481,100 @@ func _on_companion_action_completed(companion_id: String, _result: Dictionary) -
 func _on_character_died(character_id: String) -> void:
 	print("[GameLoopSystem] 💀 Character died: %s" % character_id)
 
-	# Companion incapacitado — no se elimina del turn_order todavía
-	var party := get_node_or_null("/root/Party")
+	var party: Node = get_node_or_null("/root/Party")
+
+	# Companion incapacitado
 	if party and party.is_in_party(character_id):
 		party.set_incapacitated(character_id)
-		# No eliminar de turn_order — CompanionAI skipea si está incapacitado
 		_check_combat_conditions()
 		return
 
-	# Enemigo o jugador
+	# Jugador incapacitado
+	if character_id == PLAYER_ID:
+		_incapacitate_player()
+		# NO borrar de turn_order — _start_player_turn lo saltará
+		if _check_combat_conditions():
+			return
+		# Last stand activo — deshabilitar input del jugador
+		EventBus.emit_signal("turn_phase_changed", TurnPhase.ENEMY_TURN_START)
+		return
+
+	# Enemigo muerto
 	participants.erase(character_id)
 	turn_order.erase(character_id)
 	_check_combat_conditions()
-
 
 # ============================================
 # DETECCIÓN DE CONDICIONES DE COMBATE
 # ============================================
 
+## PATCH game_loop_system.gd — Last Stand
+##
+## Reemplaza SOLO la función _check_combat_conditions().
+## El resto del archivo no cambia.
+
 func _check_combat_conditions() -> bool:
-	# Victoria: todos los enemigos muertos
-	var active_enemies := get_active_enemies()
+	# ── Victoria: todos los enemigos muertos ──────────────────────────────────
+	var active_enemies: Array[String] = get_active_enemies()
 	if active_enemies.is_empty():
 		if current_game_state == GameState.COMBAT_ACTIVE:
 			print("[GameLoopSystem] All enemies defeated!")
-			end_combat("victory")
+			_resolve_last_stand_victory()
 		return true
 
-	# Derrota: jugador muerto
-	var player_hp := Resources.get_resource_amount(PLAYER_ID, "health")
-	if player_hp <= 0:
-		# Comprobar si hay companions que puedan continuar
-		var party := get_node_or_null("/root/Party")
+	# ── Jugador a 0 HP ────────────────────────────────────────────────────────
+	var player_hp: float = Resources.get_resource_amount(PLAYER_ID, "health")
+	if player_hp <= 0 and not _is_player_incapacitated():
+		_incapacitate_player()
+		# Si hay companions activos → last stand, el combate continúa
+		var party: Node = get_node_or_null("/root/Party")
 		if party and not party.all_incapacitated() and party.has_companions():
-			# Hay companions activos — el combate continúa (mecánica futura)
-			# Por ahora tratamos la muerte del jugador como derrota igualmente
-			pass
-
+			print("[GameLoopSystem] ⚔️ LAST STAND — companions fight on!")
+			return false  # combate continúa
+		# Sin companions activos → derrota
 		if current_game_state == GameState.COMBAT_ACTIVE:
-			print("[GameLoopSystem] Player defeated!")
+			print("[GameLoopSystem] Player defeated with no active companions!")
 			end_combat("defeat")
 		return true
 
+	# ── Todos los aliados caídos (jugador + companions) ───────────────────────
+	var party: Node = get_node_or_null("/root/Party")
+	if _is_player_incapacitated():
+		var all_companions_down: bool = not party or not party.has_companions() or party.all_incapacitated()
+		if all_companions_down:
+			if current_game_state == GameState.COMBAT_ACTIVE:
+				print("[GameLoopSystem] All allies defeated — permanent defeat!")
+				end_combat("defeat")
+			return true
+
 	return false
+
+
+## Marca al jugador como incapacitado sin usar PartyManager
+## (el jugador no es un companion, tiene su propio estado).
+func _incapacitate_player() -> void:
+	if _is_player_incapacitated():
+		return  # Ya incapacitado, ignorar
+	print("[GameLoopSystem] 💀 Player incapacitated — last stand begins")
+	Narrative.set_flag("flag.player_downed")
+	EventBus.player_incapacitated.emit()
+
+## ¿Está el jugador incapacitado en este combate?
+func _is_player_incapacitated() -> bool:
+	return Resources.get_resource_amount(PLAYER_ID, "health") <= 0.0
+
+
+## Resuelve el final de un last stand victorioso.
+## Si el jugador estaba incapacitado, lo recupera con 1 HP.
+func _resolve_last_stand_victory() -> void:
+	if _is_player_incapacitated():
+		# Recuperar jugador con 1 HP — los companions le salvaron
+		Resources.set_resource(PLAYER_ID, "health", 1.0)
+		# Limpiar flag de incapacitación
+		Narrative.clear_flag("flag.player_downed")
+		print("[GameLoopSystem] ✨ Player rescued by companions — revived with 1 HP")
+		EventBus.emit_signal("player_rescued_by_companions")
+	end_combat("victory")
 
 func _all_enemies_dead() -> bool:
 	return get_active_enemies().is_empty()
@@ -570,20 +631,19 @@ func _transition_to_phase(new_phase: TurnPhase) -> void:
 func _can_transition(from: TurnPhase, to: TurnPhase) -> bool:
 	var valid_transitions := {
 		TurnPhase.ROUND_START:              [TurnPhase.PLAYER_TURN_START],
-		TurnPhase.PLAYER_TURN_START:        [TurnPhase.PLAYER_ACTION_SELECT],
+		TurnPhase.PLAYER_TURN_START:        [TurnPhase.PLAYER_ACTION_SELECT, TurnPhase.PLAYER_INCAPACITATED],
 		TurnPhase.PLAYER_ACTION_SELECT:     [TurnPhase.PLAYER_ACTION_RESOLVE],
 		TurnPhase.PLAYER_ACTION_RESOLVE:    [TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
+		TurnPhase.PLAYER_INCAPACITATED:     [TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
 		TurnPhase.COMPANION_ACTION_RESOLVE: [TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
 		TurnPhase.ENEMY_TURN_START:         [TurnPhase.ENEMY_ACTION_RESOLVE],
 		TurnPhase.ENEMY_ACTION_RESOLVE:     [TurnPhase.ENEMY_ACTION_RESOLVE, TurnPhase.TURN_END],
 		TurnPhase.TURN_END:                 [TurnPhase.ROUND_END],
 		TurnPhase.ROUND_END:                [TurnPhase.ROUND_START]
 	}
-
 	if not from in valid_transitions:
 		return false
 	return to in valid_transitions[from]
-
 
 # ============================================
 # DEBUG

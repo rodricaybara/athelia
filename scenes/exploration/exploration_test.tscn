@@ -156,11 +156,13 @@ position = Vector2(-100, 60)
 script = ExtResource("4_07imp")
 interaction_type = "combat"
 target_id = "enemy_1"
-enemy_ids_override = Array[String](["enemy_1", "enemy_2"])
+enemy_ids_override = Array[String](["enemy_1", "enemy_2", "enemy_3", "enemy_4", "enemy_5"])
 enemy_definitions = {
 "enemy_1": "enemy_base",
 "enemy_2": "enemy_base",
-"enemy_3": "enemy_base"
+"enemy_3": "enemy_base",
+"enemy_4": "enemy_base",
+"enemy_5": "enemy_base"
 }
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="NPCs/Enemigo/Interactable" unique_id=449423337]

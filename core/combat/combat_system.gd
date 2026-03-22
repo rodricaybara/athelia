@@ -452,7 +452,10 @@ func _apply_damage_by_target_type(
 ## Aplica daño a una entidad
 ## attacker_id: quién está atacando (necesario para evasión)
 func _apply_damage(target_id: String, damage: float, is_critical: bool = false, attacker_id: String = "") -> void:
-	
+	# No aplicar daño a entidades ya a 0 HP (evita spam de _incapacitate_player)
+	if Resources.get_resource_amount(target_id, "health") <= 0:
+		print("[CombatSystem] %s already at 0 HP — damage ignored" % target_id)
+		return	
 	# --- PRIORIDAD 1: EVASIÓN (solo jugador, solo un uso) ---
 	if target_id == PLAYER_ID and has_buff(PLAYER_ID, "evasion"):
 		consume_buff(PLAYER_ID, "evasion")

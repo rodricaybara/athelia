@@ -30,6 +30,8 @@ const SCENE_EXPLORATION := "res://scenes/exploration/exploration_test.tscn"
 const OVERLAY_SHOP      := "res://ui/shop/shop_ui.tscn"
 const OVERLAY_INVENTORY := "res://ui/inventory/inventory_ui.tscn"
 const OVERLAY_DIALOGUE  := "res://ui/dialogue/dialogue_panel.tscn"
+const OVERLAY_PARTY     := "res://ui/party/party_ui.tscn"
+const OVERLAY_GAME_OVER := "res://ui/gameover/game_over_ui.tscn"
 
 # ============================================
 # ESTADO INTERNO
@@ -64,6 +66,7 @@ func _ready() -> void:
 		EventBus.dialogue_ended.connect(_on_dialogue_ended)
 		EventBus.shop_closed.connect(_on_shop_closed)
 		EventBus.combat_ended.connect(_on_combat_ended)
+		EventBus.player_incapacitated.connect(_on_player_incapacitated)
 	else:
 		push_error("[SceneOrchestrator] EventBus not found!")
 	
@@ -223,7 +226,23 @@ func close_inventory() -> void:
 	if _current_overlay and _current_overlay.name == "InventoryUI":
 		_hide_current_overlay()
 
+func open_party() -> void:
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if not game_loop:
+		return
+	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+		return
+	
+	if _current_overlay and is_instance_valid(_current_overlay):
+		_hide_current_overlay()
+		return
+		
+	_show_overlay(OVERLAY_PARTY)
+	if _current_overlay and _current_overlay.has_method("open"):
+		_current_overlay.open()
 
+	print("[SceneOrchestrator] Party overlay shown")
+	
 # ============================================
 # GESTIÓN DE OVERLAYS
 # ============================================
@@ -274,14 +293,37 @@ func _on_shop_closed(_shop_id: String) -> void:
 		game_loop.enter_exploration()
 
 
-func _on_combat_ended(_result: String) -> void:
+func _on_combat_ended(result: String) -> void:
 	# Limpiar escena de combate del árbol
 	var combat_node := get_tree().root.get_node_or_null("CombatScene")
 	if combat_node:
 		combat_node.queue_free()
 		print("[SceneOrchestrator] Combat scene removed")
-	
-	# Volver a exploración — GameLoop queda en VICTORY/DEFEAT sin transicionar solo
-	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
-	if game_loop:
-		game_loop.enter_exploration()
+ 
+	match result:
+		"victory", "escaped":
+			# Volver a exploración normalmente
+			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+			if game_loop:
+				game_loop.enter_exploration()
+		"defeat":
+			# Mostrar Game Over — NO volver a exploración
+			_show_game_over()
+
+func _show_game_over() -> void:
+	_hide_current_overlay()
+	var packed := load("res://ui/gameover/game_over_ui.tscn") as PackedScene
+	if not packed:
+		push_error("[SceneOrchestrator] Cannot load game_over_ui.tscn")
+		return
+	var game_over := packed.instantiate()
+	game_over.name = "GameOverUI"
+	get_tree().root.add_child(game_over)
+	if game_over.has_method("show_game_over"):
+		game_over.show_game_over()
+	print("[SceneOrchestrator] Game Over shown")
+
+func _on_player_incapacitated() -> void:
+	# Feedback visual opcional — el combate continúa automáticamente
+	# El HUD puede reaccionar a este evento para mostrar estado "downed"
+	print("[SceneOrchestrator] Player incapacitated — last stand active")

@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://cx0jh211jmkgq"]
+
+[ext_resource type="Script" uid="uid://cwbm6appokxyq" path="res://ui/gameover/game_over_ui.gd" id="1_awjrc"]
+
+[node name="GameOverUi" type="CanvasLayer" unique_id=828472927]
+layer = 100
+script = ExtResource("1_awjrc")
+
+[node name="Background" type="ColorRect" parent="." unique_id=490323478]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=181077775]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer" unique_id=1903525203]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/VBox" unique_id=992580183]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "GAME OVER"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="CenterContainer/VBox" unique_id=2048319319]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Todos han caído."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="NewGameButton" type="Button" parent="CenterContainer/VBox" unique_id=1264784740]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Nueva partida"

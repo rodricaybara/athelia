@@ -23,7 +23,7 @@ starting_resources = {
 }
 skills = Array[String](["skill.enemy.basic_attack"])
 starting_skill_values = {
-"skill.enemy.basic_attack": 30
+"skill.enemy.basic_attack": 80
 }
 inventory_slots = 10
 loot_table_id = "enemy_base_drops"

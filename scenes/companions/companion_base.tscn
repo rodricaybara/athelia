@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://companion_base_scene"]
+
+[ext_resource type="Script" path="res://scenes/exploration/companion_follow_node.gd" id="1_base"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_base"]
+radius = 8.0
+
+[node name="CompanionBase" type="CharacterBody2D"]
+script = ExtResource("1_base")
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+path_desired_distance = 4.0
+target_desired_distance = 8.0
+avoidance_enabled = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_base")
