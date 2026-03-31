@@ -1,86 +1,86 @@
-[gd_scene format=3 uid="uid://companion_mira_scene"]
+[gd_scene format=3 uid="uid://681l54voshvr"]
 
 [ext_resource type="PackedScene" path="res://scenes/companions/companion_base.tscn" id="1_mira"]
-[ext_resource type="Texture2D" path="res://data/characters/portrait/mira_sprite.png" id="2_mira"]
+[ext_resource type="Texture2D" uid="uid://dhls0gsnmd3yi" path="res://data/characters/portrait/mira_sprite_2.png" id="2_gx3mi"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d0"]
-atlas = ExtResource("2_mira")
-region = Rect2(0, 0, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_8qwwj"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(0, 0, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d1"]
-atlas = ExtResource("2_mira")
-region = Rect2(352, 0, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_spr1b"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(200, 0, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d2"]
-atlas = ExtResource("2_mira")
-region = Rect2(704, 0, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_yfwoj"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(400, 0, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_d3"]
-atlas = ExtResource("2_mira")
-region = Rect2(1056, 0, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_dk186"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(600, 0, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_u0"]
-atlas = ExtResource("2_mira")
-region = Rect2(0, 192, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_pbdbt"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(0, 400, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_u1"]
-atlas = ExtResource("2_mira")
-region = Rect2(352, 192, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_2m7ws"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(200, 400, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_u2"]
-atlas = ExtResource("2_mira")
-region = Rect2(704, 192, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_0whjk"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(400, 400, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_u3"]
-atlas = ExtResource("2_mira")
-region = Rect2(1056, 192, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_ctqaw"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(600, 400, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_l0"]
-atlas = ExtResource("2_mira")
-region = Rect2(0, 384, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_qbghv"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(0, 600, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_l1"]
-atlas = ExtResource("2_mira")
-region = Rect2(352, 384, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_tlyiv"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(200, 600, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_l2"]
-atlas = ExtResource("2_mira")
-region = Rect2(704, 384, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_cyaeu"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(400, 600, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_l3"]
-atlas = ExtResource("2_mira")
-region = Rect2(1056, 384, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_3kw2u"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(600, 600, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_r0"]
-atlas = ExtResource("2_mira")
-region = Rect2(0, 576, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_0i8mi"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(0, 200, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_r1"]
-atlas = ExtResource("2_mira")
-region = Rect2(352, 576, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_w51em"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(200, 200, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_r2"]
-atlas = ExtResource("2_mira")
-region = Rect2(704, 576, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_myl0w"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(400, 200, 200, 200)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_r3"]
-atlas = ExtResource("2_mira")
-region = Rect2(1056, 576, 352, 192)
+[sub_resource type="AtlasTexture" id="AtlasTexture_2p0w2"]
+atlas = ExtResource("2_gx3mi")
+region = Rect2(600, 200, 200, 200)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_mira"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d0")
+"texture": SubResource("AtlasTexture_8qwwj")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d1")
+"texture": SubResource("AtlasTexture_spr1b")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d2")
+"texture": SubResource("AtlasTexture_yfwoj")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_d3")
+"texture": SubResource("AtlasTexture_dk186")
 }],
 "loop": true,
 "name": &"walk_down",
@@ -88,33 +88,16 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_u0")
+"texture": SubResource("AtlasTexture_pbdbt")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_u1")
+"texture": SubResource("AtlasTexture_2m7ws")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_u2")
+"texture": SubResource("AtlasTexture_0whjk")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_u3")
-}],
-"loop": true,
-"name": &"walk_up",
-"speed": 8.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_l0")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_l1")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_l2")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_l3")
+"texture": SubResource("AtlasTexture_ctqaw")
 }],
 "loop": true,
 "name": &"walk_left",
@@ -122,25 +105,42 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_r0")
+"texture": SubResource("AtlasTexture_qbghv")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_r1")
+"texture": SubResource("AtlasTexture_tlyiv")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_r2")
+"texture": SubResource("AtlasTexture_cyaeu")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_r3")
+"texture": SubResource("AtlasTexture_3kw2u")
 }],
 "loop": true,
 "name": &"walk_right",
 "speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0i8mi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w51em")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_myl0w")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2p0w2")
+}],
+"loop": true,
+"name": &"walk_up",
+"speed": 8.0
 }]
 
-[node name="CompanionMira" instance=ExtResource("1_mira")]
+[node name="CompanionMira" unique_id=1836513565 instance=ExtResource("1_mira")]
 
-[node name="AnimatedSprite" type="AnimatedSprite2D" parent="."]
-scale = Vector2(0.25, 0.25)
+[node name="AnimatedSprite" type="AnimatedSprite2D" parent="." index="2" unique_id=462021829]
+scale = Vector2(0.4, 0.4)
 sprite_frames = SubResource("SpriteFrames_mira")
 animation = &"walk_down"

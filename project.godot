@@ -14,7 +14,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="Spike_7_days"
+config/name="Athelia_Desa"
 run/main_scene="uid://djeroofrsm0ag"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
@@ -22,6 +22,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 EventBus="*res://core/event_bus.gd"
+UITokens="*uid://c12nti8js5cmk"
 Resources="*res://core/resources/resource_system.gd"
 Skills="*res://core/skills/skill_system.gd"
 SaveManager="*res://core/save/save_system.gd"

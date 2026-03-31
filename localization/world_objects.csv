@@ -1,4 +1,5 @@
 id,en,es
+WORLD_OBJECT_DEPLETED,Nothing more to do here,No queda nada más que hacer aquí
 WORLD_OBJECT_CHEST_IRON_NAME,Iron Chest,Cofre de hierro
 WORLD_OBJECT_CHEST_IRON_DESC,An iron chest with a lock.,Un cofre de hierro con cerradura.
 INTERACTION_FORCE_LOCK_LABEL,Force Lock,Forzar cerradura
