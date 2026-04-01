@@ -19,6 +19,8 @@ radius = 8.0
 [sub_resource type="CircleShape2D" id="CircleShape2D_ropoi"]
 radius = 20.0
 
+[sub_resource type="SpriteFrames" id="SpriteFrames_mq0ej"]
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_07imp"]
 radius = 30.0
 
@@ -115,6 +117,7 @@ texture = ExtResource("5_bnndc")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player" unique_id=337764098]
 visible = false
+sprite_frames = SubResource("SpriteFrames_mq0ej")
 
 [node name="NPCs" type="Node2D" parent="." unique_id=889700127]
 

@@ -72,10 +72,8 @@ func subtract(amount: float) -> float:
 func can_pay(amount: float) -> bool:
 	if definition.is_infinite:
 		return true
-	
 	if definition.allow_negative:
-		return true  # Siempre puede pagar si permite negativos
-	
+		return true
 	return current >= amount
 
 

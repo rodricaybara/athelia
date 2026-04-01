@@ -20,6 +20,11 @@ var _shops: Dictionary = {}
 var resource_system: ResourceSystem
 var inventory_system: Node  # InventorySystem
 
+## Getter lazy — resuelve la referencia en el momento de usarla
+func _get_resource_system() -> ResourceSystem:
+	if not resource_system:
+		resource_system = get_node_or_null("/root/Resources")
+	return resource_system
 
 ## ============================================
 ## INICIALIZACIÓN
@@ -186,8 +191,13 @@ func buy_item(shop_id: String, item_id: String, quantity: int, entity_id: String
 	var total_price = PriceCalculator.calculate_total_price(unit_price, quantity)
 	
 	# 3. Validar que el jugador tiene oro
+	var rs := _get_resource_system()
+	if not rs:
+		EventBus.shop_trade_failed.emit(shop_id, "TRANSACTION_FAILED", "ResourceSystem not available")
+		return
 	var cost_bundle = ResourceBundle.new({"gold": total_price})
-	if not resource_system.can_pay(entity_id, cost_bundle):
+
+	if not rs.can_pay(entity_id, cost_bundle):
 		EventBus.shop_trade_failed.emit(shop_id, "NO_MONEY", "Player needs %d gold" % total_price)
 		return
 	
@@ -209,8 +219,12 @@ func buy_item(shop_id: String, item_id: String, quantity: int, entity_id: String
 ## Ejecuta la transacción de compra (atómica)
 func _execute_buy_transaction(shop: ShopInstance, item_id: String, quantity: int, total_price: int, entity_id: String) -> bool:
 	# Paso 1: Aplicar coste al jugador
+	var rs := _get_resource_system()
+	if not rs:
+		push_error("[EconomySystem] ResourceSystem not available")
+		return false
 	var cost_bundle = ResourceBundle.new({"gold": total_price})
-	if not resource_system.apply_cost(entity_id, cost_bundle):
+	if not rs.apply_cost(entity_id, cost_bundle):
 		push_error("[EconomySystem] Failed to apply cost")
 		return false
 	

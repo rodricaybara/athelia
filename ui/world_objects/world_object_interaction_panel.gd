@@ -1,13 +1,16 @@
 class_name WorldObjectInteractionPanel
 extends CanvasLayer
 
-## WorldObjectInteractionPanel - Panel de interacción con objetos del mundo
-## UI PASIVA: no valida reglas, solo emite eventos y muestra resultados.
+## WorldObjectInteractionPanel — View
 ##
-## ACCESO A AUTOLOADS:
-##   - _wo_system  → /root/WorldObjectSystem  (nombre en Project Settings)
-##   - _wo_objects → /root/WorldObjects       (nombre en Project Settings)
-## Se resuelven en _ready() via get_node para evitar colisión con class_name.
+## Responsabilidades:
+##   - Renderizar el estado expuesto por WorldObjectPanelViewModel
+##   - Traducir input del jugador en llamadas al ViewModel
+##   - NADA más
+##
+## Nunca accede a WorldObjectSystem, EventBus ni sistemas core directamente.
+## Todo pasa por el ViewModel.
+
 
 # ============================================
 # NODOS
@@ -23,209 +26,141 @@ extends CanvasLayer
 
 
 # ============================================
-# ESTADO INTERNO
+# CONSTANTES VISUALES
 # ============================================
-
-## Referencias a autoloads — se asignan en _ready()
-var _wo_system:  Node = null   # /root/WorldObjectSystem
-var _wo_objects: Node = null   # /root/WorldObjects
-
-var _current_instance_id: String = ""
-var _entity_id: String = "player"
-
-## True cuando _on_state_changed ya refrescó los botones en esta interacción.
-## Evita que _on_feedback_ready los vuelva a reconstruir duplicándolos.
-## Se resetea en _on_interaction_button_pressed antes de cada nueva acción.
-var _buttons_refreshed_by_state: bool = false
 
 const COLOR_CRITICAL := Color(1.0, 0.85, 0.0)
 const COLOR_SUCCESS  := Color(0.3, 0.9, 0.3)
 const COLOR_FAILURE  := Color(0.9, 0.5, 0.2)
 const COLOR_FUMBLE   := Color(0.9, 0.2, 0.2)
+const COLOR_DEPLETED := Color(0.6, 0.6, 0.6)
+
+const DEPLETED_CLOSE_DELAY := 1.5
 
 
 # ============================================
-# INICIALIZACIÓN
+# ESTADO INTERNO DE LA VIEW
+# ============================================
+
+## Referencia al ViewModel — se crea como hijo en _ready()
+var _vm: WorldObjectPanelViewModel = null
+
+
+# ============================================
+# CICLO DE VIDA
 # ============================================
 
 func _ready() -> void:
 	visible = false
 
-	_wo_system  = get_node_or_null("/root/WorldObjectSystem")
-	_wo_objects = get_node_or_null("/root/WorldObjects")
+	# Crear ViewModel como hijo para ligar su ciclo de vida al panel
+	_vm = WorldObjectPanelViewModel.new()
+	_vm.name = "ViewModel"
+	add_child(_vm)
 
-	if not _wo_system:
-		push_error("[WorldObjectInteractionPanel] WorldObjectSystem not found at /root/WorldObjectSystem")
-	if not _wo_objects:
-		push_error("[WorldObjectInteractionPanel] WorldObjects not found at /root/WorldObjects")
+	# La View escucha UNA señal del ViewModel
+	_vm.changed.connect(_on_vm_changed)
 
-	close_button.pressed.connect(_on_close_pressed)
-
-	EventBus.world_object_interaction_requested.connect(_on_interaction_requested)
-	EventBus.world_object_feedback_ready.connect(_on_feedback_ready)
-	EventBus.world_object_state_changed.connect(_on_state_changed)
+	# Input directo de la View
+	close_button.pressed.connect(func(): _vm.request_close())
 
 	_hide_result_section()
-	print("[WorldObjectInteractionPanel] Ready")
+	print("[WorldObjectPanel] Ready")
 
 
 # ============================================
-# MOSTRAR PANEL
+# CALLBACK ÚNICO DEL VIEWMODEL
 # ============================================
 
-func _on_interaction_requested(entity_id: String, instance_id: String) -> void:
-	if not _wo_system:
-		return
+func _on_vm_changed(reason: String) -> void:
+	match reason:
+		"opened":
+			_render_opened()
+		"waiting":
+			_render_waiting()
+		"result":
+			_render_result()
+		"depleted":
+			_render_depleted()
+		"closed":
+			_render_closed()
+		_:
+			push_warning("[WorldObjectPanel] Razón de cambio desconocida: %s" % reason)
 
-	_entity_id           = entity_id
-	_current_instance_id = instance_id
 
-	var interactions: Array = _wo_system.get_available_interactions(instance_id, entity_id)
+# ============================================
+# RENDERS POR ESTADO
+# ============================================
 
-	if interactions.is_empty():
-		print("[WorldObjectInteractionPanel] No available interactions for '%s'" % instance_id)
-		return
-
-	var state = _wo_system.get_state(instance_id)
-	if state and state.definition:
-		title_label.text = tr(state.definition.display_name_key)
-	else:
-		title_label.text = instance_id
-
-	_clear_interaction_buttons()
-
-	for interaction in interactions:
-		_add_interaction_button(interaction)
-
+func _render_opened() -> void:
+	title_label.text = _vm.object_display_name
+	_build_interaction_buttons()
 	_hide_result_section()
 	visible = true
 
 
-func _add_interaction_button(interaction: InteractionDefinition) -> void:
+func _render_waiting() -> void:
+	## Solo deshabilita los botones — no toca nada más
+	_set_buttons_enabled(false)
+
+
+func _render_result() -> void:
+	## Mostrar feedback
+	_show_result_section(
+		_vm.result_feedback_key,
+		_vm.result_outcome,
+		_vm.result_info_key
+	)
+	## Reconstruir botones con las interacciones actualizadas por el ViewModel
+	_build_interaction_buttons()
+
+
+func _render_depleted() -> void:
+	_show_depleted_message()
+	_clear_interaction_buttons()
+	# Cerrar automáticamente tras un delay
+	get_tree().create_timer(DEPLETED_CLOSE_DELAY).timeout.connect(
+		func(): _vm.request_close()
+	)
+
+
+func _render_closed() -> void:
+	_hide_result_section()
+	_clear_interaction_buttons()
+	visible = false
+
+
+# ============================================
+# CONSTRUCCIÓN DE BOTONES
+# ============================================
+
+func _build_interaction_buttons() -> void:
+	_clear_interaction_buttons()
+
+	for interaction in _vm.available_interactions:
+		var btn := _create_interaction_button(interaction)
+		interactions_vbox.add_child(btn)
+
+
+func _create_interaction_button(interaction: InteractionDefinition) -> Button:
 	var btn := Button.new()
-	btn.text = tr(interaction.label_key)
+
+	var label_text := tr(interaction.label_key)
+	if interaction.stamina_cost > 0:
+		label_text += "  [ST: %d]" % int(interaction.stamina_cost)
+	btn.text = label_text
 	btn.tooltip_text = tr(interaction.description_key)
 
-	if interaction.stamina_cost > 0:
-		btn.text += "  [ST: %d]" % int(interaction.stamina_cost)
-
+	# Capturar el ID por valor en el closure
 	var iid := interaction.id
-	btn.pressed.connect(func(): _on_interaction_button_pressed(iid))
+	btn.pressed.connect(func(): _vm.request_action(iid))
 
-	interactions_vbox.add_child(btn)
+	return btn
 
 
 func _clear_interaction_buttons() -> void:
 	for child in interactions_vbox.get_children():
 		child.queue_free()
-
-
-# ============================================
-# RESULTADO DE INTERACCIÓN
-# ============================================
-
-func _on_feedback_ready(
-		instance_id: String,
-		_interaction_id: String,
-		outcome: String,
-		feedback_key: String,
-		revealed_info_key: String) -> void:
-
-	if instance_id != _current_instance_id:
-		return
-
-	separator.visible       = true
-	feedback_label.visible  = true
-	feedback_label.text     = tr(feedback_key) if not feedback_key.is_empty() else outcome
-	feedback_label.modulate = _outcome_color(outcome)
-
-	if not revealed_info_key.is_empty():
-		info_label.text    = tr(revealed_info_key)
-		info_label.visible = true
-	else:
-		info_label.visible = false
-
-	# _on_state_changed ya refrescó los botones si hubo cambio de flags (failure con
-	# failure_produced_flags, o éxito con consumed/produced_flags). En ese caso no
-	# repetir — los botones ya son correctos y rehacerlos causaría duplicados.
-	# Solo refrescar aquí en los casos donde state_changed no se emitió:
-	# fumble sin flags, failure sin failure_produced_flags, etc.
-	if not _buttons_refreshed_by_state:
-		_refresh_interaction_buttons()
-
-	_buttons_refreshed_by_state = false
-
-
-func _refresh_interaction_buttons() -> void:
-	_clear_interaction_buttons()
-
-	if _current_instance_id.is_empty() or not _wo_system:
-		return
-
-	if _wo_system.is_depleted(_current_instance_id):
-		_show_depleted_message()
-		return
-
-	var interactions: Array = _wo_system.get_available_interactions(_current_instance_id, _entity_id)
-	for interaction in interactions:
-		_add_interaction_button(interaction)
-
-
-func _show_depleted_message() -> void:
-	feedback_label.text     = tr("WORLD_OBJECT_DEPLETED")
-	feedback_label.modulate = Color(0.6, 0.6, 0.6)
-	feedback_label.visible  = true
-	separator.visible       = true
-
-	await get_tree().create_timer(1.5).timeout
-	_close()
-
-
-# ============================================
-# ESTADO DEL OBJETO CAMBIÓ
-# ============================================
-
-func _on_state_changed(instance_id: String, _active_flags: Array) -> void:
-	if instance_id != _current_instance_id or not visible:
-		return
-
-	_refresh_interaction_buttons()
-	# Marcar que los botones ya están actualizados para esta interacción
-	_buttons_refreshed_by_state = true
-
-
-# ============================================
-# INPUT Y CIERRE
-# ============================================
-
-func _on_interaction_button_pressed(interaction_id: String) -> void:
-	print("[WorldObjectInteractionPanel] Action chosen: %s on %s" % [
-		interaction_id, _current_instance_id
-	])
-	_set_buttons_enabled(false)
-
-	# Resetear bandera antes de emitir — cada acción parte de cero
-	_buttons_refreshed_by_state = false
-
-	EventBus.world_object_action_chosen.emit(
-		_entity_id,
-		_current_instance_id,
-		interaction_id
-	)
-
-	await get_tree().process_frame
-	_set_buttons_enabled(true)
-
-
-func _on_close_pressed() -> void:
-	_close()
-
-
-func _close() -> void:
-	_current_instance_id = ""
-	_clear_interaction_buttons()
-	_hide_result_section()
-	visible = false
 
 
 func _set_buttons_enabled(enabled: bool) -> void:
@@ -234,11 +169,44 @@ func _set_buttons_enabled(enabled: bool) -> void:
 			child.disabled = not enabled
 
 
+# ============================================
+# SECCIÓN DE RESULTADO
+# ============================================
+
+func _show_result_section(
+		feedback_key: String,
+		outcome: String,
+		info_key: String) -> void:
+
+	separator.visible      = true
+	feedback_label.visible = true
+	feedback_label.text    = tr(feedback_key) if not feedback_key.is_empty() else outcome
+	feedback_label.modulate = _outcome_color(outcome)
+
+	if not info_key.is_empty():
+		info_label.text    = tr(info_key)
+		info_label.visible = true
+	else:
+		info_label.visible = false
+
+
+func _show_depleted_message() -> void:
+	separator.visible       = true
+	feedback_label.visible  = true
+	feedback_label.text     = tr("WORLD_OBJECT_DEPLETED")
+	feedback_label.modulate = COLOR_DEPLETED
+	info_label.visible      = false
+
+
 func _hide_result_section() -> void:
 	separator.visible      = false
 	feedback_label.visible = false
 	info_label.visible     = false
 
+
+# ============================================
+# UTILIDADES VISUALES
+# ============================================
 
 func _outcome_color(outcome: String) -> Color:
 	match outcome:

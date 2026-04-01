@@ -15,6 +15,17 @@ SKILL_ATTACK_SWEEP_NAME,Sweep Attack,Ataque en barrido
 SKILL_ATTACK_SWEEP_DESC,A wide melee swing that strikes up to 2 adjacent enemies.,Un amplio golpe cuerpo a cuerpo que alcanza hasta 2 enemigos adyacentes.
 SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
 SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.
+SHOP_TRADE_SUCCESS,Purchased: %s x%d,Comprado: %s x%d
+SHOP_ERROR_NO_MONEY,Not enough gold,Oro insuficiente
+SHOP_ERROR_NO_STOCK,Item out of stock,Ítem agotado
+SHOP_ERROR_NO_SLOTS,Shop inventory full,Inventario de tienda lleno
+SHOP_ERROR_NO_BUDGET,Shop cannot afford this,La tienda no puede pagarlo
+SHOP_ERROR_PLAYER_NO_ITEM,You don't have this item,No tienes este ítem
+SHOP_ERROR_INVALID_ITEM,Invalid item,Ítem inválido
+SHOP_ERROR_GENERIC,Error: %s,Error: %s
+PARTY_ERROR_ITEM_NOT_FOUND,Item not found in any inventory,Ítem no encontrado en ningún inventario
+PARTY_ERROR_TRANSFER_FAILED,Could not transfer item,No se pudo transferir el ítem
+PARTY_ERROR_WRONG_SLOT,Item does not fit in this slot,El ítem no encaja en este slot
 character_companion_base_name,Companion,Compañero
 character_companion_base_desc,A traveling companion.,Un compañero de viaje.
 character_companion_mira_name,Mira,Mira

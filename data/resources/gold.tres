@@ -8,5 +8,4 @@ id = "gold"
 name_key = "RESOURCE_GOLD_NAME"
 description_key = "RESOURCE_GOLD_DESC"
 max_base = 999999.0
-is_infinite = true
 debug_color = Color(1, 0.8392157, 0, 1)

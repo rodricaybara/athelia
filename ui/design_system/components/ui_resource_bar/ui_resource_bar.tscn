@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://bs8afk483jga6"]
+
+[ext_resource type="Script" uid="uid://cvyct14j21o4s" path="res://ui/design_system/components/ui_resource_bar/ui_resource_bar.gd" id="1_d2exm"]
+
+[node name="UiResourceBar" type="Control" unique_id=1388886273]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_d2exm")
+
+[node name="BgRect" type="ColorRect" parent="." unique_id=1210296795]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FillRect" type="ColorRect" parent="." unique_id=893162980]
+layout_mode = 1
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+
+[node name="ValueLabel" type="Label" parent="." unique_id=611977849]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
