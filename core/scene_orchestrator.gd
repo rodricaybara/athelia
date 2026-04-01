@@ -32,6 +32,7 @@ const OVERLAY_INVENTORY := "res://ui/inventory/inventory_ui.tscn"
 const OVERLAY_DIALOGUE  := "res://ui/dialogue/dialogue_panel.tscn"
 const OVERLAY_PARTY     := "res://ui/party/party_ui.tscn"
 const OVERLAY_GAME_OVER := "res://ui/gameover/game_over_ui.tscn"
+const OVERLAY_SKILL_TREE := "res://ui/skill_tree/skill_tree_screen.tscn"
 
 # ============================================
 # ESTADO INTERNO
@@ -242,7 +243,44 @@ func open_party() -> void:
 		_current_overlay.open()
 
 	print("[SceneOrchestrator] Party overlay shown")
-	
+
+## Abre el árbol de habilidades como overlay dentro de EXPLORATION.
+## entity_id: personaje cuyas habilidades se muestran al abrir.
+##   Por defecto "player" — el ExplorationHUD puede pasar un companion_id.
+## Solo válido en estado EXPLORATION.
+func open_skill_tree(entity_id: String = "player") -> void:
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if not game_loop:
+		push_error("[SceneOrchestrator] GameLoop not found")
+		return
+ 
+	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+		push_warning("[SceneOrchestrator] SkillTree blocked: state is %s, expected EXPLORATION" % \
+			GameLoopSystem.GameState.keys()[game_loop.current_game_state])
+		return
+ 
+	# Toggle: si ya está abierto, cerrar
+	if _current_overlay and is_instance_valid(_current_overlay):
+		_hide_current_overlay()
+		return
+ 
+	_show_overlay(OVERLAY_SKILL_TREE)
+ 
+	# SkillTreeScreen nace con visible=false — abrir explícitamente
+	# pasando la entidad inicial para que el ViewModel la seleccione.
+	if _current_overlay and _current_overlay.has_method("open"):
+		_current_overlay.open(entity_id)
+ 
+	print("[SceneOrchestrator] SkillTree overlay shown for entity: %s" % entity_id)
+ 
+## Cierra el árbol de habilidades si está abierto.
+## Llamado desde el botón de cierre de SkillTreeScreen vía EventBus
+## o directamente desde ExplorationHUD.
+func close_skill_tree() -> void:
+	if _current_overlay and is_instance_valid(_current_overlay) \
+			and _current_overlay is SkillTreeScreen:
+		_hide_current_overlay()
+
 # ============================================
 # GESTIÓN DE OVERLAYS
 # ============================================

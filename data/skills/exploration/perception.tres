@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://spike_perception_001"]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://y1bixuqv8px0"]
 
 [ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
 
@@ -7,21 +7,15 @@ script = ExtResource("1_skill_def")
 id = "skill.exploration.perception"
 name_key = "SKILL_PERCEPTION_NAME"
 description_key = "SKILL_PERCEPTION_DESC"
-mode = "EXPLORATION"
 category = "MENTAL"
+subcategory = "EXPLORATION"
 costs = {
 "stamina": 0.0
 }
-base_cooldown = 0.0
-target_type = "SELF"
-effects = []
 tags = Array[String](["exploration", "perception", "awareness"])
 base_success_rate = 40
 stress_type = "MENTAL"
 attribute_weights = {
-"wisdom": 0.6,
-"intelligence": 0.4
+"intelligence": 0.4,
+"wisdom": 0.6
 }
-difficulty = 1.0
-max_ticks_per_combat = 0
-requires_unlock = false

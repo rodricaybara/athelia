@@ -83,14 +83,18 @@ var _filter_buttons: Array[Button] = []
 
 func _ready() -> void:
 	visible = false
-
+ 
 	_vm = SkillTreeViewModel.new()
 	_vm.name = "ViewModel"
 	add_child(_vm)
 	_vm.changed.connect(_on_vm_changed)
-
+ 
 	_mode_toggle_btn.pressed.connect(func(): _vm.request_toggle_comparison_mode())
 	_train_btn.pressed.connect(_on_train_pressed)
+ 
+	# Aplicar estilos de fondo por código — los VBoxContainer/HBoxContainer
+	# no tienen panel por defecto, hay que asignarlo via theme_override.
+	_apply_panel_styles()
 
 
 # ============================================
@@ -669,3 +673,65 @@ func _make_separator_style() -> StyleBoxLine:
 	s.color = Color("#2A2620")
 	s.thickness = 1
 	return s
+
+func _apply_panel_styles() -> void:
+	# Header — fondo bg-panel con borde inferior
+	var header_node: HBoxContainer = %Header
+	if header_node:
+		var header_style := StyleBoxFlat.new()
+		header_style.bg_color = Color("#2E2A26")
+		header_style.border_color = Color("#5C4E38")
+		header_style.border_width_bottom = 1
+		header_style.set_content_margin_all(0)
+		# HBoxContainer no acepta "panel" — usar draw_bg via un ColorRect hijo
+		# ya existe Background en Root, así que solo necesitamos el borde inferior.
+		# Lo resolvemos con un separador visual explícito bajo el Header.
+		# (Ver nota abajo)
+ 
+	# DetailPanel — fondo bg-panel con borde izquierdo
+	var detail: VBoxContainer = %DetailPanel
+	if detail:
+		# VBoxContainer tampoco acepta StyleBox directamente.
+		# Solución: insertar un ColorRect como fondo del DetailPanel.
+		var bg := ColorRect.new()
+		bg.color = Color("#2E2A26")
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bg.z_index = -1
+		# Añadir como primer hijo para que quede detrás del contenido
+		detail.add_child(bg)
+		detail.move_child(bg, 0)
+ 
+		# Borde izquierdo — línea vertical como separador
+		var border := ColorRect.new()
+		border.color = Color("#5C4E38")
+		border.custom_minimum_size = Vector2(1, 0)
+		border.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+		border.set_anchor_and_offset(SIDE_RIGHT, 0, 1)
+		border.set_anchor_and_offset(SIDE_TOP, 0, 0)
+		border.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+		border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		detail.add_child(border)
+		detail.move_child(border, 0)
+ 
+	# TabBar — fondo bg-panel con borde inferior
+	var tab_bar: HBoxContainer = %TabBar
+	if tab_bar:
+		var tab_bg := ColorRect.new()
+		tab_bg.color = Color("#2E2A26")
+		tab_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tab_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tab_bg.z_index = -1
+		tab_bar.add_child(tab_bg)
+		tab_bar.move_child(tab_bg, 0)
+ 
+	# FilterBar — fondo bg-surface
+	var filter_bar_node: HBoxContainer = %FilterBar
+	if filter_bar_node:
+		var filter_bg := ColorRect.new()
+		filter_bg.color = Color("#252118")
+		filter_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		filter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		filter_bg.z_index = -1
+		filter_bar_node.add_child(filter_bg)
+		filter_bar_node.move_child(filter_bg, 0)

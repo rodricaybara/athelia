@@ -8,6 +8,7 @@ id = "skill.attack.ranged"
 name_key = "SKILL_ATTACK_RANGED_NAME"
 description_key = "SKILL_ATTACK_RANGED_DESC"
 mode = "COMBAT"
+subcategory = "RANGED"
 costs = {
 "stamina": 12.0
 }

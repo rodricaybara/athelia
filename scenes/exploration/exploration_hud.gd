@@ -35,6 +35,12 @@ func show_interact_prompt(_localization_key: String) -> void:
 		interact_prompt.text = "[E] Interactuar"
 		interact_prompt.visible = true
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("open_skill_tree"):
+		var orchestrator := get_node_or_null("/root/SceneOrchestrator")
+		if orchestrator:
+			orchestrator.open_skill_tree("player")
+		get_viewport().set_input_as_handled()
 
 func hide_interact_prompt() -> void:
 	if interact_prompt:

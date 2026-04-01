@@ -1,27 +1,19 @@
-[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://spike_brute_force_001"]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://rm1gsp14e7r0"]
 
 [ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
 
 [resource]
-script              = ExtResource("1_skill_def")
-id                  = "skill.exploration.brute_force"
-name_key            = "SKILL_BRUTE_FORCE_NAME"
-description_key     = "SKILL_BRUTE_FORCE_DESC"
-mode                = "EXPLORATION"
-category            = "PHYSICAL"
-costs               = {
+script = ExtResource("1_skill_def")
+id = "skill.exploration.brute_force"
+name_key = "SKILL_BRUTE_FORCE_NAME"
+description_key = "SKILL_BRUTE_FORCE_DESC"
+subcategory = "EXPLORATION"
+costs = {
 "stamina": 10.0
 }
-base_cooldown       = 0.0
-target_type         = "SELF"
-effects             = []
-tags                = Array[String](["exploration", "strength", "brute_force"])
-base_success_rate   = 45
-stress_type         = "PHYSICAL"
-attribute_weights   = {
-"strength": 0.8,
-"constitution": 0.2
+tags = Array[String](["exploration", "strength", "brute_force"])
+base_success_rate = 45
+attribute_weights = {
+"constitution": 0.2,
+"strength": 0.8
 }
-difficulty          = 1.0
-max_ticks_per_combat = 0
-requires_unlock     = false

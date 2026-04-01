@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3 uid="uid://dar4c21qutt1n"]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://dar4c21qutt1n"]
 
 [ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_sl8c3"]
 
@@ -7,6 +7,7 @@ script = ExtResource("1_sl8c3")
 id = "dash"
 name_key = "SKILL_DASH_NAME"
 description_key = "SKILL_DASH_DESC"
+subcategory = "EXPLORATION"
 costs = {
 "stamina": 25.0
 }

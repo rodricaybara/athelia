@@ -8,6 +8,7 @@ id = "skill.attack.heavy"
 name_key = "SKILL_ATTACK_HEAVY_NAME"
 description_key = "SKILL_ATTACK_HEAVY_DESC"
 mode = "COMBAT"
+subcategory = "MELEE"
 costs = {
 "stamina": 25.0
 }
@@ -20,11 +21,9 @@ effects = [{
 }]
 tags = Array[String](["attack", "melee", "heavy", "physical"])
 base_success_rate = 25
-stress_type = "PHYSICAL"
 attribute_weights = {
-"strength": 0.7,
-"dexterity": 0.3
+"dexterity": 0.3,
+"strength": 0.7
 }
 max_ticks_per_combat = 2
-prerequisites = Array[String](["skill.attack.light"])
 requires_unlock = true

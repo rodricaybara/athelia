@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://skill_throw_rock"]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://c1e353qt46vs"]
 
 [ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
 
@@ -8,7 +8,7 @@ id = "skill.attack.throw_rock"
 name_key = "SKILL_THROW_ROCK_NAME"
 description_key = "SKILL_THROW_ROCK_DESC"
 mode = "COMBAT"
-category = "PHYSICAL"
+subcategory = "RANGED"
 costs = {
 "stamina": 18.0
 }
@@ -16,17 +16,15 @@ base_cooldown = 3.0
 target_type = "AREA"
 range_type = "SHORT"
 effects = [{
-"type": "DAMAGE",
-"value": 0.7,
 "base_damage_attribute": "ranged_damage",
-"duration": 0.4
+"duration": 0.4,
+"type": "DAMAGE",
+"value": 0.7
 }]
 tags = Array[String](["attack", "ranged", "area", "physical", "improvised"])
 base_success_rate = 35
-stress_type = "PHYSICAL"
 attribute_weights = {
-"strength": 0.5,
-"dexterity": 0.5
+"dexterity": 0.5,
+"strength": 0.5
 }
 max_ticks_per_combat = 2
-requires_unlock = false

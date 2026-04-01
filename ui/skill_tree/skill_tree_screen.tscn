@@ -1,0 +1,144 @@
+[gd_scene format=3 uid="uid://bcswhf3gf8iqy"]
+
+[ext_resource type="Script" uid="uid://cf7hf6bc03qja" path="res://ui/skill_tree/skill_tree_screen.gd" id="1_ylg0i"]
+
+[node name="SkillTreeScreen" type="CanvasLayer" unique_id=1967908731]
+layer = 10
+script = ExtResource("1_ylg0i")
+
+[node name="Root" type="Control" parent="." unique_id=949347456]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="Root" unique_id=1509840428]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101960786, 0.09411765, 0.08627451, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="Root" unique_id=111033991]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Header" type="HBoxContainer" parent="Root/MainLayout" unique_id=661837675]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="EntitySelector" type="HBoxContainer" parent="Root/MainLayout/Header" unique_id=159988554]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="ModeToggleBtn" type="Button" parent="Root/MainLayout/Header" unique_id=969179661]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TabBar" type="HBoxContainer" parent="Root/MainLayout" unique_id=130099461]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+
+[node name="FilterBar" type="HBoxContainer" parent="Root/MainLayout" unique_id=1952668835]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+
+[node name="MainContainer" type="HBoxContainer" parent="Root/MainLayout" unique_id=1119387084]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="SkillArea" type="ScrollContainer" parent="Root/MainLayout/MainContainer" unique_id=981629281]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SkillGrid" type="VBoxContainer" parent="Root/MainLayout/MainContainer/SkillArea" unique_id=413021752]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="DetailPanel" type="VBoxContainer" parent="Root/MainLayout/MainContainer" unique_id=1405344895]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DetailName" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=1099011442]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="DetailPct" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=1032382800]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83137256, 0.76862746, 0.6039216, 1)
+theme_override_font_sizes/font_size = 28
+
+[node name="ReqsHeader" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=1476885752]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SKILL_TREE_SECTION_REQS"
+
+[node name="ReqsList" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=410149155]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LastTrainHeader" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=901725997]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SKILL_TREE_SECTION_LAST_TRAIN"
+
+[node name="LastTrainLabel" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=166520828]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CostSection" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=2050128642]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="CostHeader" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel/CostSection" unique_id=2086701531]
+layout_mode = 2
+text = "SKILL_TREE_SECTION_COST"
+
+[node name="CostList" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel/CostSection" unique_id=885756533]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="FeedbackLabel" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=970852461]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="TrainBtn" type="Button" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=1560330792]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="ComparisonContainer" type="ScrollContainer" parent="Root/MainLayout" unique_id=91229978]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ComparisonGrid" type="GridContainer" parent="Root/MainLayout/ComparisonContainer" unique_id=1594542434]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8

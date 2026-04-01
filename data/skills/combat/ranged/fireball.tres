@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://mepnxk3adgu0"]
 
-[ext_resource type="Script" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
 
 [resource]
 script = ExtResource("1_skill_def")
@@ -9,16 +9,17 @@ name_key = "SKILL_FIREBALL_NAME"
 description_key = "SKILL_FIREBALL_DESC"
 mode = "COMBAT"
 category = "MAGIC"
+subcategory = "RANGED"
 costs = {
-"stamina": 15.0,
-"focus": 10.0
+"focus": 10.0,
+"stamina": 15.0
 }
 base_cooldown = 2.0
 target_type = "SINGLE_ENEMY"
 range_type = "LONG"
 effects = [{
+"duration": 0.5,
 "type": "DAMAGE",
-"value": 1.5,
-"duration": 0.5
+"value": 1.5
 }]
-tags = ["magic", "ranged", "fire", "elemental"]
+tags = Array[String](["magic", "ranged", "fire", "elemental"])

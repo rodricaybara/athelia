@@ -9,6 +9,7 @@ name_key = "SKILL_DODGE_NAME"
 description_key = "SKILL_DODGE_DESC"
 mode = "COMBAT"
 category = "UTILITY"
+subcategory = "EXPLORATION"
 costs = {
 "stamina": 15.0
 }
