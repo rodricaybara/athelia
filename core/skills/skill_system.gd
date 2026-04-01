@@ -301,41 +301,125 @@ func has_skill(entity_id: String, skill_id: String) -> bool:
 		return false
 	return _entity_skills[entity_id].has(skill_id)
 
-
 ## Desbloquea una skill para una entidad.
 ## Llamado por SkillEventHandler (vía narrativa) o directamente por código de juego.
 ##
-## FASE B — Valida prerequisites antes de desbloquear:
-##   Si alguna skill del array prerequisites no está desbloqueada,
-##   emite skill_unlock_failed y devuelve false.
+## Valida prerequisite_requirements antes de desbloquear:
+##   - La skill prereq debe estar desbloqueada (is_unlocked).
+##   - El valor actual de la skill prereq debe ser >= su umbral.
+##   Si alguna condición falla, emite skill_unlock_failed y devuelve false.
 func unlock_skill(entity_id: String, skill_id: String) -> bool:
-	var instance = get_skill_instance(entity_id, skill_id)
+	var instance: SkillInstance = get_skill_instance(entity_id, skill_id)
 	if not instance:
 		return false
-
-	# Comprobar prerequisites
+ 
+	var character_system: Node = get_node_or_null("/root/Characters")
+ 
 	var missing: Array[String] = []
-	for prereq_id in instance.definition.prerequisites:
+	for prereq_id in instance.definition.prerequisite_requirements.keys():
+		var threshold: int = instance.definition.prerequisite_requirements[prereq_id]
+ 
+		# Prereq debe estar desbloqueada
 		if not is_skill_unlocked(entity_id, prereq_id):
 			missing.append(prereq_id)
-
+			continue
+ 
+		# Prereq debe superar el umbral de porcentaje
+		if threshold > 0 and character_system:
+			var current_value: int = character_system.get_skill_value(entity_id, prereq_id)
+			if current_value < threshold:
+				missing.append(prereq_id)
+ 
 	if not missing.is_empty():
 		push_warning("[SkillSystem] Cannot unlock '%s' for '%s' — missing prerequisites: %s" % [
 			skill_id, entity_id, str(missing)
 		])
 		EventBus.skill_unlock_failed.emit(entity_id, skill_id, missing)
 		return false
-
+ 
 	instance.unlock()
 	print("[SkillSystem] Unlocked '%s' for '%s'" % [skill_id, entity_id])
 	EventBus.skill_unlocked.emit(entity_id, skill_id)
 	return true
 
-
 ## ¿Está desbloqueada esta skill?
 func is_skill_unlocked(entity_id: String, skill_id: String) -> bool:
 	var instance = get_skill_instance(entity_id, skill_id)
 	return instance.is_unlocked if instance else false
+
+## Devuelve un snapshot completo de todas las skills de una entidad,
+## listo para ser consumido por SkillTreeViewModel sin lógica adicional.
+##
+## Cada elemento del Array tiene la forma:
+## {
+##   "skill_id":          String,
+##   "name_key":          String,
+##   "description_key":   String,
+##   "subcategory":       String,   # "MELEE", "RANGED", "EXPLORATION", etc.
+##   "mode":              String,   # "COMBAT", "EXPLORATION", etc.
+##   "current_value":     int,      # porcentaje actual (de CharacterSystem)
+##   "base_success_rate": int,      # valor base de la definición
+##   "is_unlocked":       bool,
+##   "requires_unlock":   bool,     # true = necesita evento narrativo además de prereqs
+##   "has_progression":   bool,
+##   "prerequisite_requirements": Dictionary,  # { "skill_id": umbral_int }
+##   "prereqs_met":       bool,     # true si TODOS los prereqs están ok ahora mismo
+##   "missing_prereqs":   Array,    # IDs de los prereqs que faltan (vacío si prereqs_met)
+##   "training_cost":     Dictionary, # vacío hasta que se implemente el sistema de costes
+## }
+##
+## Devuelve Array vacío si la entidad no está registrada.
+func get_entity_skill_snapshot(entity_id: String) -> Array:
+	if not _entity_skills.has(entity_id):
+		push_warning("[SkillSystem] get_entity_skill_snapshot: entity '%s' not registered" % entity_id)
+		return []
+ 
+	var character_system: Node = get_node_or_null("/root/Characters")
+	var result: Array = []
+ 
+	for skill_id in _entity_skills[entity_id].keys():
+		var instance: SkillInstance = _entity_skills[entity_id][skill_id]
+		var definition: SkillDefinition = instance.definition
+ 
+		# Valor actual del porcentaje — vive en CharacterSystem
+		var current_value: int = 0
+		if character_system:
+			current_value = character_system.get_skill_value(entity_id, skill_id)
+ 
+		# Calcular prereqs_met y missing_prereqs
+		var prereqs_met: bool = true
+		var missing_prereqs: Array = []
+ 
+		for prereq_id in definition.prerequisite_requirements.keys():
+			var threshold: int = definition.prerequisite_requirements[prereq_id]
+			var prereq_unlocked: bool = is_skill_unlocked(entity_id, prereq_id)
+			var prereq_value: int = 0
+			if character_system:
+				prereq_value = character_system.get_skill_value(entity_id, prereq_id)
+ 
+			var prereq_ok: bool = prereq_unlocked and (threshold == 0 or prereq_value >= threshold)
+			if not prereq_ok:
+				prereqs_met = false
+				missing_prereqs.append(prereq_id)
+ 
+		result.append({
+			"skill_id":                   skill_id,
+			"name_key":                   definition.name_key,
+			"description_key":            definition.description_key,
+			"subcategory":                definition.subcategory,
+			"mode":                       definition.mode,
+			"current_value":              current_value,
+			"base_success_rate":          definition.base_success_rate,
+			"is_unlocked":                instance.is_unlocked,
+			"requires_unlock":            definition.requires_unlock,
+			"has_progression":            definition.has_progression(),
+			"prerequisite_requirements":  definition.prerequisite_requirements.duplicate(),
+			"prereqs_met":                prereqs_met,
+			"missing_prereqs":            missing_prereqs,
+			"training_cost":              {},
+		})
+ 
+	return result
 
 ## Snapshot para SaveSystem
 ## ⭐ v4: incluye is_unlocked además de current_cooldown y total_uses

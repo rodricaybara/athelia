@@ -19,3 +19,32 @@ character_companion_base_name,Companion,Compañero
 character_companion_base_desc,A traveling companion.,Un compañero de viaje.
 character_companion_mira_name,Mira,Mira
 character_companion_mira_desc,A skilled wanderer who joins your cause.,Una hábil viajera que se une a tu causa.
+SKILL_TREE_PLAYER_LABEL,Player,Jugador
+SKILL_TREE_MODE_PARTY,Party view →,Vista party →
+SKILL_TREE_MODE_INDIVIDUAL,← Individual,← Individual
+SKILL_TREE_SELECT_HINT,Select a skill,Selecciona una habilidad
+SKILL_TREE_NO_SKILLS,No skills in this category,Sin habilidades en esta categoría
+SKILL_TREE_NO_PREREQS,None,Ninguno
+SKILL_TREE_AI_BADGE,AI suggests,IA sugiere
+SKILL_TREE_BTN_TRAIN,Train,Entrenar
+SKILL_TREE_BTN_LOCKED,Locked,Bloqueada
+SKILL_TREE_SECTION_REQS,Requirements,Requisitos
+SKILL_TREE_SECTION_LAST_TRAIN,Last trained,Último entreno
+SKILL_TREE_SECTION_COST,Cost,Coste
+SKILL_TREE_ERROR_NO_SKILL_SELECTED,No skill selected,Ninguna habilidad seleccionada
+SKILL_TREE_ERROR_SKILL_LOCKED,Skill is locked,La habilidad está bloqueada
+SKILL_TREE_ERROR_NO_PROGRESSION,Skill has no progression,La habilidad no tiene progresión
+SKILL_TREE_ERROR_CHALLENGE_TOO_LOW,Already mastered — find a better trainer,Ya dominada — busca un entrenador mejor
+SKILL_TREE_ERROR_SYSTEM,System error,Error del sistema
+SKILL_TREE_ERROR_UNKNOWN,Unknown error,Error desconocido
+SKILL_SUBCATEGORY_MELEE,Melee,Melee
+SKILL_SUBCATEGORY_RANGED,Ranged,Distancia
+SKILL_SUBCATEGORY_EXPLORATION,Exploration,Exploración
+SKILL_SUBCATEGORY_DIALOGUE,Dialogue,Diálogo
+SKILL_SUBCATEGORY_NARRATIVE,Narrative,Narrativa
+SKILL_SUBCATEGORY_ENEMY,Enemy,Enemigo
+SKILL_SUBCATEGORY_NONE,General,General
+SKILL_FILTER_ALL,All,Todas
+SKILL_FILTER_TRAINABLE,Trainable now,Mejorables ahora
+SKILL_FILTER_UNLOCKED,Unlocked,Desbloqueadas
+SKILL_FILTER_LOCKED,Locked,Bloqueadas

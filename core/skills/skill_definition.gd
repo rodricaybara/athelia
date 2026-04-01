@@ -5,8 +5,9 @@ extends Resource
 ## Parte del SkillSystem
 ## Representa QUÉ ES una habilidad (datos estáticos)
 ##
-## v2: Añadidos campos de progresión al final del bloque original.
-##     Todos opcionales con defaults seguros.
+## v3: Añadidos subcategory y prerequisite_requirements.
+##     Eliminado prerequisites: Array[String] — reemplazado por prerequisite_requirements.
+##     Todos los .tres existentes sin estos campos usan defaults seguros.
 
 # ============================================
 # BLOQUE ORIGINAL — sin cambios
@@ -19,6 +20,11 @@ extends Resource
 @export_enum("COMBAT", "EXPLORATION", "DIALOGUE", "NARRATIVE") var mode: String = "EXPLORATION"
 @export_enum("PHYSICAL", "MENTAL", "MAGIC", "UTILITY") var category: String = "PHYSICAL"
 
+## Subcategoría para agrupación en UI (árbol de habilidades, filtros).
+## Independiente de mode — permite granularidad mayor.
+## Ej: mode=COMBAT puede tener subcategory=MELEE o subcategory=RANGED.
+@export_enum("MELEE", "RANGED", "EXPLORATION", "DIALOGUE", "NARRATIVE", "ENEMY", "NONE") var subcategory: String = "NONE"
+
 @export var costs: Dictionary = {}
 @export var base_cooldown: float = 0.0
 
@@ -30,26 +36,35 @@ extends Resource
 
 
 # ============================================
-# BLOQUE PROGRESSION — nuevo en v2
-# Defaults seguros: skills sin estos campos se comportan igual que antes.
-# base_success_rate = 0 significa "no participa en progresión".
+# BLOQUE PROGRESSION — v2, sin cambios salvo prerequisites
 # ============================================
 
 @export var base_success_rate: int = 0
 @export_enum("PHYSICAL", "MENTAL") var stress_type: String = "PHYSICAL"
 @export var attribute_weights: Dictionary = {}
-@export var prerequisites: Array[String] = []
+
+## Requisitos para desbloquear esta habilidad.
+## Formato: { "skill_id": umbral_int }
+## Ejemplo: { "espada": 50 } — requiere Espada con al menos 50% para desbloquear esta skill.
+## Vacío = sin requisitos, disponible desde el inicio (si requires_unlock=false).
+##
+## REEMPLAZA al antiguo prerequisites: Array[String].
+## Para obtener solo los IDs: prerequisite_requirements.keys()
+## Para obtener el umbral de un prereq: prerequisite_requirements.get("skill_id", 0)
+@export var prerequisite_requirements: Dictionary = {}
+
 @export var difficulty: float = 1.0
 @export var max_ticks_per_combat: int = 0
 @export var difficulty_scaling: Dictionary = {}
 
-## Si true, la skill empieza bloqueada y requiere desbloqueo narrativo.
-## Si false (default), se registra disponible directamente.
-## Compatible hacia atrás: todos los .tres existentes tienen false por defecto.
+## Si true, la skill empieza bloqueada y requiere desbloqueo narrativo adicional
+## por encima de cumplir los prerequisite_requirements.
+## Si false (default), se desbloquea automáticamente en cuanto se cumplen los requisitos.
 @export var requires_unlock: bool = false
 
+
 # ============================================
-# VALIDACIÓN ORIGINAL — sin cambios
+# VALIDACIÓN ORIGINAL — actualizada para prerequisite_requirements
 # ============================================
 
 func validate() -> bool:
@@ -70,11 +85,17 @@ func validate() -> bool:
 			push_error("[SkillDefinition] cost for '%s' cannot be negative" % resource_id)
 			return false
 
+	for prereq_id in prerequisite_requirements.keys():
+		var threshold: int = prerequisite_requirements[prereq_id]
+		if threshold < 0 or threshold > 100:
+			push_error("[SkillDefinition] prerequisite threshold for '%s' out of range [0,100]: %s" % [prereq_id, id])
+			return false
+
 	return true
 
 
 # ============================================
-# VALIDACIÓN DE PROGRESIÓN — nueva en v2
+# VALIDACIÓN DE PROGRESIÓN — v2, sin cambios
 # ============================================
 
 func validate_progression() -> bool:
@@ -110,6 +131,19 @@ func has_progression() -> bool:
 func has_cost() -> bool:
 	return not costs.is_empty()
 
+func has_prerequisites() -> bool:
+	return not prerequisite_requirements.is_empty()
+
+## IDs de las skills requeridas (sin umbrales).
+## Equivalente al antiguo prerequisites: Array[String].
+func get_prerequisite_ids() -> Array:
+	return prerequisite_requirements.keys()
+
+## Umbral mínimo requerido para una skill prereq concreta.
+## Devuelve 0 si el prereq no existe (sin umbral = solo necesita estar desbloqueada).
+func get_prerequisite_threshold(prereq_skill_id: String) -> int:
+	return prerequisite_requirements.get(prereq_skill_id, 0)
+
 func get_cost(resource_id: String) -> float:
 	return costs.get(resource_id, 0.0)
 
@@ -133,6 +167,7 @@ func duplicate_definition() -> SkillDefinition:
 	copy.description_key = description_key
 	copy.mode = mode
 	copy.category = category
+	copy.subcategory = subcategory
 	copy.costs = costs.duplicate()
 	copy.base_cooldown = base_cooldown
 	copy.target_type = target_type
@@ -142,7 +177,7 @@ func duplicate_definition() -> SkillDefinition:
 	copy.base_success_rate = base_success_rate
 	copy.stress_type = stress_type
 	copy.attribute_weights = attribute_weights.duplicate()
-	copy.prerequisites = prerequisites.duplicate()
+	copy.prerequisite_requirements = prerequisite_requirements.duplicate()
 	copy.difficulty = difficulty
 	copy.max_ticks_per_combat = max_ticks_per_combat
 	copy.difficulty_scaling = difficulty_scaling.duplicate()
@@ -150,6 +185,9 @@ func duplicate_definition() -> SkillDefinition:
 	return copy
 
 func _to_string() -> String:
+	var prereq_str: String = ""
+	if has_prerequisites():
+		prereq_str = " | prereqs=%s" % str(prerequisite_requirements)
 	if has_progression():
-		return "SkillDefinition(id=%s, sr=%d%%, cd=%.1fs)" % [id, base_success_rate, base_cooldown]
-	return "SkillDefinition(id=%s, cd=%.1fs)" % [id, base_cooldown]
+		return "SkillDefinition(id=%s, sr=%d%%, sub=%s%s)" % [id, base_success_rate, subcategory, prereq_str]
+	return "SkillDefinition(id=%s, sub=%s%s)" % [id, subcategory, prereq_str]
