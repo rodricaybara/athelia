@@ -25,5 +25,8 @@ attribute_weights = {
 "dexterity": 0.3,
 "strength": 0.7
 }
+prerequisite_requirements = {
+"skill.attack.light": 50
+}
 max_ticks_per_combat = 2
 requires_unlock = true

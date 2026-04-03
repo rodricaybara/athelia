@@ -15,6 +15,8 @@ SKILL_ATTACK_SWEEP_NAME,Sweep Attack,Ataque en barrido
 SKILL_ATTACK_SWEEP_DESC,A wide melee swing that strikes up to 2 adjacent enemies.,Un amplio golpe cuerpo a cuerpo que alcanza hasta 2 enemigos adyacentes.
 SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
 SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.
+SKILL_ATTACK_LIGHT_NAME, Light Atack, Ataque Ligero
+SKILL_ATTACK_LIGHT_DESC, A light atack, Un ataque ligero
 SHOP_TRADE_SUCCESS,Purchased: %s x%d,Comprado: %s x%d
 SHOP_ERROR_NO_MONEY,Not enough gold,Oro insuficiente
 SHOP_ERROR_NO_STOCK,Item out of stock,Ítem agotado
@@ -59,3 +61,61 @@ SKILL_FILTER_ALL,All,Todas
 SKILL_FILTER_TRAINABLE,Trainable now,Mejorables ahora
 SKILL_FILTER_UNLOCKED,Unlocked,Desbloqueadas
 SKILL_FILTER_LOCKED,Locked,Bloqueadas
+SKILL_TREE_TRAIN_OK,Training complete,Entrenamiento completado
+SKILL_TREE_PLAYER_LABEL,Player,Jugador
+SKILL_TREE_MODE_PARTY,Party view →,Vista party →
+SKILL_TREE_MODE_INDIVIDUAL,← Individual,← Individual
+SKILL_TREE_SELECT_HINT,Select a skill,Selecciona una habilidad
+SKILL_TREE_NO_SKILLS,No skills in this category,Sin habilidades en esta categoría
+SKILL_TREE_NO_PREREQS,None,Ninguno
+SKILL_TREE_AI_BADGE,AI suggests,IA sugiere
+SKILL_TREE_BTN_TRAIN,Train,Entrenar
+SKILL_TREE_BTN_LOCKED,Locked,Bloqueada
+SKILL_TREE_SECTION_REQS,Requirements,Requisitos
+SKILL_TREE_SECTION_LAST_TRAIN,Last trained,Último entreno
+SKILL_TREE_SECTION_COST,Cost,Coste
+SKILL_TREE_ERROR_NO_SKILL_SELECTED,No skill selected,Ninguna habilidad seleccionada
+SKILL_TREE_ERROR_SKILL_LOCKED,Skill is locked,La habilidad está bloqueada
+SKILL_TREE_ERROR_NO_PROGRESSION,Skill has no progression,La habilidad no tiene progresión
+SKILL_TREE_ERROR_CHALLENGE_TOO_LOW,Already mastered — find a better trainer,Ya dominada — busca un entrenador mejor
+SKILL_TREE_ERROR_SYSTEM,System error,Error del sistema
+SKILL_TREE_ERROR_UNKNOWN,Unknown error,Error desconocido
+SKILL_SUBCATEGORY_MELEE,Melee,Melee
+SKILL_SUBCATEGORY_RANGED,Ranged,Distancia
+SKILL_SUBCATEGORY_EXPLORATION,Exploration,Exploración
+SKILL_SUBCATEGORY_DIALOGUE,Dialogue,Diálogo
+SKILL_SUBCATEGORY_NARRATIVE,Narrative,Narrativa
+SKILL_SUBCATEGORY_ENEMY,Enemy,Enemigo
+SKILL_SUBCATEGORY_NONE,General,General
+SKILL_FILTER_ALL,All,Todas
+SKILL_FILTER_TRAINABLE,Trainable now,Mejorables ahora
+SKILL_FILTER_UNLOCKED,Unlocked,Desbloqueadas
+SKILL_FILTER_LOCKED,Locked,Bloqueadas
+SKILL_TREE_SECTION_DESC,Description,Descripción
+SKILL_TREE_SECTION_EFFECTS,Effects,Efectos
+SKILL_TREE_SECTION_COMBAT_USE,Combat use,Uso en combate
+SKILL_TREE_SECTION_EXPLORATION_USE,Exploration use,Uso en exploración
+SKILL_TREE_EXPLORATION_NOTE,Effect depends on the interacted object.,El efecto depende del objeto con el que se interactúa.
+SKILL_EFFECT_DAMAGE,Physical damage,Daño físico
+SKILL_EFFECT_HEAL,Heal,Curación
+SKILL_EFFECT_BUFF,Buff,Mejora
+SKILL_EFFECT_DEBUFF,Debuff,Penalización
+SKILL_META_TARGET,Target,Objetivo
+SKILL_META_RANGE,Range,Alcance
+SKILL_META_COOLDOWN,Cooldown,Cooldown
+SKILL_META_COST_STAMINA,Cost,Coste
+SKILL_META_ATTRIBUTES,Attributes,Atributos
+SKILL_TARGET_SELF,Self,Propio
+SKILL_TARGET_SINGLE,Single enemy,Un enemigo
+SKILL_TARGET_MULTI,Multi enemy,Varios enemigos
+SKILL_TARGET_AREA,Area,Área
+SKILL_RANGE_MELEE,Melee,Cuerpo a cuerpo
+SKILL_RANGE_SHORT,Short,Corto
+SKILL_RANGE_MEDIUM,Medium,Medio
+SKILL_RANGE_LONG,Long,Largo
+ATTR_ABBR_STRENGTH,STR,FUE
+ATTR_ABBR_DEXTERITY,DEX,DES
+ATTR_ABBR_CONSTITUTION,CON,CON
+ATTR_ABBR_INTELLIGENCE,INT,INT
+ATTR_ABBR_WISDOM,WIS,SAB
+ATTR_ABBR_CHARISMA,CHA,CAR

@@ -47,14 +47,23 @@ theme_override_constants/separation = 5
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="HeaderSep" type="HSeparator" parent="Root/MainLayout" unique_id=615533899]
+layout_mode = 2
+
 [node name="TabBar" type="HBoxContainer" parent="Root/MainLayout" unique_id=130099461]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 
+[node name="HeaderSep2" type="HSeparator" parent="Root/MainLayout" unique_id=801195]
+layout_mode = 2
+
 [node name="FilterBar" type="HBoxContainer" parent="Root/MainLayout" unique_id=1952668835]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+
+[node name="HeaderSep3" type="HSeparator" parent="Root/MainLayout" unique_id=18515365]
 layout_mode = 2
 
 [node name="MainContainer" type="HBoxContainer" parent="Root/MainLayout" unique_id=1119387084]
@@ -90,36 +99,11 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.83137256, 0.76862746, 0.6039216, 1)
 theme_override_font_sizes/font_size = 28
 
-[node name="ReqsHeader" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=1476885752]
+[node name="DetailContent" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=525843455]
 unique_name_in_owner = true
 layout_mode = 2
-text = "SKILL_TREE_SECTION_REQS"
-
-[node name="ReqsList" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=410149155]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="LastTrainHeader" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=901725997]
-unique_name_in_owner = true
-layout_mode = 2
-text = "SKILL_TREE_SECTION_LAST_TRAIN"
-
-[node name="LastTrainLabel" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=166520828]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="CostSection" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=2050128642]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-
-[node name="CostHeader" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel/CostSection" unique_id=2086701531]
-layout_mode = 2
-text = "SKILL_TREE_SECTION_COST"
-
-[node name="CostList" type="VBoxContainer" parent="Root/MainLayout/MainContainer/DetailPanel/CostSection" unique_id=885756533]
-unique_name_in_owner = true
-layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
 
 [node name="FeedbackLabel" type="Label" parent="Root/MainLayout/MainContainer/DetailPanel" unique_id=970852461]
 unique_name_in_owner = true
@@ -142,3 +126,20 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
+
+[node name="CloseBtn" type="Button" parent="Root" unique_id=477617383]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -36.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 36.0
+grow_horizontal = 0
+grow_vertical = 0
+size_flags_horizontal = 8
+text = "✕"

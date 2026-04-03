@@ -417,6 +417,13 @@ func get_entity_skill_snapshot(entity_id: String) -> Array:
 			"prereqs_met":                prereqs_met,
 			"missing_prereqs":            missing_prereqs,
 			"training_cost":              {},
+			"effects":                    definition.effects.duplicate(),   # Array de Dicts
+			"costs":                      definition.costs.duplicate(),     # { "stamina": 10.0, ... }
+			"target_type":                definition.target_type,           # "SELF","SINGLE_ENEMY","MULTI_ENEMY","AREA"
+			"range_type":                 definition.range_type,            # "MELEE","SHORT","MEDIUM","LONG"
+			"base_cooldown":              definition.base_cooldown,         # float segundos
+			"attribute_weights":          definition.attribute_weights.duplicate(),
+			"tags":                       definition.tags.duplicate(),
 		})
  
 	return result
