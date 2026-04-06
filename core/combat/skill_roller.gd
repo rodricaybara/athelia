@@ -43,7 +43,7 @@ const FUMBLE_THRESHOLD: int = 98
 ## @param skill_value: Porcentaje de éxito (0-100)
 ## @param guaranteed: Si true, siempre resulta en SUCCESS (buff guaranteed_hit)
 ## @return Dictionary con resultado completo
-static func roll_skill(skill_value: int, guaranteed: bool = false) -> Dictionary:
+static func roll_skill(skill_value: int, guaranteed: bool = false, critical_bonus: int = 0) -> Dictionary:
 	# 🆕 FASE A.3: Guaranteed hit (buff de dodge)
 	if guaranteed:
 		return {
@@ -67,19 +67,20 @@ static func roll_skill(skill_value: int, guaranteed: bool = false) -> Dictionary
 	var roll = randi_range(1, 100)
 	
 	# Determinar resultado
-	var result = _determine_result(roll, clamped_skill)
+	var result = _determine_result(roll, clamped_skill, critical_bonus)
 	
 	# Calcular grado de Ã©xito (cuÃ¡nto sobrepasÃ³ o fallÃ³)
 	var margin = _calculate_margin(roll, clamped_skill, result)
 	
 	return {
-		"roll": roll,                    # Valor del dado (1-100)
-		"skill_value": clamped_skill,   # % de habilidad usado
-		"result": result,                # Enum RollResult
-		"result_name": _result_to_string(result),  # String para debug
-		"success": _is_success(result), # true si Ã©xito o crÃ­tico
-		"margin": margin,                # Margen de Ã©xito/fallo
-		"timestamp": Time.get_ticks_msec()
+		"roll": roll,
+		"skill_value": clamped_skill,
+		"result": result,
+		"result_name": _result_to_string(result),
+		"success": _is_success(result),
+		"margin": margin,
+		"timestamp": Time.get_ticks_msec(),
+		"critical_threshold": CRITICAL_THRESHOLD + critical_bonus
 	}
 
 
@@ -88,23 +89,23 @@ static func roll_skill(skill_value: int, guaranteed: bool = false) -> Dictionary
 # ============================================
 
 ## Determina el resultado segÃºn la tirada
-static func _determine_result(roll: int, skill_value: int) -> RollResult:
-	# Pifia tiene prioridad (siempre â‰¥98, incluso si skill es 100%)
+static func _determine_result(roll: int, skill_value: int, critical_bonus: int = 0) -> RollResult:
+	# Pifia tiene prioridad (siempre ≥98, incluso si skill es 100%)
 	if roll >= FUMBLE_THRESHOLD:
 		return RollResult.FUMBLE
 	
-	# CrÃ­tico (â‰¤2)
-	if roll <= CRITICAL_THRESHOLD:
+	# Crítico — umbral base + bonus del buff
+	var effective_critical: int = CRITICAL_THRESHOLD + critical_bonus
+	if roll <= effective_critical:
 		return RollResult.CRITICAL
 	
-	# Ã‰xito normal (â‰¤skill_value)
+	# Éxito normal (≤skill_value)
 	if roll <= skill_value:
 		return RollResult.SUCCESS
 	
 	# Fallo
 	return RollResult.FAILURE
-
-
+	
 ## Calcula el margen de Ã©xito/fallo
 ## Positivo = Ã©xito, negativo = fallo
 ## Ejemplo: roll=25, skill=40 â†’ margin=+15 (Ã©xito por 15)

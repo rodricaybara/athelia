@@ -33,9 +33,9 @@ extends Node
 ## Actions skill_1/2/3: teclas numéricas configuradas en Project Settings
 ## Actions defend/flee: R y F respectivamente
 @export var skill_hotkeys: Dictionary = {
-	"skill_1": "skill.attack.ranged",
-	"skill_2": "skill.attack.throw_rock",
-	"skill_3": "skill.combat.dodge",
+	"skill_1": "skill.attack.stunning_blow",
+	"skill_2": "skill.attack.bleeding_strike",
+	"skill_3": "skill.attack.reckless_strike",
 	"defend":  "skill.combat.defend",
 	"flee":    "skill.combat.flee",
 }

@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://bouunp57pvixv"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_enl52"]
+
+[resource]
+script = ExtResource("1_enl52")
+id = "skill.attack.power_strike"
+name_key = "SKILL_POWER_STRIKE_NAME"
+description_key = "SKILL_POWER_STRIKE_DESC"
+mode = "COMBAT"
+subcategory = "MELEE"
+costs = {
+"stamina": 15
+}
+base_cooldown = 2.0
+target_type = "SINGLE_ENEMY"
+effects = [{
+"duration": 0.5,
+"type": "DAMAGE",
+"value": 1.5
+}, {
+"buff_type": "vulnerable",
+"duration": 2,
+"target": "target",
+"type": "BUFF",
+"value": 25.0
+}]
+tags = Array[String](["attack", "melee", "physical"])
+base_success_rate = 35
+attribute_weights = {
+"dexterity": 0.4,
+"strength": 0.6
+}
+max_ticks_per_combat = 2
+metadata/_custom_type_script = "uid://jr1m7twgsql0"

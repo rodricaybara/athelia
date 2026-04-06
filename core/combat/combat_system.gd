@@ -101,6 +101,8 @@ func _ready():
 		EventBus.flee_requested.connect(_on_flee_requested)
 		EventBus.buff_applied.connect(_on_buff_applied_vfx)
 		EventBus.buff_expired.connect(_on_buff_expired_vfx)
+		EventBus.enemy_turn_started.connect(_on_enemy_turn_started)
+		EventBus.companion_turn_started.connect(_on_companion_turn_started)
 	else:
 		push_error("[CombatSystem] EventBus autoload not found!")
 	
@@ -124,13 +126,39 @@ func _process(_delta):
 
 ## Callback: GameLoop ordena ejecutar una acción de combate
 func _on_execute_combat_action(action_data: Dictionary) -> void:
-	var actor = action_data.get("actor", "")
-	var skill_id = action_data.get("skill_id", "")
-	var target = action_data.get("target", "")
-	
+	var actor: String = action_data.get("actor", "")
+	var skill_id: String = action_data.get("skill_id", "")
+	var target: String = action_data.get("target", "")
+
 	# Skills SELF (dodge) no necesitan target enemigo
-	var skill_def = Skills.get_skill_definition(skill_id)
-	var is_self_target = skill_def and skill_def.target_type == "SELF"
+	var skill_def: SkillDefinition = Skills.get_skill_definition(skill_id)
+	var is_self_target: bool = skill_def and skill_def.target_type == "SELF"
+
+	# --- STAGGERED: el actor pierde su acción ---
+	if has_buff(actor, "staggered"):
+		consume_buff(actor, "staggered")
+		print("[CombatSystem] 😵 %s is staggered — action cancelled" % actor)
+		EventBus.emit_signal("character_staggered", actor)
+		EventBus.emit_signal("combat_action_completed", {
+			"success": false,
+			"staggered": true,
+			"actor": actor
+		})
+		return
+
+	# --- DISARMED: bloquea skills con tags de arma ---
+	if has_buff(actor, "disarmed") and skill_def:
+		var weapon_tags: Array[String] = ["attack", "melee", "ranged"]
+		var is_weapon_skill: bool = false
+		for tag in skill_def.tags:
+			if tag in weapon_tags:
+				is_weapon_skill = true
+				break
+		if is_weapon_skill:
+			print("[CombatSystem] 🚫 %s is disarmed — cannot use %s" % [actor, skill_id])
+			EventBus.emit_signal("character_disarmed", actor, skill_id)
+			EventBus.emit_signal("combat_action_failed", actor, "DISARMED")
+			return
 	
 	if target.is_empty() and not is_self_target:
 		push_error("[CombatSystem] No target specified in action_data for skill: %s" % skill_id)
@@ -150,27 +178,27 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 		EventBus.emit_signal("combat_action_failed", actor, "Skill use failed")
 		_pending_skill_context.clear()
 
-
 ## Callback: Inicio del turno del jugador
 func _on_player_turn_started() -> void:
 	print("[CombatSystem] Player turn started - processing buffs and modules")
+
+	# 1. Ticks de recursos (bleeding, regen, drain)
+	_process_resource_ticks(PLAYER_ID)
 	
-	# 1. Expirar buffs de tipo "turn" del jugador
+	# 2. Expirar buffs de tipo "turn" del jugador
 	_expire_turn_buffs(PLAYER_ID)
-	
-	# 2. Expirar defensa si estaba activa
+
+	# 3. Expirar defensa si estaba activa
 	_defense_module.on_player_turn_start()
-	
-	# 3. Resolver escape pendiente (se activó en el turno anterior)
+
+	# 4. Resolver escape pendiente
 	if _escape_module.is_pending():
 		var threshold = _escape_module.get_current_threshold()
 		var success = _escape_module.resolve_escape(PLAYER_ID)
 		if success:
-			# Consumir stamina como coste del escape exitoso
 			Resources.add_resource(PLAYER_ID, "stamina", -threshold)
 			print("[CombatSystem] 🏃 Escape succeeded — consumed %d stamina" % threshold)
 			GameLoop.end_combat("escaped")
-
 
 ## Callback: Jugador solicita defender
 func _on_defend_requested(entity_id: String) -> void:
@@ -198,6 +226,15 @@ func _on_flee_requested(entity_id: String) -> void:
 	# Ceder turno a los enemigos — ellos atacan antes de que se evalúe el escape
 	GameLoop.end_player_turn_from_special_action()
 
+## Callback: inicio de turno de un enemigo
+func _on_enemy_turn_started(enemy_id: String) -> void:
+	_process_resource_ticks(enemy_id)   # 1. aplicar efectos con turns_left actual
+	_expire_turn_buffs(enemy_id)        # 2. decrementar y eliminar si llegan a 0
+
+## Callback: inicio de turno de un companion
+func _on_companion_turn_started(companion_id: String) -> void:
+	_process_resource_ticks(companion_id)  # 1. efectos primero
+	_expire_turn_buffs(companion_id)       # 2. decrementar después
 
 # ============================================
 # CALLBACKS DE SKILLSYSTEM
@@ -231,10 +268,23 @@ func _on_skill_used(entity_id: String, skill_id: String):
 	print("[CombatSystem] Resolving skill: %s → %s" % [entity_id, target_id])
 	
 	# Verificar guaranteed_hit antes de la tirada
-	var skill_value = Characters.get_skill_value(entity_id, skill_id)
-	var is_guaranteed = has_buff(entity_id, "guaranteed_hit")
-	
-	var roll_result = SkillRoller.roll_skill(skill_value)
+	var skill_value: int = Characters.get_skill_value(entity_id, skill_id)
+	var is_guaranteed: bool = has_buff(entity_id, "guaranteed_hit")
+
+	# precision_up: bonus temporal a la tirada
+	if has_buff(entity_id, "precision_up"):
+		var bonus: float = _get_buff_value(entity_id, "precision_up")
+		skill_value += int(bonus)
+		consume_buff(entity_id, "precision_up")
+		print("[CombatSystem] 🎯 precision_up: skill_value → %d" % skill_value)
+		
+	# critical_bonus: amplía el umbral de crítico (no se consume, dura X turnos)
+	var crit_bonus: int = 0
+	if has_buff(entity_id, "critical_bonus"):
+		crit_bonus = int(_get_buff_value(entity_id, "critical_bonus"))
+		print("[CombatSystem] 🎯 critical_bonus activo: umbral crítico → %d" % (2 + crit_bonus))
+
+	var roll_result = SkillRoller.roll_skill(skill_value, false, crit_bonus)
 	
 	if is_guaranteed:
 		consume_buff(entity_id, "guaranteed_hit")
@@ -253,17 +303,24 @@ func _on_skill_used(entity_id: String, skill_id: String):
 		_play_skill_animation(entity_id, skill_id)
 		
 		var is_critical = (roll_result.result == SkillRoller.RollResult.CRITICAL)
-		result = _process_skill_effects(entity_id, skill_def, is_critical)
+		result = _process_skill_effects(entity_id, skill_def, is_critical, target_id)
 		result["roll_result"] = roll_result
-		
-		if result.has("buffs_applied") and not result.buffs_applied.is_empty():
-			for buff in result.buffs_applied:
-				apply_buff(entity_id, buff)
 		
 		if result.get("success", false) and result.get("damage", 0) > 0:
 			var damage = result.get("damage", 0.0)
 			var is_crit = result.get("critical", false)
 			_apply_damage_by_target_type(entity_id, target_id, skill_def, damage, is_crit)
+			
+		if not target_id.is_empty():
+			var target_hp: float = Resources.get_resource_amount(target_id, "health")
+			if target_hp <= 0:
+				result["buffs_applied"] = []
+		
+		if result.has("buffs_applied") and not result.buffs_applied.is_empty():
+			for buff in result.buffs_applied:
+				var recipient: String = buff.get("recipient", entity_id)
+				apply_buff(recipient, buff)
+			
 	else:
 		result = {
 			"success": false,
@@ -317,7 +374,7 @@ func _on_skill_failed(entity_id: String, skill_id: String, reason: String):
 func _resolve_combat_skill(
 	entity_id: String,
 	skill_id: String,
-	_target_id: String,
+	target_id: String,
 	is_critical: bool = false
 ) -> Dictionary:
 	var skill_def = Skills.get_skill_definition(skill_id)
@@ -328,7 +385,8 @@ func _resolve_combat_skill(
 	var effects_result = _process_skill_effects(
 		entity_id,
 		skill_def,
-		is_critical
+		is_critical, 
+		target_id
 	)
 	
 	return {
@@ -340,58 +398,67 @@ func _resolve_combat_skill(
 
 
 ## Procesa efectos de una habilidad (daño + buffs)
+## Procesa efectos de una habilidad (daño + buffs)
 func _process_skill_effects(
 	entity_id: String,
 	skill_def: SkillDefinition,
-	is_critical: bool
+	is_critical: bool,
+	target_id: String = ""    # ← NUEVO: necesario para buffs con target="target"
 ) -> Dictionary:
-	var character_state = Characters.get_character_state(entity_id)  # ❌ Ya no necesitas esto
+	var character_state = Characters.get_character_state(entity_id)
 	if not character_state:
 		return {"damage": 0, "buffs_applied": []}
-	
+
 	var damage: float = 0.0
 	var buffs_applied: Array = []
-	
+
 	for effect in skill_def.effects:
-		match effect.get("type", "").to_lower():
-			"damage":
-				var base_damage_attr = effect.get("base_damage_attribute", "base_damage")
-				var damage_modifier = effect.get("value", 1.0)
-				
-				print("[CombatSystem] Skill effect - attr: %s, modifier: %.2f" % [base_damage_attr, damage_modifier])
-				
-				var resolved_damage = AttributeResolver.resolve(
-					entity_id,
-					base_damage_attr,
-					{}
-				)
-				
+		match effect.get("type", "").to_upper():
+			"DAMAGE":
+				var base_damage_attr: String = effect.get("base_damage_attribute", "base_damage")
+				var damage_modifier: float = effect.get("value", 1.0)
+
+				var resolved_damage: float = AttributeResolver.resolve(entity_id, base_damage_attr, {})
 				damage = resolved_damage * damage_modifier
-				
+
 				if is_critical:
-					var crit_multiplier = effect.get("critical_multiplier", 2.0)
+					var crit_multiplier: float = effect.get("critical_multiplier", 2.0)
 					damage *= crit_multiplier
-				
+
 				print("[CombatSystem] Damage calculated: %.1f (base: %.1f, modifier: %.2f, crit: %s)" % [
-					damage,
-					resolved_damage,
-					damage_modifier,
-					is_critical
+					damage, resolved_damage, damage_modifier, is_critical
 				])
-			
-			"buff":
-				buffs_applied.append(effect.duplicate())
-			
+
+			"BUFF":
+				# Determinar a quién se aplica el buff
+				var buff_target_field: String = effect.get("target", "self")
+				var buff_recipient: String = entity_id
+				if buff_target_field == "target" and not target_id.is_empty():
+					buff_recipient = target_id
+
+				var duration: int = effect.get("duration", 1)
+				var buff_data: Dictionary = {
+					"buff_type":  effect.get("buff_type", "unknown"),
+					"value":      effect.get("value", 0.0),
+					"expires_on": "use" if duration == 0 else "turn",
+					"turns_left": duration if duration > 0 else 0,
+					"uses_left":  1 if duration == 0 else 0,
+					"recipient":  buff_recipient
+				}
+				buffs_applied.append(buff_data)
+				print("[CombatSystem] Buff queued: %s → %s (%d turns)" % [
+					buff_data.buff_type, buff_recipient, buff_data.turns_left
+				])
+
 			_:
 				push_warning("[CombatSystem] Unknown effect type: %s" % effect.get("type"))
-	
+
 	return {
 		"success": true,
 		"damage": damage,
 		"critical": is_critical,
 		"buffs_applied": buffs_applied
 	}
-
 
 ## Enruta el daño a uno o varios targets según target_type de la habilidad.
 ##
@@ -474,6 +541,35 @@ func _apply_damage(target_id: String, damage: float, is_critical: bool = false, 
 	# El mínimo 1 garantiza que ningún ataque haga 0 daño.
 	var armor = AttributeResolver.resolve(target_id, "armor_rating", {})
 	var damage_after_armor := maxf(1.0, damage - armor)
+	# --- BUFFS NUMÉRICOS: modificadores de daño activos ---
+	# Orden: weakened (atacante) → damage_bonus (atacante) → vulnerable (defensor) → damage_reduction (defensor)
+
+	if not attacker_id.is_empty():
+	# weakened: el atacante hace menos daño
+		if has_buff(attacker_id, "weakened"):
+			var buff_val: float = _get_buff_value(attacker_id, "weakened")
+			damage_after_armor *= maxf(0.0, 1.0 - buff_val / 100.0)
+			print("[CombatSystem] 🔻 weakened: -%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
+
+	# damage_bonus: el atacante hace más daño
+		if has_buff(attacker_id, "damage_bonus"):
+			var buff_val: float = _get_buff_value(attacker_id, "damage_bonus")
+			damage_after_armor *= (1.0 + buff_val / 100.0)
+			print("[CombatSystem] 🔺 damage_bonus: +%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
+
+	# vulnerable: el defensor recibe más daño
+	if has_buff(target_id, "vulnerable"):
+		var buff_val: float = _get_buff_value(target_id, "vulnerable")
+		damage_after_armor *= (1.0 + buff_val / 100.0)
+		print("[CombatSystem] 🔺 vulnerable: +%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
+
+	# damage_reduction: el defensor recibe menos daño (se aplica al final)
+	if has_buff(target_id, "damage_reduction"):
+		var buff_val: float = _get_buff_value(target_id, "damage_reduction")
+		damage_after_armor *= maxf(0.0, 1.0 - buff_val / 100.0)
+		print("[CombatSystem] 🔻 damage_reduction: -%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
+
+	damage_after_armor = maxf(1.0, damage_after_armor)
 	if armor > 0.0:
 		print("[CombatSystem] 🛡️ %s armor_rating=%.1f: %.1f → %.1f dmg" % [
 			target_id, armor, damage, damage_after_armor
@@ -559,24 +655,28 @@ func _process_dodge(entity_id: String, skill_def: SkillDefinition) -> void:
 func apply_buff(entity_id: String, buff_data: Dictionary) -> void:
 	if not _active_buffs.has(entity_id):
 		_active_buffs[entity_id] = []
-	
-	# Normalizar: si viene del .tres con 'duration', convertir a turn-based
+
 	if not buff_data.has("expires_on"):
 		buff_data["expires_on"] = "turn"
 	if not buff_data.has("uses_left"):
-		buff_data["uses_left"] = 1
-	
+		buff_data["uses_left"] = 0
+	if not buff_data.has("turns_left"):
+		buff_data["turns_left"] = 1
+
+	# Buffs aplicados en este turno no hacen tick hasta el siguiente
+	buff_data["skip_first_tick"] = true
+
 	_active_buffs[entity_id].append(buff_data)
-	
-	print("[CombatSystem] 🟢 Buff applied to %s: %s (expires_on: %s)" % [
+
+	print("[CombatSystem] 🟢 Buff applied to %s: %s (%d turns, expires_on: %s)" % [
 		entity_id,
 		buff_data.get("buff_type", "unknown"),
+		buff_data.get("turns_left", 1),
 		buff_data.get("expires_on", "turn")
 	])
-	
+
 	EventBus.emit_signal("buff_applied", entity_id, buff_data.get("buff_type", ""), 0.0)
-
-
+	
 ## Verifica si una entidad tiene un buff activo
 func has_buff(entity_id: String, buff_type: String) -> bool:
 	if not _active_buffs.has(entity_id):
@@ -599,25 +699,91 @@ func consume_buff(entity_id: String, buff_type: String) -> void:
 			EventBus.emit_signal("buff_expired", entity_id, buff_type)
 			return
 
-
 ## Expira todos los buffs de tipo "turn" de una entidad al inicio de su turno
+## Decrementa turns_left de buffs "turn" de una entidad.
+## Solo elimina el buff cuando turns_left llega a 0.
 func _expire_turn_buffs(entity_id: String) -> void:
 	if not _active_buffs.has(entity_id):
 		return
 	for i in range(_active_buffs[entity_id].size() - 1, -1, -1):
-		var buff = _active_buffs[entity_id][i]
-		if buff.get("expires_on") == "turn":
-			var buff_type = buff.get("buff_type", "unknown")
+		var buff: Dictionary = _active_buffs[entity_id][i]
+		if buff.get("expires_on") != "turn":
+			continue
+		var turns_left: int = buff.get("turns_left", 1)
+		turns_left -= 1
+		if turns_left <= 0:
+			var buff_type: String = buff.get("buff_type", "unknown")
 			_active_buffs[entity_id].remove_at(i)
-			print("[CombatSystem] 🔴 Buff expired (turn): %s from %s" % [buff_type, entity_id])
+			print("[CombatSystem] 🔴 Buff expired: %s from %s" % [buff_type, entity_id])
 			EventBus.emit_signal("buff_expired", entity_id, buff_type)
-
+		else:
+			buff["turns_left"] = turns_left
+			print("[CombatSystem] ⏳ Buff tick: %s on %s (%d turns left)" % [
+				buff.get("buff_type"), entity_id, turns_left
+			])
 
 ## Limpia todos los buffs de una entidad (fin de combate)
 func clear_buffs(entity_id: String) -> void:
 	if _active_buffs.has(entity_id):
 		_active_buffs[entity_id].clear()
 
+## Obtiene el valor numérico del primer buff activo del tipo indicado.
+## Retorna 0.0 si no existe.
+func _get_buff_value(entity_id: String, buff_type: String) -> float:
+	if not _active_buffs.has(entity_id):
+		return 0.0
+	for buff in _active_buffs[entity_id]:
+		if buff.get("buff_type") == buff_type:
+			return buff.get("value", 0.0)
+	return 0.0
+
+## Procesa ticks de recursos al inicio del turno de una entidad.
+## Evalúa: bleeding, resource_regen, resource_drain.
+## Se llama DESPUÉS de _expire_turn_buffs para no procesar buffs
+## que acaban de expirar en este mismo turno.
+func _process_resource_ticks(entity_id: String) -> void:
+	if not _active_buffs.has(entity_id):
+		return
+
+	for buff in _active_buffs[entity_id]:
+		# Si es el primer turno desde que se aplicó, saltar y limpiar la marca
+		if buff.get("skip_first_tick", false):
+			buff["skip_first_tick"] = false
+			continue
+
+		var buff_type: String = buff.get("buff_type", "")
+
+		match buff_type:
+			"bleeding":
+				var value: float = buff.get("value", 0.0)
+				Resources.add_resource(entity_id, "health", -value)
+				print("[CombatSystem] 🩸 bleeding tick: %s −%.1f HP" % [entity_id, value])
+				EventBus.emit_signal("character_damaged", entity_id, value,
+					Resources.get_resource_amount(entity_id, "health"))
+				_spawn_damage_number(entity_id, value, false, false)
+				_check_death_after_tick(entity_id)
+
+			"resource_regen":
+				var value: float = buff.get("value", 0.0)
+				var resource_id: String = buff.get("resource_id", "")
+				if resource_id.is_empty():
+					push_warning("[CombatSystem] resource_regen sin resource_id en %s" % entity_id)
+					continue
+				Resources.add_resource(entity_id, resource_id, value)
+				print("[CombatSystem] 💚 resource_regen tick: %s +%.1f %s" % [entity_id, value, resource_id])
+
+			"resource_drain":
+				var value: float = buff.get("value", 0.0)
+				var resource_id: String = buff.get("resource_id", "")
+				if resource_id.is_empty():
+					push_warning("[CombatSystem] resource_drain sin resource_id en %s" % entity_id)
+					continue
+				Resources.add_resource(entity_id, resource_id, -value)
+				print("[CombatSystem] 🔻 resource_drain tick: %s −%.1f %s" % [entity_id, value, resource_id])
+				if resource_id == "health":
+					EventBus.emit_signal("character_damaged", entity_id, value,
+						Resources.get_resource_amount(entity_id, "health"))
+					_check_death_after_tick(entity_id)
 
 # ============================================
 # ANIMACIONES (FASE B.1)
@@ -721,7 +887,14 @@ func _get_first_enemy() -> String:
 	# En producción: GameLoop proporcionaría lista de enemigos
 	return "enemy_1"
 
-
+## Comprueba si una entidad llegó a 0 HP tras un tick de recurso.
+## Evita duplicar la lógica de muerte que ya existe en _apply_damage.
+func _check_death_after_tick(entity_id: String) -> void:
+	var hp: float = Resources.get_resource_amount(entity_id, "health")
+	if hp <= 0:
+		print("[CombatSystem] 💀 %s died from resource tick" % entity_id)
+		EventBus.emit_signal("character_died", entity_id)
+		
 # ============================================
 # VFX DE BUFFS
 # ============================================

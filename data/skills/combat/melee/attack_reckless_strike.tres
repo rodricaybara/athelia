@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://djyhg45so251a"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_i7qa1"]
+
+[resource]
+script = ExtResource("1_i7qa1")
+id = "skill.attack.reckless_strike"
+name_key = "SKILL_RECKLESS_STRIKE_NAME"
+description_key = "SKILL_RECKLESS_STRIKE_DESC"
+mode = "COMBAT"
+subcategory = "MELEE"
+costs = {
+"stamina": 16.0
+}
+base_cooldown = 2.0
+target_type = "SINGLE_ENEMY"
+effects = [{
+"duration": 0.4,
+"type": "DAMAGE",
+"value": 1.2
+}, {
+"buff_type": "critical_bonus",
+"duration": 2,
+"target": "self",
+"type": "BUFF",
+"value": 18.0
+}]
+tags = Array[String](["attack", "melee", "physical"])
+base_success_rate = 40
+attribute_weights = {
+"dexterity": 0.4,
+"strength": 0.6
+}
+max_ticks_per_combat = 3
+metadata/_custom_type_script = "uid://jr1m7twgsql0"

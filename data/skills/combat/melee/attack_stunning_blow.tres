@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://biqvhvwq40dty"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_edpwh"]
+
+[resource]
+script = ExtResource("1_edpwh")
+id = "skill.attack.stunning_blow"
+name_key = "SKILL_STUNNING_BLOW_NAME"
+description_key = "SKILL_STUNNING_BLOW_DESC"
+mode = "COMBAT"
+subcategory = "MELEE"
+costs = {
+"stamina": 14.0
+}
+base_cooldown = 2.0
+target_type = "SINGLE_ENEMY"
+effects = [{
+"duration": 0.4,
+"type": "DAMAGE",
+"value": 0.8
+}, {
+"buff_type": "staggered",
+"duration": 0,
+"target": "target",
+"type": "BUFF",
+"value": 0.0
+}]
+tags = Array[String](["attack", "melee", "physical", "stagger"])
+base_success_rate = 35
+attribute_weights = {
+"dexterity": 0.4,
+"strength": 0.6
+}
+max_ticks_per_combat = 2
+metadata/_custom_type_script = "uid://jr1m7twgsql0"

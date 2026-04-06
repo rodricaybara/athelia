@@ -21,11 +21,15 @@ starting_resources = {
 "health": 35,
 "stamina": 24
 }
-skills = Array[String](["skill.attack.light", "skill.attack.heavy", "skill.combat.dodge", "skill.attack.ranged", "skill.attack.sweep", "skill.attack.throw_rock"])
+skills = Array[String](["skill.attack.light", "skill.attack.heavy", "skill.combat.dodge", "skill.attack.ranged", "skill.attack.sweep", "skill.attack.throw_rock", "skill.attack.power_strike", "skill.attack.bleeding_strike", "skill.attack.stunning_blow", "skill.attack.reckless_strike"])
 starting_skill_values = {
+"skill.attack.bleeding_strike": 60,
 "skill.attack.heavy": 25,
 "skill.attack.light": 40,
+"skill.attack.power_strike": 60,
 "skill.attack.ranged": 50,
+"skill.attack.reckless_strike": 60,
+"skill.attack.stunning_blow": 60,
 "skill.attack.sweep": 50,
 "skill.attack.throw_rock": 50,
 "skill.combat.dodge": 50,

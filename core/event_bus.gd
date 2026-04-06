@@ -51,6 +51,9 @@ signal buff_applied(character_id: String, buff_type: String, duration: float)
 signal buff_expired(character_id: String, buff_type: String)
 signal player_incapacitated()
 signal player_rescued_by_companions()
+signal character_staggered(entity_id: String)
+signal character_disarmed(entity_id: String, skill_id: String)
+
 # ==============================================
 # EVENTOS DE ECONOMÍA
 # ==============================================
