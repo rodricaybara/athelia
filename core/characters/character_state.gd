@@ -43,6 +43,9 @@ var equipped_modifiers: Array[ModifierDefinition] = []
 ## FASE C.1.5: Sistema de tiradas RuneQuest
 var skill_values: Dictionary = {}
 
+## Configuración de slots de combate (skills y consumibles asignados)
+## Compatible con jugador y companions
+var loadout: LoadoutState = LoadoutState.new()
 
 # ============================================
 # ESTADO TEMPORAL (NO SE PERSISTE)
@@ -86,6 +89,8 @@ func _init(def: CharacterDefinition):
 		skill_values = definition.starting_skill_values.duplicate()
 	else:
 		skill_values = {}
+		
+	loadout = LoadoutState.new()
 	
 	print("[CharacterState] Created for '%s'" % definition.id)
 
@@ -301,14 +306,13 @@ func _to_string() -> String:
 ## Obtiene snapshot para guardar
 func get_save_state() -> Dictionary:
 	var save_data = {
-		"definition_id": definition.id,
-		"attributes": attributes.duplicate(),
-		"resources": resources.duplicate(),
+		"definition_id":     definition.id,
+		"attributes":        attributes.duplicate(),
+		"resources":         resources.duplicate(),
+		"skill_values":      skill_values.duplicate(),
+		"loadout":           loadout.get_save_state(),
 		"equipped_modifiers": []  # TODO: Serializar modificadores
 	}
-	
-	# Nota: active_states NO se persisten, se reconstruyen en runtime
-	
 	return save_data
 
 
@@ -316,8 +320,14 @@ func get_save_state() -> Dictionary:
 func load_save_state(save_data: Dictionary) -> void:
 	if save_data.has("attributes"):
 		attributes = save_data["attributes"].duplicate()
-	
+ 
 	if save_data.has("resources"):
 		resources = save_data["resources"].duplicate()
-	
+ 
+	if save_data.has("skill_values"):
+		skill_values = save_data["skill_values"].duplicate()
+ 
+	if save_data.has("loadout"):
+		loadout = LoadoutState.new()
+		loadout.load_save_state(save_data["loadout"])
 	# TODO: Deserializar equipped_modifiers si es necesario
