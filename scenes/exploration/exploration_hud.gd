@@ -41,6 +41,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if orchestrator:
 			orchestrator.open_skill_tree("player")
 		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("open_player_menu"):
+		var orchestrator := get_node_or_null("/root/SceneOrchestrator")
+		if orchestrator:
+			orchestrator.open_player_menu()
+		get_viewport().set_input_as_handled()
 
 func hide_interact_prompt() -> void:
 	if interact_prompt:

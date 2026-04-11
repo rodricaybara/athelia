@@ -17,6 +17,20 @@ SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
 SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.
 SKILL_ATTACK_LIGHT_NAME, Light Atack, Ataque Ligero
 SKILL_ATTACK_LIGHT_DESC, A light atack, Un ataque ligero
+SKILL_BLEEDING_STRIKE_NAME,Bleeding Strike,Golpe Sangrante
+SKILL_BLEEDING_STRIKE_DESC,A strike that causes the target to bleed for several rounds.,Un golpe que hace sangrar al objetivo durante varias rondas.
+SKILL_ATTACK_HEAVY_NAME,Heavy Attack,Ataque Pesado
+SKILL_ATTACK_HEAVY_DESC,A powerful blow that deals high damage at the cost of stamina.,Un golpe poderoso que causa gran daño a costa de stamina.
+SKILL_POWER_STRIKE_NAME,Power Strike,Golpe de Poder
+SKILL_POWER_STRIKE_DESC,A focused strike that concentrates all strength into a single hit.,Un golpe concentrado que canaliza toda la fuerza en un único impacto.
+SKILL_RECKLESS_STRIKE_NAME,Reckless Strike,Golpe Temerario
+SKILL_RECKLESS_STRIKE_DESC,An aggressive attack that deals extra damage but leaves you exposed.,Un ataque agresivo que causa daño adicional pero te deja expuesto.
+SKILL_STUNNING_BLOW_NAME,Stunning Blow,Golpe Aturdidor
+SKILL_STUNNING_BLOW_DESC,A heavy impact that staggers the target and delays their next action.,Un impacto contundente que desestabiliza al objetivo y retrasa su próxima acción.
+SKILL_DODGE_NAME,Dodge,Esquiva
+SKILL_DODGE_DESC,A swift evasive movement that avoids an incoming attack.,Un movimiento evasivo rápido que evita un ataque entrante.
+SKILL_FIREBALL_NAME,Fireball,Bola de Fuego
+SKILL_FIREBALL_DESC,A concentrated sphere of fire hurled at the enemy.,Una esfera concentrada de fuego lanzada contra el enemigo.
 SHOP_TRADE_SUCCESS,Purchased: %s x%d,Comprado: %s x%d
 SHOP_ERROR_NO_MONEY,Not enough gold,Oro insuficiente
 SHOP_ERROR_NO_STOCK,Item out of stock,Ítem agotado
@@ -119,3 +133,15 @@ ATTR_ABBR_CONSTITUTION,CON,CON
 ATTR_ABBR_INTELLIGENCE,INT,INT
 ATTR_ABBR_WISDOM,WIS,SAB
 ATTR_ABBR_CHARISMA,CHA,CAR
+ATTR_HEALTH_MAX,Health Max,Vida máx.
+ATTR_STAMINA_MAX,Stamina Max,Stamina máx.
+ATTR_INITIATIVE,Initiative,Iniciativa
+ATTR_MELEE_DAMAGE,Melee Damage,Daño cuerpo a cuerpo
+ATTR_ARMOR_RATING,Armor Rating,Armadura
+MENU_NO_BUFFS,No active effects,Sin efectos activos
+MENU_HEALTH,Health,Vida
+MENU_STAMINA,Stamina,Stamina
+MENU_GOLD,Gold,Oro
+MENU_LOADOUT,Loadout,Loadout
+MENU_INVENTORY,Inventory,Inventario
+MENU_SKILL_TREE,Skills,Habilidades

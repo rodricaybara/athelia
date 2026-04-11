@@ -11,11 +11,14 @@ extends Node
 ## Panel de solo lectura — no escribe ningún estado del personaje.
 ##
 ## Razones de changed():
-##   "opened"      → renderizar todo
-##   "attributes"  → rerenderizar sección de atributos derivados
-##   "buffs"       → rerenderizar sección de buffs activos
-##   "resources"   → rerenderizar sección de recursos y oro
-##   "closed"      → ocultar panel
+##   "opened"         → renderizar todo
+##   "attributes"     → rerenderizar sección de atributos derivados
+##   "buffs"          → rerenderizar sección de buffs activos
+##   "resources"      → rerenderizar sección de recursos y oro
+##   "open_loadout"   → abrir subpantalla loadout
+##   "open_inventory" → abrir subpantalla inventario
+##   "open_skill_tree"→ abrir subpantalla árbol de skills
+##   "closed"         → ocultar panel
 
 # ============================================
 # SEÑAL
@@ -108,6 +111,7 @@ func open(character_id: String) -> void:
 
 	character_name = state.definition.id
 
+	_disconnect_events()
 	_connect_events()
 	_refresh_all()
 	changed.emit("opened")
@@ -126,15 +130,15 @@ func request_close() -> void:
 # ============================================
 
 func request_open_loadout() -> void:
-	SceneOrchestrator.open_loadout(_character_id)
+	changed.emit("open_loadout")
 
 
 func request_open_inventory() -> void:
-	SceneOrchestrator.open_inventory()
+	changed.emit("open_inventory")
 
 
 func request_open_skill_tree() -> void:
-	SceneOrchestrator.open_skill_tree(_character_id)
+	changed.emit("open_skill_tree")
 
 
 # ============================================

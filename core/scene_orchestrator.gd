@@ -33,6 +33,9 @@ const OVERLAY_DIALOGUE  := "res://ui/dialogue/dialogue_panel.tscn"
 const OVERLAY_PARTY     := "res://ui/party/party_ui.tscn"
 const OVERLAY_GAME_OVER := "res://ui/gameover/game_over_ui.tscn"
 const OVERLAY_SKILL_TREE := "res://ui/skill_tree/skill_tree_screen.tscn"
+const OVERLAY_PLAYER_MENU := "res://ui/player_menu/player_menu_screen.tscn"
+const OVERLAY_LOADOUT     := "res://ui/loadout/loadout_screen.tscn"
+const OVERLAY_COMBAT_HUD  := "res://ui/combat_hud/combat_hud.tscn"
 
 # ============================================
 # ESTADO INTERNO
@@ -45,6 +48,8 @@ var _current_overlay: Node = null
 ## CanvasLayer raíz donde se instancian overlays
 ## Se asigna en _ready() buscando el nodo en el árbol
 var _overlay_layer: CanvasLayer = null
+
+var _combat_hud: Node = null
 
 ## Contexto de la última transición (shop_id, dialogue_id, etc.)
 var _pending_context: Dictionary = {}
@@ -176,20 +181,30 @@ func _handle_shop(shop_id: String) -> void:
 
 
 func _handle_combat() -> void:
-	# Ocultar overlays de exploración
 	_hide_current_overlay()
-	
-	# Cargar escena de combate como hija del árbol actual
-	# (additive — la escena de exploración sigue en memoria debajo)
+ 
+	# Cargar escena de combate (additive)
 	var combat_scene := load(SCENE_COMBAT) as PackedScene
 	if not combat_scene:
 		push_error("[SceneOrchestrator] Cannot load combat scene: %s" % SCENE_COMBAT)
 		return
-	
+ 
 	var combat_instance := combat_scene.instantiate()
 	combat_instance.name = "CombatScene"
 	get_tree().root.add_child(combat_instance)
-	print("[SceneOrchestrator] Combat scene loaded")
+ 
+	# Instanciar CombatHud — debe estar en el árbol antes de que
+	# GameLoop emita combat_started, para no perder la señal.
+	var hud_scene := load(OVERLAY_COMBAT_HUD) as PackedScene
+	if not hud_scene:
+		push_error("[SceneOrchestrator] Cannot load CombatHud: %s" % OVERLAY_COMBAT_HUD)
+		return
+ 
+	_combat_hud = hud_scene.instantiate()
+	_combat_hud.name = "CombatHud"
+	get_tree().root.add_child(_combat_hud)
+ 
+	print("[SceneOrchestrator] Combat scene + CombatHud loaded")
 
 
 # ============================================
@@ -281,6 +296,55 @@ func close_skill_tree() -> void:
 			and _current_overlay is SkillTreeScreen:
 		_hide_current_overlay()
 
+## Abre el menú de personaje del jugador.
+## Solo válido en EXPLORATION.
+func open_player_menu() -> void:
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if not game_loop:
+		push_error("[SceneOrchestrator] GameLoop not found")
+		return
+ 
+	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+		push_warning("[SceneOrchestrator] PlayerMenu blocked: state is %s" % \
+			GameLoopSystem.GameState.keys()[game_loop.current_game_state])
+		return
+ 
+	if _current_overlay and is_instance_valid(_current_overlay):
+		_hide_current_overlay()
+		return
+ 
+	_show_overlay(OVERLAY_PLAYER_MENU)
+ 
+	if _current_overlay and _current_overlay.has_method("open"):
+		_current_overlay.open("player")
+ 
+	print("[SceneOrchestrator] PlayerMenu overlay shown")
+ 
+ 
+## Abre la pantalla de loadout para un personaje concreto.
+## Solo válido en EXPLORATION.
+## Llamado desde PlayerMenuViewModel.request_open_loadout().
+func open_loadout(character_id: String) -> void:
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if not game_loop:
+		push_error("[SceneOrchestrator] GameLoop not found")
+		return
+ 
+	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+		push_warning("[SceneOrchestrator] Loadout blocked: state is %s" % \
+			GameLoopSystem.GameState.keys()[game_loop.current_game_state])
+		return
+ 
+	if _current_overlay and is_instance_valid(_current_overlay):
+		_hide_current_overlay()
+ 
+	_show_overlay(OVERLAY_LOADOUT)
+ 
+	if _current_overlay and _current_overlay.has_method("open"):
+		_current_overlay.open(character_id)
+ 
+	print("[SceneOrchestrator] Loadout overlay shown for: %s" % character_id)
+
 # ============================================
 # GESTIÓN DE OVERLAYS
 # ============================================
@@ -332,7 +396,12 @@ func _on_shop_closed(_shop_id: String) -> void:
 
 
 func _on_combat_ended(result: String) -> void:
-	# Limpiar escena de combate del árbol
+	# Destruir CombatHud
+	if _combat_hud and is_instance_valid(_combat_hud):
+		_combat_hud.queue_free()
+	_combat_hud = null
+ 
+	# Limpiar escena de combate
 	var combat_node := get_tree().root.get_node_or_null("CombatScene")
 	if combat_node:
 		combat_node.queue_free()
@@ -340,12 +409,10 @@ func _on_combat_ended(result: String) -> void:
  
 	match result:
 		"victory", "escaped":
-			# Volver a exploración normalmente
 			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 			if game_loop:
 				game_loop.enter_exploration()
 		"defeat":
-			# Mostrar Game Over — NO volver a exploración
 			_show_game_over()
 
 func _show_game_over() -> void:

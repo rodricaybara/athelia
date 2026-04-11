@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://npdklshgefyy"]
+
+[node name="CombatHud" type="CanvasLayer" unique_id=1123002147]
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=575608349]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer" unique_id=652261888]
+layout_mode = 2
+
+[node name="ResourcesHBox" type="HBoxContainer" parent="MarginContainer/VBox" unique_id=884248317]
+layout_mode = 2
+
+[node name="HealthLabel" type="Label" parent="MarginContainer/VBox/ResourcesHBox" unique_id=2109772950]
+layout_mode = 2
+
+[node name="StaminaLabel" type="Label" parent="MarginContainer/VBox/ResourcesHBox" unique_id=613254158]
+layout_mode = 2
+
+[node name="SlotsHBox" type="HBoxContainer" parent="MarginContainer/VBox" unique_id=1010058919]
+layout_mode = 2

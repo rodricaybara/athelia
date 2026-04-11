@@ -3,84 +3,101 @@
 [ext_resource type="Script" uid="uid://cunyo5eon83m3" path="res://ui/loadout/loadout_screen.gd" id="1_hswur"]
 
 [node name="LoadoutScreen" type="CanvasLayer" unique_id=1948394611]
+layer = 10
 script = ExtResource("1_hswur")
 
-[node name="Panel" type="PanelContainer" parent="." unique_id=1419750711]
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="Root" type="Control" parent="." unique_id=1111111112]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=1202963256]
+[node name="Panel" type="PanelContainer" parent="Root" unique_id=1419750711]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel" unique_id=1202963256]
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=382861028]
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/MarginContainer" unique_id=382861028]
 layout_mode = 2
 
-[node name="Header" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=1117738029]
+[node name="Header" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox" unique_id=1117738029]
 layout_mode = 2
 
-[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBox/Header" unique_id=56329753]
+[node name="TitleLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/Header" unique_id=56329753]
 layout_mode = 2
 
-[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBox/Header" unique_id=262874558]
+[node name="CloseButton" type="Button" parent="Root/Panel/MarginContainer/VBox/Header" unique_id=262874558]
 layout_mode = 2
 text = "X"
 
-[node name="ContentHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=1790591772]
+[node name="ContentHBox" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox" unique_id=1790591772]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SlotsPanel" type="PanelContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox" unique_id=839564380]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel" unique_id=1604986667]
 layout_mode = 2
 
-[node name="SlotsPanel" type="PanelContainer" parent="Panel/MarginContainer/VBox/ContentHBox" unique_id=839564380]
+[node name="SlotsVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer" unique_id=2042231056]
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel" unique_id=1604986667]
+[node name="AttackSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox" unique_id=209675582]
 layout_mode = 2
 
-[node name="SlotsVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer" unique_id=2042231056]
+[node name="AttackLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection" unique_id=2056278184]
 layout_mode = 2
 
-[node name="AttackSection" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox" unique_id=209675582]
+[node name="AttackSlotsHBox" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection" unique_id=1441813477]
 layout_mode = 2
 
-[node name="AttackLabel" type="Label" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection" unique_id=2056278184]
+[node name="DefenseSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox" unique_id=598035640]
 layout_mode = 2
 
-[node name="AttackSlotsHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection" unique_id=1441813477]
+[node name="DefenseLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection" unique_id=1177755031]
 layout_mode = 2
 
-[node name="DefenseSection" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox" unique_id=598035640]
+[node name="DefenseSlotsHBox" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection" unique_id=1302480467]
 layout_mode = 2
 
-[node name="DefenseLabel" type="Label" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection" unique_id=1177755031]
+[node name="ConsumableSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox" unique_id=910864243]
 layout_mode = 2
 
-[node name="DefenseSlotsHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection" unique_id=1302480467]
+[node name="ConsumableLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection" unique_id=806530394]
 layout_mode = 2
 
-[node name="ConsumableSection" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox" unique_id=910864243]
+[node name="ConsumableSlotsHBox" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection" unique_id=1211957252]
 layout_mode = 2
 
-[node name="ConsumableLabel" type="Label" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection" unique_id=806530394]
+[node name="AvailablePanel" type="PanelContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox" unique_id=679095388]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel" unique_id=151116782]
 layout_mode = 2
 
-[node name="ConsumableSlotsHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection" unique_id=1211957252]
+[node name="AvailableVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer" unique_id=498643620]
 layout_mode = 2
 
-[node name="AvailablePanel" type="PanelContainer" parent="Panel/MarginContainer/VBox/ContentHBox" unique_id=679095388]
+[node name="AvailableLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox" unique_id=196989018]
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/ContentHBox/AvailablePanel" unique_id=151116782]
+[node name="AvailableScrollContainer" type="ScrollContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox" unique_id=373977079]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="AvailableList" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableScrollContainer" unique_id=1464793994]
 layout_mode = 2
 
-[node name="AvailableVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer" unique_id=498643620]
-layout_mode = 2
-
-[node name="AvailableLabel" type="Label" parent="Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox" unique_id=196989018]
-layout_mode = 2
-
-[node name="AvailableScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox" unique_id=373977079]
-layout_mode = 2
-
-[node name="AvailableList" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableScrollContainer" unique_id=1464793994]
-layout_mode = 2
-
-[node name="FeedbackLabel" type="Label" parent="Panel/MarginContainer/VBox" unique_id=563395946]
+[node name="FeedbackLabel" type="Label" parent="Root/Panel/MarginContainer/VBox" unique_id=563395946]
 layout_mode = 2

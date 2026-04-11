@@ -46,14 +46,14 @@ extends CanvasLayer
 # NODOS
 # ============================================
 
-@onready var title_label:            Label          = $Panel/MarginContainer/VBox/Header/TitleLabel
-@onready var close_button:           Button         = $Panel/MarginContainer/VBox/Header/CloseButton
-@onready var attack_slots_hbox:      HBoxContainer  = $Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection/AttackSlotsHBox
-@onready var defense_slots_hbox:     HBoxContainer  = $Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection/DefenseSlotsHBox
-@onready var consumable_slots_hbox:  HBoxContainer  = $Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection/ConsumableSlotsHBox
-@onready var available_list:         VBoxContainer  = $Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableScrollContainer/AvailableList
-@onready var available_label:        Label          = $Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableLabel
-@onready var feedback_label:         Label          = $Panel/MarginContainer/VBox/FeedbackLabel
+@onready var title_label:            Label          = $Root/Panel/MarginContainer/VBox/Header/TitleLabel
+@onready var close_button:           Button         = $Root/Panel/MarginContainer/VBox/Header/CloseButton
+@onready var attack_slots_hbox:      HBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection/AttackSlotsHBox
+@onready var defense_slots_hbox:     HBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection/DefenseSlotsHBox
+@onready var consumable_slots_hbox:  HBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection/ConsumableSlotsHBox
+@onready var available_list:         VBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableScrollContainer/AvailableList
+@onready var available_label:        Label          = $Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableLabel
+@onready var feedback_label:         Label          = $Root/Panel/MarginContainer/VBox/FeedbackLabel
 
 
 # ============================================
@@ -111,7 +111,7 @@ func _on_vm_changed(reason: String) -> void:
 		"opened":
 			_render_all()
 		"slots":
-			_render_slots()
+			call_deferred("_render_slots")
 		"error":
 			_show_feedback(tr(_vm.error_message), true)
 		"closed":
@@ -245,8 +245,8 @@ func _on_slot_pressed(slot_id: String) -> void:
 		_vm.request_clear_slot(slot_id)
 	else:
 		_selected_slot_id = slot_id
-		# Refrescar slots para mostrar el resaltado
-		_render_slots()
+		# Diferir el rerenderizado — el botón que emitió pressed sigue bloqueado
+		call_deferred("_render_slots")
 
 
 func _on_available_skill_pressed(skill_id: String) -> void:

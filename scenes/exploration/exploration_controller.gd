@@ -82,8 +82,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("open_inventory"):  # Tecla I / Tab
 		scene_orchestrator.open_inventory()
 
-	if event.is_action_pressed("open_party"): # Tecla P
+	if event.is_action_pressed("open_party"): # Tecla O
 		scene_orchestrator.open_party()
+	
+	if event.is_action_pressed("open_player_menu"): # Tecla P
+		scene_orchestrator.open_player_menu()
 
 
 # ============================================

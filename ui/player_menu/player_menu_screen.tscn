@@ -1,0 +1,111 @@
+[gd_scene format=3 uid="uid://dfmatseiuf8pb"]
+
+[ext_resource type="Script" uid="uid://dbkf0xjgn7fr0" path="res://ui/player_menu/player_menu_screen.gd" id="1_3l7ul"]
+
+[node name="PlayerMenuScreen" type="CanvasLayer" unique_id=2075109536]
+layer = 10
+script = ExtResource("1_3l7ul")
+
+[node name="Root" type="Control" parent="." unique_id=1111111111]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Root" unique_id=1330865563]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel" unique_id=1054334087]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/MarginContainer" unique_id=812522758]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox" unique_id=2048947597]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/Header" unique_id=29487442]
+layout_mode = 2
+text = "Player UI"
+
+[node name="CloseButton" type="Button" parent="Root/Panel/MarginContainer/VBox/Header" unique_id=472189865]
+layout_mode = 2
+text = "X"
+
+[node name="ContentHBox" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox" unique_id=298026754]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StatusPanel" type="PanelContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox" unique_id=990636514]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel" unique_id=1928765141]
+layout_mode = 2
+
+[node name="StatusVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer" unique_id=1472413109]
+layout_mode = 2
+
+[node name="ResourcesSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1051471566]
+layout_mode = 2
+
+[node name="ResourcesLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=747931684]
+layout_mode = 2
+
+[node name="HealthLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=2063711436]
+layout_mode = 2
+
+[node name="StaminaLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=1021546154]
+layout_mode = 2
+
+[node name="GoldLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=252144650]
+layout_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=864621624]
+layout_mode = 2
+
+[node name="AttributesSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1089634127]
+layout_mode = 2
+
+[node name="AttributesLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/AttributesSection" unique_id=2084506602]
+layout_mode = 2
+
+[node name="AttributesVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/AttributesSection" unique_id=1571492414]
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1474656696]
+layout_mode = 2
+
+[node name="BuffsSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1405880433]
+layout_mode = 2
+
+[node name="BuffsLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/BuffsSection" unique_id=92277349]
+layout_mode = 2
+
+[node name="BuffsVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/BuffsSection" unique_id=1843326851]
+layout_mode = 2
+
+[node name="NavigationPanel" type="PanelContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox" unique_id=1358882940]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel" unique_id=892094855]
+layout_mode = 2
+
+[node name="NavigationVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer" unique_id=1447993207]
+layout_mode = 2
+
+[node name="LoadoutButton" type="Button" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer/NavigationVBox" unique_id=46879644]
+layout_mode = 2
+
+[node name="InventoryButton" type="Button" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer/NavigationVBox" unique_id=411559720]
+layout_mode = 2
+
+[node name="SkillTreeButton" type="Button" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer/NavigationVBox" unique_id=1373410934]
+layout_mode = 2
