@@ -106,6 +106,31 @@ Al cerrar:
 
 **Regla crítica:** El ViewModel es siempre hijo de la View. Nunca se crea como autoload ni se pasa por referencia externa. Su ciclo de vida está ligado al de la pantalla.
 
+### Caso especial: MainMenuScreen
+
+El menú principal es la **Main Scene del proyecto** — no es instanciado por `SceneOrchestrator` sino que arranca directamente. Su ciclo de vida es:
+
+```
+(arranque del ejecutable)
+  → MainMenuScreen._ready()
+      → crea MainMenuViewModel como hijo
+      → conecta señales de botones
+      → llama _vm.open() → changed("main") → _render_main()
+
+Al iniciar partida nueva:
+  → _vm.request_new_game()
+      → changed("transitioning") → botones deshabilitados
+      → await process_frame
+      → GameLoop.enter_character_creation()
+          → SceneOrchestrator._handle_character_creation()
+              → instancia CharacterCreationScreen
+
+Al cargar partida:
+  → _vm.request_load_game()
+      → SaveManager.load_game("quicksave")
+      → GameLoop.enter_exploration()
+```
+
 ---
 
 ## Contrato del ViewModel
@@ -151,6 +176,19 @@ Las razones son strings cortos que permiten refreshes parciales en la View. Debe
 ##   "waiting"  → bloquear botones
 ##   "closed"   → ocultar panel
 signal changed(reason: String)
+```
+
+### `await` en el ViewModel — única excepción permitida
+
+El ViewModel **puede** usar `await get_tree().process_frame` antes de una transición de escena, para dar tiempo a la View a procesar `"transitioning"` y deshabilitar botones antes de que la escena cambie. Esta es la única excepción justificada — nunca `await` en la View.
+
+```gdscript
+# ✅ CORRECTO — await en el ViewModel, antes de cambiar escena
+func request_new_game() -> void:
+    state = MenuState.TRANSITIONING
+    changed.emit("transitioning")
+    await get_tree().process_frame   # ← View procesa el disable de botones
+    GameLoop.enter_character_creation()
 ```
 
 ### Data classes
@@ -253,6 +291,20 @@ func _hide_feedback() -> void:
         feedback_label.visible = false
 ```
 
+### Textos localizados
+
+Todos los textos visibles se asignan por código vía `tr()` — nunca hardcodeados en el `.tscn` ni en el script:
+
+```gdscript
+# ✅ CORRECTO
+btn_new_game.text = tr("MENU_NEW_GAME")
+
+# ❌ MAL — hardcodeado
+btn_new_game.text = "Nueva Partida"
+```
+
+Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
+
 ---
 
 ## Cómo crear un nuevo panel UI
@@ -281,7 +333,7 @@ Seguir la estructura de [Contrato del ViewModel](#contrato-del-viewmodel).
 
 ### Paso 4 — Crear el .tscn
 
-Estructura de nodos con `%UniqueNames` para todos los nodos que la View referenciará. No añadir lógica en el inspector — solo estructura y propiedades visuales.
+Estructura de nodos con `%UniqueNames` para todos los nodos que la View referenciará. No añadir lógica en el inspector — solo estructura y propiedades visuales. Los textos de labels y botones se dejan vacíos; se asignan por código en `_setup_static_text()`.
 
 ### Paso 5 — Implementar la View
 
@@ -302,12 +354,14 @@ Y añadir el handler correspondiente en `_on_game_state_changed()` o como métod
 
 ### Paso 7 — Añadir claves de localización
 
-Toda cadena visible en la UI debe tener su clave en `localization/translations.csv`:
+Toda cadena visible en la UI debe tener su clave en el `.csv` de localización correspondiente:
 
 ```csv
 MI_PANTALLA_TITULO,My Panel Title,Título de mi panel
 MI_PANTALLA_ERROR_X,Error message,Mensaje de error
 ```
+
+Godot genera los `.translation` automáticamente al recargar el proyecto cuando el `.csv` está registrado en Project Settings → Localization → Translations.
 
 ---
 
@@ -320,12 +374,13 @@ MI_PANTALLA_ERROR_X,Error message,Mensaje de error
 | `changed(reason)` es la única señal del VM hacia la View | Más señales = más acoplamiento View↔VM |
 | El ViewModel es siempre hijo de la View | Garantiza que muere con ella y las señales se desconectan solas |
 | Sin `await` en la View | Bloquea el estado; usar `SceneTreeTimer` con referencia |
+| `await` en el ViewModel solo antes de cambiar escena | Única excepción: dar un frame para que la View procese `"transitioning"` |
 | Sin flags implícitos en la View | Usar el enum del ViewModel; el estado es siempre explícito |
 | Tipado estricto en GDScript | Godot 4 trata warnings como errores en este proyecto |
 | Sin `static` en funciones de autoload | Los autoloads son instancias, no clases estáticas |
 | Nombres de variables no colisionan con propiedades de Node | Ej: usar `btn_size` en lugar de `size` en Button |
-| Zona dinámica separada de nodos fijos en pantallas complejas | Evita referencias colgantes al limpiar contenido generado por código |
-| `free()` inmediato (no `queue_free()`) para limpiar zonas dinámicas dentro del mismo frame | `queue_free()` deja el nodo vivo hasta fin de frame — si se accede a él en ese mismo frame da "previously freed" |
+| Textos siempre via `tr()`, nunca hardcodeados | Consistencia con el sistema de localización |
+| Labels y botones vacíos en el .tscn | Los textos se asignan por código en `_setup_static_text()` |
 
 ---
 
@@ -410,49 +465,6 @@ func _on_drop_accepted(slot_id: String, item_id: String, entity_id: String) -> v
 
 ---
 
-### ❌ Mezclar nodos fijos y dinámicos en el mismo contenedor
-
-```gdscript
-# MAL — _clear_dynamic() hace queue_free() en algunos hijos
-# pero luego accede a _train_btn que es hermano de los eliminados.
-# En el mismo frame, Godot puede lanzar "previously freed".
-func _clear_dynamic() -> void:
-    var keep = ["TrainBtn", "FeedbackLabel"]
-    for child in _panel.get_children():
-        if child.name not in keep:
-            child.queue_free()  # ← el nodo sigue "vivo" hasta fin de frame
-
-func _render() -> void:
-    _clear_dynamic()
-    _panel.add_child(new_content)
-    _panel.move_child(_train_btn, -1)  # ← puede fallar si queue_free aún no ejecutó
-```
-
-```gdscript
-# BIEN — zona dinámica en un VBoxContainer hijo dedicado.
-# Los nodos fijos (_train_btn, _feedback_label) nunca se tocan.
-# free() inmediato garantiza que no hay referencias colgantes.
-
-# En el .tscn:
-# Panel (VBoxContainer)
-# ├── HeaderFijo (Label)       ← fijo
-# ├── PctFijo (Label)          ← fijo
-# ├── DynamicContent (VBoxContainer) ← única zona que se vacía
-# ├── FeedbackLabel (Label)    ← fijo
-# └── TrainBtn (Button)        ← fijo
-
-func _clear_dynamic() -> void:
-    for child in _dynamic_content.get_children():
-        child.free()  # inmediato — sin referencias colgantes
-
-func _render() -> void:
-    _clear_dynamic()
-    _dynamic_content.add_child(new_content)
-    _train_btn.disabled = not can_train  # nodo fijo — siempre accesible
-```
-
----
-
 ### ❌ Inferencia de Variant con Dictionary.get()
 
 ```gdscript
@@ -467,17 +479,38 @@ var used: int = snapshot.get("slots_used", 0)
 
 ---
 
+### ❌ Texto hardcodeado en el .tscn o en el script
+
+```gdscript
+# MAL — no localizable, difícil de mantener
+btn_new_game.text = "Nueva Partida"
+```
+
+```gdscript
+# BIEN — localizable, clave en menus.csv
+btn_new_game.text = tr("MENU_NEW_GAME")
+```
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
 |----------|-----------|------|-------------|
+| MainMenu | `main_menu_viewmodel.gd` | `main_menu_screen.gd` | Menú principal del juego. Main Scene del proyecto. Pantalla única con sub-paneles internos (opciones, créditos, confirmación de salida). No instanciada por SceneOrchestrator — arranca directamente. |
 | WorldObject | `world_object_panel_viewmodel.gd` | `world_object_interaction_panel.gd` | Panel piloto del patrón. El más simple. Buen punto de partida para entender el flujo. |
 | Inventory | `inventory_viewmodel.gd` | `inventory_screen.gd` | Pantalla con dos columnas (equipo + mochila), detalle de ítem y acciones. |
 | Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable. Abierta desde `SceneOrchestrator` via `show_shop_direct()`. |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. |
-| SkillTree | `skill_tree_viewmodel.gd` | `skill_tree_screen.gd` | Árbol de habilidades con modo individual y modo comparativa de party. El más complejo — zona dinámica en `DetailContent`, tier inferido de prerequisitos, query centralizada en `SkillSystem`. Primera pantalla que cumple el Design System al 100% (`UIButton`, `UITokens`). |
+
+### Pantallas sin ViewModel (casos especiales)
+
+| Pantalla | Script | Descripción |
+|----------|--------|-------------|
+| LoadingScreen | `loading_screen.gd` | Pantalla de carga pasiva. Sin ViewModel por ausencia de estado complejo. Usa `ResourceLoader.load_threaded_request()` y emite `loading_finished(packed_scene)`. Actualmente implementada pero no conectada a `SceneOrchestrator`. |
+| CharacterCreationScreen | `character_creation_screen.gd` | **Stub** — lógica pendiente de implementar. Solo expone `open()` para que `SceneOrchestrator` pueda cargarlo sin errores. |
 
 ---
 
-*Última actualización: spike SkillTreeScreen — zona dinámica separada, antipatrón free() vs queue_free(), SkillTree añadido a referencia de pantallas.*
+*Última actualización: Spike menú principal — añadida MainMenuScreen, LoadingScreen y CharacterCreationScreen stub. Godot 4.7.1.*

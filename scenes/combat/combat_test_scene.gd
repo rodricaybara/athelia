@@ -147,12 +147,18 @@ func _initialize_player():
 	else:
 		print("  ↩ Player already in CharacterSystem — skipping")
 	
-	# 3. Skills — siempre intentar (SkillSystem es idempotente)
-	Skills.register_entity_skills(player_id, [
-		"skill.attack.light",
-		"skill.attack.heavy",
-		"skill.combat.dodge"
+	# 3. SkillSystem — guard explícito para evitar warning de doble registro
+	# cuando se llega desde exploración (el player ya fue registrado allí).
+	if not Skills._entity_skills.has(player_id):
+		Skills.register_entity_skills(player_id, [
+			"skill.attack.light",
+			"skill.attack.heavy",
+			"skill.combat.dodge"
 		])
+		print("  ✓ Registered in SkillSystem")
+	else:
+		print("  ↩ Player already in SkillSystem — skipping")
+
 	print("  ✓ Player initialized")
 
 
@@ -256,9 +262,12 @@ func _initialize_enemy(enemy_id: String, enemy_node: Node2D):
 	else:
 		print("  ↩ %s already in CharacterSystem — skipping" % enemy_id)
 	
-	# 3. Registrar skills de enemigo
-	Skills.register_entity_skills(enemy_id, ["skill.enemy.basic_attack"])
-	print("  ✓ Enemy skills registered")
+	# 3. Registrar skills de enemigo — guard para evitar doble registro
+	if not Skills._entity_skills.has(enemy_id):
+		Skills.register_entity_skills(enemy_id, ["skill.enemy.basic_attack"])
+		print("  ✓ Enemy skills registered")
+	else:
+		print("  ↩ %s already in SkillSystem — skipping" % enemy_id)
 	
 	# 4. ✅ AÑADIR EnemyAI dinámicamente
 	var ai = Node.new()
@@ -621,36 +630,31 @@ func _update_bar_smooth(bar: ProgressBar, new_value: float):
 # DEBUG INPUT
 # ============================================
 
-func _input(event):
+## _unhandled_input en lugar de _input para no bloquear eventos antes de que
+## lleguen al _unhandled_input de PlayerCombatController (hijo de $Player).
+## En Godot 4.7 _input se ejecuta antes que _unhandled_input y puede
+## consumir eventos que el controller necesita recibir.
+func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed:
 		return
-	
+
 	if event.keycode == KEY_F5:
-		# Reiniciar recursos del player
 		Resources.set_resource("player", "health", 100)
 		Resources.set_resource("player", "stamina", 100)
-		# Reiniciar recursos de todos los enemigos activos
 		for enemy_id in _enemy_bars.keys():
 			Resources.set_resource(enemy_id, "health", 50)
 		_start_combat()
 		get_viewport().set_input_as_handled()
 
-	if event.keycode == KEY_F6:
+	elif event.keycode == KEY_F6:
 		if game_loop:
-			game_loop.end_combat("victory")  # ✅
+			game_loop.end_combat("victory")
 		get_viewport().set_input_as_handled()
-	
-	# F7: Print debug info
-	if event.keycode == KEY_F7:
+
+	elif event.keycode == KEY_F7:
 		_print_debug_info()
 		get_viewport().set_input_as_handled()
-	
-	# Tab: Cycle target
-	if event.keycode == KEY_TAB:
-		var controller = player_node.get_node_or_null("PlayerCombatController")
-		if controller and controller.has_method("cycle_target"):
-			controller.cycle_target()
-		get_viewport().set_input_as_handled()
+	# Tab lo gestiona PlayerCombatController directamente vía _unhandled_input.
 	
 
 func _print_debug_info():

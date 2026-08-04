@@ -6,6 +6,7 @@ extends Node
 ##
 ## v2: Añadida fase COMPANION_ACTION_RESOLVE para turno de companions.
 ## Los companions actúan después del jugador, antes de los enemigos.
+## v3: Añadido estado CHARACTER_CREATION para flujo de nueva partida.
 
 # ============================================
 # ESTADOS Y FASES
@@ -13,6 +14,7 @@ extends Node
 
 enum GameState {
 	MENU,
+	CHARACTER_CREATION,
 	EXPLORATION,
 	DIALOGUE,
 	SHOP,
@@ -24,15 +26,16 @@ enum GameState {
 }
 
 const VALID_STATE_TRANSITIONS: Dictionary = {
-	GameState.MENU:            [GameState.EXPLORATION],
-	GameState.EXPLORATION:     [GameState.DIALOGUE, GameState.SHOP, GameState.COMBAT_ACTIVE, GameState.PAUSE, GameState.SAVE_TRANSITION],
-	GameState.DIALOGUE:        [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
-	GameState.SHOP:            [GameState.EXPLORATION],
-	GameState.COMBAT_ACTIVE:   [GameState.VICTORY, GameState.DEFEAT, GameState.EXPLORATION],
-	GameState.VICTORY:         [GameState.EXPLORATION],
-	GameState.DEFEAT:          [GameState.MENU, GameState.EXPLORATION],
-	GameState.PAUSE:           [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
-	GameState.SAVE_TRANSITION: [GameState.EXPLORATION],
+	GameState.MENU:               [GameState.EXPLORATION, GameState.CHARACTER_CREATION],
+	GameState.CHARACTER_CREATION: [GameState.EXPLORATION, GameState.MENU],
+	GameState.EXPLORATION:        [GameState.DIALOGUE, GameState.SHOP, GameState.COMBAT_ACTIVE, GameState.PAUSE, GameState.SAVE_TRANSITION],
+	GameState.DIALOGUE:           [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
+	GameState.SHOP:               [GameState.EXPLORATION],
+	GameState.COMBAT_ACTIVE:      [GameState.VICTORY, GameState.DEFEAT, GameState.EXPLORATION],
+	GameState.VICTORY:            [GameState.EXPLORATION],
+	GameState.DEFEAT:             [GameState.MENU, GameState.EXPLORATION],
+	GameState.PAUSE:              [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
+	GameState.SAVE_TRANSITION:    [GameState.EXPLORATION],
 }
 
 enum TurnPhase {
@@ -115,6 +118,12 @@ func request_state_change(new_state: GameState, context: Dictionary = {}) -> boo
 	_transition_game_state(new_state)
 	return true
 
+
+func enter_main_menu() -> void:
+	request_state_change(GameState.MENU)
+
+func enter_character_creation() -> void:
+	request_state_change(GameState.CHARACTER_CREATION)
 
 func enter_exploration() -> void:
 	request_state_change(GameState.EXPLORATION)

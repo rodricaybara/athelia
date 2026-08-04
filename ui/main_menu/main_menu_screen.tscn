@@ -1,0 +1,238 @@
+[gd_scene format=3 uid="uid://jr1soh0askvt"]
+
+[ext_resource type="Script" uid="uid://r6fm3adwn5yg" path="res://ui/design_system/components/ui_button/ui_button.gd" id="1_bhbkj"]
+[ext_resource type="Script" uid="uid://fmafn6i4g0oh" path="res://ui/main_menu/main_menu_screen.gd" id="1_pp6s7"]
+[ext_resource type="Script" uid="uid://105d84us6jdl" path="res://ui/design_system/components/ui_panel/ui_panel.gd" id="2_uu01r"]
+
+[node name="MainMenuScreen" type="CanvasLayer" unique_id=526992115]
+layer = 0
+script = ExtResource("1_pp6s7")
+
+[node name="Control" type="Control" parent="." unique_id=688562828]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BackgroundRect" type="ColorRect" parent="Control" unique_id=664490636]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101960786, 0.09411765, 0.08627451, 1)
+
+[node name="TitleLabel" type="Label" parent="Control" unique_id=722004739]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 55
+text = "ATHELIA"
+horizontal_alignment = 1
+
+[node name="MainPanel" type="VBoxContainer" parent="Control" unique_id=169051608]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="BtnNewGame" type="Button" parent="Control/MainPanel" unique_id=202229068]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="BtnLoadGame" type="Button" parent="Control/MainPanel" unique_id=621039349]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="BtnOptions" type="Button" parent="Control/MainPanel" unique_id=1897732467]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="BtnCredits" type="Button" parent="Control/MainPanel" unique_id=1741845431]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="BtnQuit" type="Button" parent="Control/MainPanel" unique_id=464447306]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="OptionsPanel" type="PanelContainer" parent="Control" unique_id=1012424770]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -24.5
+offset_top = -72.0
+offset_right = 24.5
+offset_bottom = 72.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_uu01r")
+metadata/_custom_type_script = "uid://105d84us6jdl"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/OptionsPanel" unique_id=1232863528]
+layout_mode = 2
+offset_transform_enabled = true
+alignment = 1
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1286611918]
+layout_mode = 2
+
+[node name="LblFullscreen" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer3" unique_id=896743821]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ChkFullscreen" type="CheckButton" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer3" unique_id=1402589666]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1966214441]
+layout_mode = 2
+
+[node name="LblLanguage" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer4" unique_id=2075516492]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="OptLanguage" type="OptionButton" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer4" unique_id=1317791155]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1494467795]
+layout_mode = 2
+
+[node name="LblSfxVol" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer2" unique_id=1328522955]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SliderSfxVol" type="HSlider" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer2" unique_id=417850335]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblOptionsTitle" type="Label" parent="Control/OptionsPanel/VBoxContainer" unique_id=1532351124]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1746624216]
+layout_mode = 2
+
+[node name="LblMusicVol" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer" unique_id=1608368189]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SliderMusicVol" type="HSlider" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer" unique_id=1809047645]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnOptionsBack" type="Button" parent="Control/OptionsPanel/VBoxContainer" unique_id=644667426]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="CreditsPanel" type="PanelContainer" parent="Control" unique_id=1777333368]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_uu01r")
+metadata/_custom_type_script = "uid://105d84us6jdl"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/CreditsPanel" unique_id=144839920]
+layout_mode = 2
+
+[node name="LblCreditsTitle" type="Label" parent="Control/CreditsPanel/VBoxContainer" unique_id=1321575282]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Control/CreditsPanel/VBoxContainer" unique_id=90905068]
+layout_mode = 2
+
+[node name="CreditsLabel" type="Label" parent="Control/CreditsPanel/VBoxContainer/ScrollContainer" unique_id=854271628]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="BtnCreditsBack" type="Button" parent="Control/CreditsPanel/VBoxContainer" unique_id=1964958570]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="ConfirmQuitPanel" type="PanelContainer" parent="Control" unique_id=1268898284]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -23.5
+offset_right = 20.0
+offset_bottom = 23.5
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_uu01r")
+metadata/_custom_type_script = "uid://105d84us6jdl"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/ConfirmQuitPanel" unique_id=1082478463]
+layout_mode = 2
+
+[node name="LblConfirmText" type="Label" parent="Control/ConfirmQuitPanel/VBoxContainer" unique_id=937805891]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnConfirmYes" type="Button" parent="Control/ConfirmQuitPanel/VBoxContainer" unique_id=412800781]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="BtnConfirmNo" type="Button" parent="Control/ConfirmQuitPanel/VBoxContainer" unique_id=1401851391]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("1_bhbkj")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
