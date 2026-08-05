@@ -129,7 +129,15 @@ Al cargar partida:
   → _vm.request_load_game()
       → SaveManager.load_game("quicksave")
       → GameLoop.enter_exploration()
+
+Al volver a MENU desde cualquier otro estado (ej: CharacterCreation → "Volver al menú"):
+  → EventBus.game_state_changed(MENU) se emite
+      → MainMenuViewModel._on_game_state_changed() lo captura → open() → changed("main")
 ```
+
+**Lección aprendida (spike Character Creation):** `MainMenuViewModel` originalmente solo llamaba a `open()` una vez, desde `_ready()` de la View. Tras la primera transición fuera de `MENU` (`request_new_game()` → `TRANSITIONING`), se quedaba ahí **para siempre** — nada le decía que volviera a `"main"`. Como `MainMenuScreen` es la Main Scene, nunca se destruye ni se recrea, así que el bug persistía indefinidamente tras el primer uso.
+
+**Regla derivada:** cualquier ViewModel cuya View sea una Main Scene persistente (no instanciada/destruida por `SceneOrchestrator`) **debe** escuchar `EventBus.game_state_changed` en su propio `_ready()` y reaccionar tanto al entrar como al salir de su estado — no puede depender solo de que algo la invoque explícitamente, porque puede volver a ese estado por un camino que no pasa por su propio código (`GameLoop.enter_main_menu()` llamado desde otra pantalla, por ejemplo).
 
 ---
 
@@ -303,7 +311,7 @@ btn_new_game.text = tr("MENU_NEW_GAME")
 btn_new_game.text = "Nueva Partida"
 ```
 
-Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
+Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; Character Creation usa `character_creation.csv`; otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
 
 ---
 
@@ -381,6 +389,7 @@ Godot genera los `.translation` automáticamente al recargar el proyecto cuando 
 | Nombres de variables no colisionan con propiedades de Node | Ej: usar `btn_size` en lugar de `size` en Button |
 | Textos siempre via `tr()`, nunca hardcodeados | Consistencia con el sistema de localización |
 | Labels y botones vacíos en el .tscn | Los textos se asignan por código en `_setup_static_text()` |
+| ViewModel de una Main Scene persistente escucha `EventBus.game_state_changed` | Puede volver a su estado por un camino externo — no solo por su propio código |
 
 ---
 
@@ -493,6 +502,38 @@ btn_new_game.text = tr("MENU_NEW_GAME")
 
 ---
 
+### ❌ ViewModel de una Main Scene persistente sin listener de EventBus
+
+```gdscript
+# MAL — solo se abre una vez, en _ready() de la View. Si el GameState
+# vuelve a este estado por un camino externo (otra pantalla llamando a
+# GameLoop.enter_main_menu()), el ViewModel se queda congelado en el
+# último estado en el que estaba (ej: TRANSITIONING, botones deshabilitados)
+func _ready() -> void:
+    EventBus.alguna_señal.connect(_on_alguna_señal)
+    # sin listener de game_state_changed
+```
+
+```gdscript
+# BIEN — reacciona a cualquier cambio de GameState, lo haya originado
+# esta pantalla o no
+func _ready() -> void:
+    EventBus.game_state_changed.connect(_on_game_state_changed)
+
+func _on_game_state_changed(new_state: int) -> void:
+    if new_state == GameLoopSystem.GameState.MENU:
+        if state != MenuState.MAIN:
+            open()
+    else:
+        if state != MenuState.HIDDEN:
+            state = MenuState.HIDDEN
+            changed.emit("hidden")
+```
+
+Este antipatrón solo aplica a pantallas cuya View es una Main Scene persistente (ej. `MainMenuScreen`) — para overlays normales instanciados/destruidos por `SceneOrchestrator` en cada apertura, el ciclo de vida ya resuelve esto (el ViewModel muere con la View).
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
@@ -503,14 +544,14 @@ btn_new_game.text = tr("MENU_NEW_GAME")
 | Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable. Abierta desde `SceneOrchestrator` via `show_shop_direct()`. |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. |
+| CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. |
 
 ### Pantallas sin ViewModel (casos especiales)
 
 | Pantalla | Script | Descripción |
 |----------|--------|-------------|
 | LoadingScreen | `loading_screen.gd` | Pantalla de carga pasiva. Sin ViewModel por ausencia de estado complejo. Usa `ResourceLoader.load_threaded_request()` y emite `loading_finished(packed_scene)`. Actualmente implementada pero no conectada a `SceneOrchestrator`. |
-| CharacterCreationScreen | `character_creation_screen.gd` | **Stub** — lógica pendiente de implementar. Solo expone `open()` para que `SceneOrchestrator` pueda cargarlo sin errores. |
 
 ---
 
-*Última actualización: Spike menú principal — añadida MainMenuScreen, LoadingScreen y CharacterCreationScreen stub. Godot 4.7.1.*
+*Última actualización: Spike Character Creation — CharacterCreationScreen implementada (ya no es stub), nuevo antipatrón de ViewModel persistente sin listener de EventBus (detectado en MainMenuViewModel). Godot 4.7.1.*

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://8rh1e04o1uno"]
+
+[ext_resource type="Script" uid="uid://c821h20wjtg2a" path="res://test/test_character_creation_viewmodel.gd" id="1_i38qb"]
+
+[node name="TestCharacterCreationViewmodel" type="Node" unique_id=962652279]
+script = ExtResource("1_i38qb")

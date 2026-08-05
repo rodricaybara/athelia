@@ -28,6 +28,10 @@ var definition: CharacterDefinition
 ## NO incluir atributos derivados (armor, hp_max, etc.)
 var attributes: Dictionary = {}
 
+## Nombre elegido por el jugador en Character Creation. Vacío para entidades
+## que no lo necesitan (enemigos, companions con nombre fijo en su definición).
+var character_name: String = ""
+
 ## Recursos ACTUALES (NO mÃ¡ximos)
 ## Ejemplos: { "health": 28, "stamina": 15, "gold": 150 }
 ## Los mÃ¡ximos (health_max, stamina_max) se calculan dinÃ¡micamente
@@ -307,6 +311,7 @@ func _to_string() -> String:
 func get_save_state() -> Dictionary:
 	var save_data = {
 		"definition_id":     definition.id,
+		"character_name":    character_name,
 		"attributes":        attributes.duplicate(),
 		"resources":         resources.duplicate(),
 		"skill_values":      skill_values.duplicate(),
@@ -318,6 +323,9 @@ func get_save_state() -> Dictionary:
 
 ## Carga snapshot
 func load_save_state(save_data: Dictionary) -> void:
+	if save_data.has("character_name"):
+		character_name = save_data["character_name"]
+
 	if save_data.has("attributes"):
 		attributes = save_data["attributes"].duplicate()
  
@@ -331,3 +339,4 @@ func load_save_state(save_data: Dictionary) -> void:
 		loadout = LoadoutState.new()
 		loadout.load_save_state(save_data["loadout"])
 	# TODO: Deserializar equipped_modifiers si es necesario
+	

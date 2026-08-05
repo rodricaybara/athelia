@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://boednfmr1teef"
+
+[deps]
+
+files=["res://localization/character_creation.en.translation", "res://localization/character_creation.es.translation"]
+
+source_file="res://localization/character_creation.csv"
+dest_files=["res://localization/character_creation.en.translation", "res://localization/character_creation.es.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

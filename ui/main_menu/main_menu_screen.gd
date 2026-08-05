@@ -105,6 +105,8 @@ func _on_vm_changed(reason: String) -> void:
 			_render_transitioning()
 		"load_blocked":
 			_render_load_blocked()
+		"hidden":
+			_render_hidden()
 		_:
 			push_warning("[MainMenuScreen] Razón desconocida: %s" % reason)
 
@@ -114,6 +116,7 @@ func _on_vm_changed(reason: String) -> void:
 # ============================================
 
 func _render_main() -> void:
+	visible = true
 	main_panel.visible      = true
 	options_panel.visible   = false
 	credits_panel.visible   = false
@@ -154,6 +157,10 @@ func _render_confirm_quit() -> void:
 
 func _render_transitioning() -> void:
 	_set_main_buttons_enabled(false)
+
+
+func _render_hidden() -> void:
+	visible = false
 
 
 func _render_load_blocked() -> void:

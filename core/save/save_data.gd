@@ -5,7 +5,7 @@ extends RefCounted
 ## Estructura del archivo .save en formato JSON
 
 ## Versión del formato de guardado (para migraciones futuras)
-const SAVE_VERSION: int = 4  # ⭐ Incrementado de 3 a 4 — añadidos skill_values, equipment
+const SAVE_VERSION: int = 5  # ⭐ Incrementado de 4 a 5 — añadido snapshot de CharacterSystem (atributos + nombre)
 
 ## Identificador del slot
 var save_id: String = "quicksave"
@@ -41,6 +41,7 @@ func _init():
 		"skills":       {},
 		"skill_values": {},  # ⭐ NUEVO v4: valores de progresión (viven en CharacterSystem)
 		"equipment":    {},  # ⭐ NUEVO v4: slots equipados (viven en EquipmentManager)
+		"character":    {},  # ⭐ NUEVO v5: snapshot de CharacterSystem (definition_id, nombre, atributos)
 	}
 
 	world_state = {
@@ -121,6 +122,17 @@ static func _migrate_from_version(data: Dictionary, from_version: int) -> Dictio
 			ps["equipment"] = {}
 			print("[SaveData] Migration: added empty equipment")
 		data["player_state"] = ps
+
+	# v4 → v5: añadir snapshot de CharacterSystem (definition_id, nombre, atributos)
+	# Saves anteriores a v5 no tienen esto — al cargar, CharacterSystem.load_save_state()
+	# no podrá bootstrapear la entidad si no existe ya registrada (ver pendiente:
+	# "Cargar Partida desde menú" depende de la escena de exploración de producción).
+	if from_version < 5:
+		var ps5: Dictionary = data.get("player_state", {})
+		if not ps5.has("character"):
+			ps5["character"] = {}
+			print("[SaveData] Migration: added empty character snapshot")
+		data["player_state"] = ps5
 
 	data["version"] = SAVE_VERSION
 	return data

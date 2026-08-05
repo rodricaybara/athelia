@@ -166,7 +166,8 @@ athelia/
 │
 ├── data/                           # Datos del juego (Resources .tres y JSON)
 │   ├── characters/                 # Definiciones de personajes
-│   │   ├── player_base.tres
+│   │   ├── player_base.tres        # Plantilla de TEST/DEBUG — usada por combat_test_scene y exploration_test, NO para partidas reales
+│   │   ├── player_new.tres         # ← NUEVO: plantilla real para Character Creation (atributos placeholder, kit fijo de skills)
 │   │   ├── enemy_base.tres
 │   │   ├── wolf_test.tres
 │   │   ├── companions/
@@ -269,7 +270,8 @@ athelia/
 │   ├── spike_companions_fase2_*.md
 │   ├── SPIKE_ITEM_SYSTEM.md
 │   ├── spike_player_ui_informe_cierre.md
-│   └── spike_main_menu_informe_cierre.md  # ← NUEVO
+│   ├── spike_main_menu_informe_cierre.md
+│   └── spike_character_creation_informe_cierre.md  # ← NUEVO
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales
@@ -284,15 +286,14 @@ athelia/
 │   ├── world_objects.csv           # Textos de objetos del mundo
 │   ├── world_objects.en.translation
 │   ├── world_objects.es.translation
-│   ├── menus.csv                   # ← NUEVO: textos de menús (menú principal, opciones, créditos)
+│   ├── menus.csv                   # Textos de menús (menú principal, opciones, créditos)
 │   ├── menus.en.translation
-│   └── menus.es.translation
+│   ├── menus.es.translation
+│   ├── character_creation.csv      # ← NUEVO: textos de creación de personaje
+│   ├── character_creation.en.translation
+│   └── character_creation.es.translation
 │
 ├── scenes/                         # Escenas del juego
-│   ├── character_creation/         # ← NUEVO: stub de creación de personaje
-│   │   ├── character_creation_screen.gd
-│   │   └── character_creation_screen.tscn
-│   │
 │   ├── combat/
 │   │   ├── combat_test.tscn        # Escena de test de combate
 │   │   ├── combat_test_scene.gd
@@ -325,7 +326,9 @@ athelia/
 │       └── test.tscn
 │
 ├── test/                           # Tests unitarios e integración
-│   └── [múltiples test_*.gd por sistema]
+│   ├── test_character_creation_viewmodel.gd  # ← NUEVO: 30 asserts, ViewModel aislado
+│   ├── test_character_persistence.gd         # ← NUEVO: roundtrip save/load de CharacterSystem
+│   └── [otros test_*.gd por sistema]
 │
 └── ui/                             # Componentes de interfaz de usuario
     ├── damage_number.gd
@@ -337,6 +340,11 @@ athelia/
     │   ├── combat_hud.gd
     │   ├── combat_hud.tscn
     │   └── damage_number.tscn
+    │
+    ├── character_creation/         # ← NUEVO (movido desde scenes/): creación de personaje (patrón MVVM)
+    │   ├── character_creation_viewmodel.gd
+    │   ├── character_creation_screen.gd
+    │   └── character_creation_screen.tscn
     │
     ├── design_system/              # Sistema de diseño centralizado
     │   ├── components/
@@ -463,7 +471,8 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 - El inventario es especial: se abre como overlay dentro de `EXPLORATION` sin cambiar `GameState`. Se accede vía `SceneOrchestrator.open_inventory()`.
 - Hay un problema de timing conocido con la tienda (el evento `shop_opened` se emite antes de que el overlay exista); se resuelve llamando directamente a `show_shop_direct()` con un snapshot del `EconomySystem`.
 - El menú principal es la **Main Scene** del proyecto. `_handle_main_menu()` solo limpia overlays residuales; no instancia nada.
-- `_handle_character_creation()` instancia `character_creation_screen.tscn` y llama `open()`.
+- `_handle_character_creation()` usa `_show_overlay()` (igual que Shop/Inventory/Party) — importante: instanciarla manualmente contra `get_tree().root` sin pasar por `_show_overlay()` deja la escena huérfana de `_current_overlay`, y `_hide_current_overlay()` nunca la destruye al salir.
+- `_handle_exploration()` instancia `SCENE_EXPLORATION` si no existe ya en el árbol (comprobando por nombre de nodo `"ExplorationScene"`) — necesario para el flujo real Menú → Character Creation → Exploration, no solo para correr `exploration_test.tscn` de forma aislada.
 
 ### Menú principal — Arquitectura
 
@@ -480,13 +489,41 @@ MainMenuScreen (CanvasLayer)        ← Main Scene del proyecto
     └── ConfirmQuitPanel            ← diálogo Sí/No
 ```
 
-Estados del `MainMenuViewModel`: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING`
+Estados del `MainMenuViewModel`: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`
+
+**Importante:** `MainMenuViewModel` escucha `EventBus.game_state_changed` — vuelve a `"main"` al reentrar en `GameState.MENU`, y se oculta (`"hidden"`) en cualquier otro estado. Como `MainMenuScreen` es la Main Scene, nunca se destruye — sin este listener, tras la primera transición fuera de `MENU` se quedaba permanentemente en `TRANSITIONING` con los botones deshabilitados.
 
 El guardado **no está disponible desde el menú principal** — se guarda en checkpoints o con F5 desde la exploración.
 
 ### LoadingScreen
 
-Pantalla de carga pasiva sin ViewModel. Usa `ResourceLoader.load_threaded_request()` para carga asíncrona con barra de progreso. Emite `loading_finished(packed_scene)` al completar. Actualmente implementada pero no conectada a `SceneOrchestrator` — se integrará cuando las escenas de exploración crezcan en tamaño.
+Pantalla de carga pasiva sin ViewModel. Usa `ResourceLoader.load_threaded_request()` para carga asíncrona con barra de progreso. Emite `loading_finished(packed_scene)` al completar. Actualmente implementada pero no conectada a `SceneOrchestrator` — se integrará cuando las escenas de exploración crezcan en tamaño, o junto a la futura escena de introducción/transición narrativa entre Character Creation y Exploration.
+
+### Character Creation — Arquitectura
+
+Sigue el patrón MVVM estándar. Atributos reales del proyecto: **6**, no los 7 de RuneQuest — `strength, dexterity, constitution, intelligence, wisdom, charisma` (no hay `SIZ` ni `POW`).
+
+```
+CharacterCreationScreen (CanvasLayer)
+└── Root (Control, full rect)
+    ├── AttributeRollPanel   ← roll-and-assign: 3D6 (STR/DEX/CHA), 2D6+6 (CON/INT/WIS), 1 reroll
+    ├── NamePanel
+    └── SummaryPanel         ← RichTextLabel + BBCode
+```
+
+Estados del `CharacterCreationViewModel`: `ROLLING → ASSIGNING → NAMING → SUMMARY → TRANSITIONING`
+
+Usa `data/characters/player_new.tres` (no `player_base.tres`, que es plantilla de test/debug con skillset completo pre-desbloqueado). `_create_player_entity()` registra la entidad en `Characters`, `Resources`, `Skills` (kit fijo explícito, no el catálogo completo), `Equipment` e `Inventory`, en un orden concreto: `Resources.register_entity()` debe preceder a `set_base_attribute()`, porque este último dispara `ModifierApplicator` de forma síncrona y necesita que `ResourceSystem` ya conozca a la entidad.
+
+Ver `docs/spike_character_creation_informe_cierre.md` para el detalle completo.
+
+### Persistencia de personaje — CharacterSystem ↔ SaveSystem
+
+`CharacterState` serializa `definition_id`, `character_name` y `attributes` vía `get_save_state()`/`load_save_state()`. Conectado a `SaveSystem` desde `SAVE_VERSION = 5` — `_restore_state()` restaura el snapshot de `CharacterSystem` **primero**, antes de recursos/skills, porque `load_save_state()` puede bootstrapear el registro de la entidad vía `definition_id` si no existe todavía.
+
+**Pendiente conocido:** este bootstrap solo cubre `CharacterSystem`. `ResourceSystem`, `SkillSystem`, `Equipment` e `Inventory` siguen asumiendo que la entidad ya está registrada por otra vía al cargar — bloquea "Cargar Partida" desde un arranque en frío real (sin pasar antes por una escena que registre al jugador, como `exploration_test.gd`).
+
+`SaveSystem._find_player()` busca primero bajo el nodo `"ExplorationScene"` (creado explícitamente por `SceneOrchestrator`), no bajo `get_tree().current_scene` — este último nunca cambia mientras `MainMenuScreen` siga siendo la Main Scene, ya que la exploración se instancia de forma aditiva (`get_tree().root.add_child()`), no con `change_scene_to_file()`.
 
 ### ItemCharacterBridge — Aplicación de modificadores
 
@@ -543,6 +580,12 @@ El InputMap de combate usa estos nombres de action:
 | `combat_scape` | R | `skill.combat.flee` |
 | `cycle_target` | Tab | — |
 
+### Input en exploración — Quicksave/Quickload
+
+Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4.7): `player.gd` (script de una fase muy temprana del proyecto) tenía la lógica de `quicksave`/`quickload` en `_input()`, pero ese script ya no está en el árbol de ninguna escena activa — el nodo `Player` real usa `PlayerExploration` (`scenes/exploration/player_exploration.gd`). La lógica se movió a `ExplorationController._unhandled_input()` (F5 / F9), que ya gestionaba el resto del input de exploración (`interact`, `open_inventory`, `open_party`, `open_player_menu`) correctamente.
+
+`player.gd`/`player.tscn` (`scenes/player/`) quedan como código candidato a limpieza — no se usan en ninguna escena activa actualmente.
+
 ---
 
 ## Notas de convenciones
@@ -559,4 +602,4 @@ El InputMap de combate usa estos nombres de action:
 
 ---
 
-*Última actualización: Spike menú principal — flujo completo MENU → CHARACTER_CREATION → EXPLORATION funcional. Motor actualizado a Godot 4.7.1.*
+*Última actualización: Spike Character Creation — flujo completo Menú → Character Creation → Exploration con persistencia de personaje (nombre, atributos, inventario) funcional de punta a punta. SAVE_VERSION 5.*

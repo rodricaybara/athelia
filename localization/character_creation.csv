@@ -1,0 +1,26 @@
+id,en,es
+CC_ROLL_TITLE,Roll Your Attributes,Tira tus Atributos
+CC_BTN_ROLL,Roll,Tirar
+CC_BTN_REROLL,Reroll,Repetir tirada
+CC_BTN_CONTINUE,Continue,Continuar
+CC_BTN_BACK,Back,Volver
+CC_BTN_BACK_TO_MENU,Back to Menu,Volver al menú
+CC_BTN_CONFIRM,Confirm,Confirmar
+CC_NAME_TITLE,Name Your Character,Nombra a tu personaje
+CC_NAME_PLACEHOLDER,Enter a name...,Introduce un nombre...
+CC_SUMMARY_TITLE,Summary,Resumen
+CC_SUMMARY_SKILLS_TITLE,Starting Skills,Habilidades Iniciales
+CC_SUMMARY_EQUIPMENT_TITLE,Starting Equipment,Equipo Inicial
+CC_SUMMARY_SKILLS,"Starting skills: Light Attack, Dodge, Perception","Habilidades iniciales: Ataque Ligero, Esquiva, Percepción"
+CC_SUMMARY_EQUIPMENT,"Starting items (in inventory): Iron Sword, Leather Armor. 50 gold.","Objetos iniciales (en inventario): Espada de Hierro, Armadura de Cuero. 50 de oro."
+CC_ERROR_INCOMPLETE,Assign all six attributes before continuing,Asigna los seis atributos antes de continuar
+CC_ERROR_EMPTY_NAME,Enter a name for your character,Introduce un nombre para tu personaje
+CC_ERROR_NAME_TOO_LONG,Name is too long (max 20 characters),El nombre es demasiado largo (máx. 20 caracteres)
+CC_ERROR_NO_CHIP_SELECTED,Select a rolled value first,Selecciona primero un valor tirado
+CC_ERROR_WRONG_POOL,That value cannot go in this attribute,Ese valor no puede ir en este atributo
+CC_ATTR_STRENGTH,Strength,Fuerza
+CC_ATTR_DEXTERITY,Dexterity,Destreza
+CC_ATTR_CONSTITUTION,Constitution,Constitución
+CC_ATTR_INTELLIGENCE,Intelligence,Inteligencia
+CC_ATTR_WISDOM,Wisdom,Sabiduría
+CC_ATTR_CHARISMA,Charisma,Carisma

@@ -25,7 +25,7 @@ extends Node
 # ============================================
 
 const SCENE_MAIN_MENU          := "res://ui/main_menu/main_menu_screen.tscn"
-const SCENE_CHARACTER_CREATION := "res://scenes/character_creation/character_creation_screen.tscn"
+const SCENE_CHARACTER_CREATION := "res://ui/character_creation/character_creation_screen.tscn"
 const SCENE_COMBAT             := "res://scenes/combat/combat_test.tscn"
 const SCENE_EXPLORATION        := "res://scenes/exploration/exploration_test.tscn"
 
@@ -141,15 +141,9 @@ func _handle_main_menu() -> void:
 
 func _handle_character_creation() -> void:
 	_hide_current_overlay()
-	var packed := load(SCENE_CHARACTER_CREATION) as PackedScene
-	if not packed:
-		push_error("[SceneOrchestrator] Cannot load character creation scene: %s" % SCENE_CHARACTER_CREATION)
-		return
-	var instance := packed.instantiate()
-	instance.name = "CharacterCreationScreen"
-	get_tree().root.add_child(instance)
-	if instance.has_method("open"):
-		instance.open()
+	_show_overlay(SCENE_CHARACTER_CREATION)
+	if _current_overlay and _current_overlay.has_method("open"):
+		_current_overlay.open()
 	print("[SceneOrchestrator] Character creation screen loaded")
 
 
@@ -157,9 +151,21 @@ func _handle_exploration() -> void:
 	# Cerrar cualquier overlay activo
 	_hide_current_overlay()
 
-	# Si veníamos de combate, la escena de exploración ya está bajo el combate.
-	# El combat_test.tscn se habrá limpiado en _on_combat_ended.
-	# No necesitamos recargar la escena de exploración en el spike.
+	# Si venimos de combate, la escena de exploración ya está bajo el combate
+	# (queue_free en _on_combat_ended la deja intacta debajo). Si venimos de
+	# MENU/CHARACTER_CREATION por primera vez, todavía no existe — hay que
+	# instanciarla.
+	var existing := get_tree().root.get_node_or_null("ExplorationScene")
+	if not existing:
+		var packed := load(SCENE_EXPLORATION) as PackedScene
+		if not packed:
+			push_error("[SceneOrchestrator] Cannot load exploration scene: %s" % SCENE_EXPLORATION)
+			return
+		var instance := packed.instantiate()
+		instance.name = "ExplorationScene"
+		get_tree().root.add_child(instance)
+		print("[SceneOrchestrator] Exploration scene instantiated")
+
 	print("[SceneOrchestrator] Exploration active — overlays cleared")
 
 

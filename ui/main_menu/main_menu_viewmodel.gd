@@ -10,6 +10,7 @@ extends Node
 ##   "confirm_quit"  → mostrar diálogo de confirmación de salida
 ##   "transitioning" → deshabilitar botones (transición en curso)
 ##   "load_blocked"  → no hay partida guardada, feedback visual
+##   "hidden"        → GameState salió de MENU — ocultar la pantalla entera
 
 signal changed(reason: String)
 
@@ -52,7 +53,27 @@ func _ready() -> void:
 	_save_manager = get_node_or_null("/root/SaveManager")
 	if not _save_manager:
 		push_warning("[MainMenuViewModel] SaveManager not found — load/save features disabled")
+
+	if EventBus:
+		EventBus.game_state_changed.connect(_on_game_state_changed)
+	else:
+		push_error("[MainMenuViewModel] EventBus not found — no podrá reaccionar a cambios de estado")
+
 	print("[MainMenuViewModel] Initialized")
+
+
+## Reacciona a cualquier cambio de GameState — incluidos los que NO originó
+## este propio menú (ej: volver desde CharacterCreation, o salir hacia
+## Exploration). Sin esto, el menú se queda "congelado" en TRANSITIONING
+## para siempre tras la primera vez que se abandona MENU.
+func _on_game_state_changed(new_state: int) -> void:
+	if new_state == GameLoopSystem.GameState.MENU:
+		if state != MenuState.MAIN:
+			open()
+	else:
+		if state != MenuState.HIDDEN:
+			state = MenuState.HIDDEN
+			changed.emit("hidden")
 
 
 # ============================================

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://dh7omopg6hfux"]
+
+[ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_0x5oo"]
+
+[resource]
+script = ExtResource("1_0x5oo")
+id = "player_new"
+name_key = "character_player_name"
+description_key = "character_player_desc"
+starting_resources = {
+"focus": 0,
+"gold": 0,
+"health": 20,
+"stamina": 15
+}
+skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception"])
+starting_skill_values = {
+"skill.attack.light": 25,
+"skill.combat.dodge": 20,
+"skill.exploration.perception": 25
+}
+metadata/_custom_type_script = "uid://cmvsxyq5sohf4"

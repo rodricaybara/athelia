@@ -147,8 +147,17 @@ func _collect_player_state(save_data: SaveData) -> bool:
 	# Inventario
 	save_data.player_state["inventory"] = Inventory.get_save_state("player")
 
-	# ⭐ NUEVO v4: Skill values de progresión (viven en CharacterSystem)
+	# ⭐ NUEVO v5: snapshot de CharacterSystem — definition_id, nombre, atributos base.
+	# CharacterSystem.get_save_state()/load_save_state() ya existían, preparados
+	# para esto, pero nunca se habían conectado aquí.
 	var character_system = get_node_or_null("/root/Characters")
+	if character_system:
+		save_data.player_state["character"] = character_system.get_save_state("player")
+	else:
+		push_warning("[SaveSystem] CharacterSystem not found — character snapshot won't be saved")
+		save_data.player_state["character"] = {}
+
+	# ⭐ NUEVO v4: Skill values de progresión (viven en CharacterSystem)
 	if character_system:
 		save_data.player_state["skill_values"] = character_system.get_all_skill_values("player")
 		print("[SaveSystem] Skill values collected: %d" % save_data.player_state["skill_values"].size())
@@ -257,6 +266,25 @@ func load_game(slot_id: String = "quicksave") -> bool:
 ## Restaura el estado completo desde un SaveData
 func _restore_state(save_data: SaveData) -> bool:
 	print("[SaveSystem] Restoring state...")
+
+	# 0. ⭐ NUEVO v5: CharacterSystem PRIMERO — si "player" no existe todavía
+	# (arranque en frío), load_save_state() lo registra vía definition_id
+	# guardado antes de tocar atributos. Los pasos siguientes (resources,
+	# skills) asumen que la entidad ya existe en SUS PROPIOS registros —
+	# eso sigue pendiente (ver nota de scope: escena de exploración de
+	# producción), pero al menos CharacterSystem ya no se queda sin
+	# atributos/nombre tras cargar.
+	var character_data: Dictionary = save_data.player_state.get("character", {})
+	if not character_data.is_empty():
+		var character_system = get_node_or_null("/root/Characters")
+		if character_system:
+			character_system.load_save_state("player", character_data)
+			print("[SaveSystem] Character restored: '%s' (%s)" % [
+				character_system.get_character_name("player"),
+				character_data.get("definition_id", "?")
+			])
+		else:
+			push_warning("[SaveSystem] CharacterSystem not found — character snapshot not restored")
 
 	# 1. Recursos (fundamentales — van primero)
 	var resources_data = save_data.player_state.get("resources", {})
@@ -385,8 +413,23 @@ func _create_backup(slot_id: String):
 		print("[SaveSystem] Backup created: %s" % backup_path)
 
 
-## Busca el nodo Player en la escena actual
+## Busca el nodo Player en la escena de exploración
+## IMPORTANTE: SceneOrchestrator instancia la exploración de forma aditiva
+## (get_tree().root.add_child(), nombrada "ExplorationScene") en vez de con
+## change_scene_to_file(). Por eso get_tree().current_scene NUNCA apunta a
+## ella mientras MainMenuScreen siga siendo la Main Scene del proyecto —
+## hay que buscar explícitamente bajo el nodo que SceneOrchestrator creó.
 func _find_player() -> Node:
+	var exploration_scene := get_tree().root.get_node_or_null("ExplorationScene")
+	if exploration_scene:
+		var player := exploration_scene.get_node_or_null("Player")
+		if player:
+			return player
+		player = _find_node_by_name(exploration_scene, "Player")
+		if player:
+			return player
+
+	# Fallback — por si en el futuro se pasa a change_scene_to_file()
 	var current_scene = get_tree().current_scene
 	if not current_scene:
 		return null

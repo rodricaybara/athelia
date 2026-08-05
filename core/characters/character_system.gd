@@ -261,6 +261,24 @@ func get_all_base_attributes(entity_id: String) -> Dictionary:
 
 
 # ============================================
+# NOMBRE DE PERSONAJE
+# ============================================
+
+## Establece el nombre elegido en Character Creation
+func set_character_name(entity_id: String, character_name: String) -> void:
+	var state = get_character_state(entity_id)
+	if not state:
+		return
+	state.character_name = character_name
+
+
+## Obtiene el nombre del personaje. Cadena vacía si no se ha establecido.
+func get_character_name(entity_id: String) -> String:
+	var state = get_character_state(entity_id)
+	return state.character_name if state else ""
+
+
+# ============================================
 # RECURSOS
 # ============================================
 

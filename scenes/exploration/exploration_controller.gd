@@ -88,6 +88,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("open_player_menu"): # Tecla P
 		scene_orchestrator.open_player_menu()
 
+	# Guardado rápido — movido aquí desde player.gd (Día 2-5, script que ya
+	# no está en el árbol de la escena activa; PlayerExploration lo sustituyó).
+	if event.is_action_pressed("quicksave"): # Tecla F5
+		_quicksave()
+
+	if event.is_action_pressed("quickload"): # Tecla F9
+		_quickload()
+
 
 # ============================================
 # CALLBACKS DE INTERACTUABLES
@@ -225,3 +233,28 @@ func _register_combat_enemies(enemy_ids: Array[String]) -> void:
 		resources.set_resource(enemy_id, "health", 50.0)
 		
 		print("[ExplorationController] Pre-registered enemy: %s (def: %s)" % [enemy_id, def_id])
+
+
+# ============================================
+# GUARDADO RÁPIDO (F5 / F9)
+# ============================================
+# Movido aquí desde player.gd (Día 2-5) — ese script ya no está en el árbol
+# de la escena activa (PlayerExploration lo sustituyó), así que este input
+# nunca se ejecutaba. El feedback visual (mensajes en pantalla) lo gestiona
+# SaveFeedbackUI, que ya escucha las señales de SaveSystem — no hace falta
+# duplicar esa lógica aquí.
+
+func _quicksave() -> void:
+	var save_manager := get_node_or_null("/root/SaveManager")
+	if save_manager:
+		save_manager.save_game("quicksave")
+	else:
+		push_warning("[ExplorationController] SaveManager not found")
+
+
+func _quickload() -> void:
+	var save_manager := get_node_or_null("/root/SaveManager")
+	if save_manager:
+		save_manager.load_game("quicksave")
+	else:
+		push_warning("[ExplorationController] SaveManager not found")

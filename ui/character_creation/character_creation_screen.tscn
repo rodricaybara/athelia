@@ -1,0 +1,198 @@
+[gd_scene format=3 uid="uid://d3wckidiapm1x"]
+
+[ext_resource type="Script" uid="uid://im8mkndu5kfr" path="res://ui/character_creation/character_creation_screen.gd" id="1_n7aj1"]
+[ext_resource type="PackedScene" uid="uid://bkjn07uwfc3l0" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="1_opcu6"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="2_n7aj1"]
+
+[node name="CharacterCreationScreen" type="CanvasLayer" unique_id=601597810]
+script = ExtResource("1_n7aj1")
+
+[node name="Root" type="Control" parent="." unique_id=684989264]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="Root" unique_id=2133144358]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="AttributeRollPanel" parent="Root/CenterContainer" unique_id=932497249 instance=ExtResource("1_opcu6")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(520, 420)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/CenterContainer/AttributeRollPanel" unique_id=381674746]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer" unique_id=1272412982]
+layout_mode = 2
+
+[node name="RollTitleLabel" type="Label" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=1989321669]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PhysicalPoolContainer" type="HBoxContainer" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=51840470]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PhysChip0" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/PhysicalPoolContainer" unique_id=1659444756 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+
+[node name="PhysChip1" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/PhysicalPoolContainer" unique_id=2122604281 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+
+[node name="PhysChip2" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/PhysicalPoolContainer" unique_id=1155907297 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+
+[node name="ResilientPoolContainer" type="HBoxContainer" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=110137458]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ResChip0" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/ResilientPoolContainer" unique_id=738023582 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+
+[node name="ResChip1" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/ResilientPoolContainer" unique_id=1271767408 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+
+[node name="ResChip2" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/ResilientPoolContainer" unique_id=446750485 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+
+[node name="AttributeSlotsContainer" type="GridContainer" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=2053472594]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 3
+
+[node name="SlotStrength" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/AttributeSlotsContainer" unique_id=928751304 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SlotDexterity" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/AttributeSlotsContainer" unique_id=2108414531 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SlotCharisma" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/AttributeSlotsContainer" unique_id=755126229 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SlotConstitution" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/AttributeSlotsContainer" unique_id=1728378851 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SlotIntelligence" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/AttributeSlotsContainer" unique_id=657822541 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SlotWisdom" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer/AttributeSlotsContainer" unique_id=842949955 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnRoll" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=482400788 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnReroll" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=31274976 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnContinueAssign" parent="Root/CenterContainer/AttributeRollPanel/MarginContainer/VBoxContainer" unique_id=250353450 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="NamePanel" parent="Root/CenterContainer" unique_id=481421928 instance=ExtResource("1_opcu6")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(520, 420)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/CenterContainer/NamePanel" unique_id=994595043]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/CenterContainer/NamePanel/MarginContainer" unique_id=1874780531]
+layout_mode = 2
+
+[node name="NameTitleLabel" type="Label" parent="Root/CenterContainer/NamePanel/MarginContainer/VBoxContainer" unique_id=1665996459]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="NameLineEdit" type="LineEdit" parent="Root/CenterContainer/NamePanel/MarginContainer/VBoxContainer" unique_id=359118858]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnContinueName" parent="Root/CenterContainer/NamePanel/MarginContainer/VBoxContainer" unique_id=497082199 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SummaryPanel" parent="Root/CenterContainer" unique_id=358182992 instance=ExtResource("1_opcu6")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(520, 420)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/CenterContainer/SummaryPanel" unique_id=2038133348]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/CenterContainer/SummaryPanel/MarginContainer" unique_id=2054089300]
+layout_mode = 2
+
+[node name="SummaryTitleLabel" type="Label" parent="Root/CenterContainer/SummaryPanel/MarginContainer/VBoxContainer" unique_id=1685726298]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AttributesSummaryLabel" type="RichTextLabel" parent="Root/CenterContainer/SummaryPanel/MarginContainer/VBoxContainer" unique_id=2051483861]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="SkillsSummaryLabel" type="RichTextLabel" parent="Root/CenterContainer/SummaryPanel/MarginContainer/VBoxContainer" unique_id=1258782586]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="EquipmentSummaryLabel" type="RichTextLabel" parent="Root/CenterContainer/SummaryPanel/MarginContainer/VBoxContainer" unique_id=531732087]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="BtnBackToNaming" parent="Root/CenterContainer/SummaryPanel/MarginContainer/VBoxContainer" unique_id=1876239141 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnConfirm" parent="Root/CenterContainer/SummaryPanel/MarginContainer/VBoxContainer" unique_id=1890021445 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ErrorFeedbackLabel" type="Label" parent="Root" unique_id=1981828538]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="BtnBackToMenu" parent="Root" unique_id=1778306623 instance=ExtResource("2_n7aj1")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 84.0
+offset_top = 121.0
+offset_right = 164.0
+offset_bottom = 153.0
+variant = 1
