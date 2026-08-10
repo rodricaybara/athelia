@@ -67,6 +67,9 @@ func register_entity(entity_id: String, resource_ids: Array = []) -> void:
 	
 	print("[ResourceSystem] Registered entity '%s' with %d resources" % [entity_id, resource_ids.size()])
 
+## ¿Está esta entidad registrada?
+func has_entity(entity_id: String) -> bool:
+	return _entities.has(entity_id)
 
 ## Desregistra una entidad
 func unregister_entity(entity_id: String) -> void:

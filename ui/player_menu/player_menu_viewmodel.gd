@@ -109,7 +109,7 @@ func open(character_id: String) -> void:
 		push_error("[PlayerMenuViewModel] Personaje no encontrado: %s" % character_id)
 		return
 
-	character_name = state.definition.id
+	character_name = Characters.get_character_name(character_id)
 
 	_disconnect_events()
 	_connect_events()

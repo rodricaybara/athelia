@@ -287,14 +287,26 @@ func _restore_state(save_data: SaveData) -> bool:
 			push_warning("[SaveSystem] CharacterSystem not found — character snapshot not restored")
 
 	# 1. Recursos (fundamentales — van primero)
+	# Arranque en frío: si "player" no existe en ResourceSystem (ej. Cargar
+	# Partida desde el menú sin pasar por Character Creation), load_save_state()
+	# no hace NADA silenciosamente — hay que registrar la entidad primero.
 	var resources_data = save_data.player_state.get("resources", {})
 	if not resources_data.is_empty():
+		if not resource_system.has_entity("player"):
+			resource_system.register_entity("player")
+			print("[SaveSystem] 'player' not in ResourceSystem — cold-start bootstrap")
 		resource_system.load_save_state("player", resources_data)
 		print("[SaveSystem] Resources restored")
 
 	# 2. Skills: cooldowns, total_uses, is_unlocked
+	# Mismo caso que Resources. El universo de skills a registrar sale del
+	# propio snapshot (sus keys) — NO de un kit fijo hardcodeado — así el
+	# bootstrap sigue funcionando aunque el kit inicial cambie en el futuro.
 	var skills_data = save_data.player_state.get("skills", {})
 	if not skills_data.is_empty():
+		if not skill_system.has_entity("player"):
+			skill_system.register_entity_skills("player", skills_data.keys())
+			print("[SaveSystem] 'player' not in SkillSystem — cold-start bootstrap (%d skills)" % skills_data.size())
 		skill_system.load_save_state("player", skills_data)
 		print("[SaveSystem] Skills restored (cooldowns reset)")
 

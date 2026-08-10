@@ -1,0 +1,158 @@
+[gd_scene format=3 uid="uid://dushsyboym50l"]
+
+[ext_resource type="Script" uid="uid://dadcx7potxl5c" path="res://scenes/exploration/exploration_controller.gd" id="1_ek047"]
+[ext_resource type="Script" uid="uid://44b8y7fk8nrc" path="res://scenes/exploration/tutorial/exploration_tutorial.gd" id="1_i7lec"]
+[ext_resource type="Script" uid="uid://h4ojab1vgp2b" path="res://scenes/exploration/exploration_hud.gd" id="2_i7lec"]
+[ext_resource type="Script" uid="uid://dgjotf8dgubju" path="res://scenes/exploration/player_exploration.gd" id="3_yxbxw"]
+[ext_resource type="Texture2D" uid="uid://lfe8v508cdxm" path="res://scenes/exploration/personanje.png" id="4_gbpku"]
+[ext_resource type="Script" uid="uid://ce0i30sbroo7t" path="res://scenes/exploration/interactable.gd" id="5_jei02"]
+[ext_resource type="Texture2D" uid="uid://bh6kr40xpjmoo" path="res://data/items/chest.png" id="6_kh35g"]
+[ext_resource type="Texture2D" uid="uid://ca4w0ucq3gi6w" path="res://assets/Warrior/Warrior_Idle.png" id="8_yxbxw"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
+radius = 47.24
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_yf5fn"]
+radius = 50.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_57qmd"]
+radius = 28.62
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_d0u6y"]
+radius = 8.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_fcnqv"]
+size = Vector2(23.5, 16)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_3gngh"]
+radius = 47.24
+
+[node name="ExplorationTutorial" type="Node2D" unique_id=1822005222]
+script = ExtResource("1_i7lec")
+
+[node name="ExplorationController" type="Node" parent="." unique_id=596237120]
+script = ExtResource("1_ek047")
+
+[node name="ExplorationHUD" type="CanvasLayer" parent="." unique_id=266731532]
+layer = 5
+script = ExtResource("2_i7lec")
+
+[node name="InteractPrompt" type="Label" parent="ExplorationHUD" unique_id=795293011]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -56.0
+offset_top = -23.0
+offset_right = 56.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "[E] Interactuar"
+
+[node name="ResourcesPanel" type="HBoxContainer" parent="ExplorationHUD" unique_id=575074466]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="HP" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1388216974]
+layout_mode = 2
+text = "HP: --"
+
+[node name="Stamina" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=470921230]
+layout_mode = 2
+text = "ST: --"
+
+[node name="Gold" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=885708688]
+layout_mode = 2
+text = "G: --"
+
+[node name="StateDebugLabel" type="Label" parent="ExplorationHUD" unique_id=1417507306]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -117.0
+offset_bottom = 23.0
+grow_horizontal = 0
+text = "EXPLORATION"
+
+[node name="World" type="Node2D" parent="." unique_id=925260319]
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=927372453 groups=["player"]]
+position = Vector2(200, 200)
+script = ExtResource("3_yxbxw")
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1572297279]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=809710608]
+shape = SubResource("CircleShape2D_g4v7s")
+
+[node name="InteractRange" type="Area2D" parent="Player" unique_id=116329257]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/InteractRange" unique_id=1064588874]
+shape = SubResource("CircleShape2D_yf5fn")
+
+[node name="Personaje" type="Sprite2D" parent="Player" unique_id=1014215712]
+position = Vector2(0, 1.9999999)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("4_gbpku")
+
+[node name="WorldObjects" type="Node2D" parent="." unique_id=1518352410]
+
+[node name="Chest_A" type="Node2D" parent="WorldObjects" unique_id=1774434004]
+position = Vector2(528, 169)
+
+[node name="Interactable" type="Area2D" parent="WorldObjects/Chest_A" unique_id=1070432204]
+script = ExtResource("5_jei02")
+interaction_type = "item"
+target_id = "chest_01_a"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WorldObjects/Chest_A/Interactable" unique_id=1839076106]
+shape = SubResource("CircleShape2D_57qmd")
+
+[node name="Chest" type="Sprite2D" parent="WorldObjects/Chest_A" unique_id=1493709987]
+position = Vector2(0, 4.7683716e-07)
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("6_kh35g")
+
+[node name="CollisionBody" type="StaticBody2D" parent="WorldObjects/Chest_A" unique_id=310568149]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WorldObjects/Chest_A/CollisionBody" unique_id=308708385]
+shape = SubResource("CircleShape2D_d0u6y")
+
+[node name="Chest_B" type="Node2D" parent="WorldObjects" unique_id=680275433]
+position = Vector2(400, 169)
+
+[node name="Interactable" type="Area2D" parent="WorldObjects/Chest_B" unique_id=911148812]
+script = ExtResource("5_jei02")
+interaction_type = "item"
+target_id = "chest_01_b"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WorldObjects/Chest_B/Interactable" unique_id=1368526203]
+shape = SubResource("CircleShape2D_57qmd")
+
+[node name="Chest" type="Sprite2D" parent="WorldObjects/Chest_B" unique_id=1498975749]
+position = Vector2(1, 1.0000153)
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("6_kh35g")
+
+[node name="CollisionBody" type="StaticBody2D" parent="WorldObjects/Chest_B" unique_id=1980185560]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WorldObjects/Chest_B/CollisionBody" unique_id=213812632]
+position = Vector2(0, 1)
+shape = SubResource("RectangleShape2D_fcnqv")
+
+[node name="WarriorNPC" type="Node2D" parent="WorldObjects" unique_id=1706911803]
+position = Vector2(350, 300)
+
+[node name="Interactable" type="Area2D" parent="WorldObjects/WarriorNPC" unique_id=396792354]
+script = ExtResource("5_jei02")
+interaction_type = "combat"
+target_id = "warrior_tutorial"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WorldObjects/WarriorNPC/Interactable" unique_id=1485686868]
+shape = SubResource("CircleShape2D_3gngh")
+
+[node name="Sprite2D" type="Sprite2D" parent="WorldObjects/WarriorNPC" unique_id=1143475114]
+texture = ExtResource("8_yxbxw")
+hframes = 8
+frame = 5

@@ -185,6 +185,10 @@ func register_entity_skills(entity_id: String, skill_ids: Array = []):
 		entity_id, unlocked_count, locked_count
 	])
 
+## ¿Está esta entidad registrada en el sistema de skills?
+func has_entity(entity_id: String) -> bool:
+	return _entity_skills.has(entity_id)
+
 ## Desregistra una entidad
 func unregister_entity(entity_id: String):
 	if _entity_skills.erase(entity_id):

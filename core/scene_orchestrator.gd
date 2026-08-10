@@ -27,7 +27,7 @@ extends Node
 const SCENE_MAIN_MENU          := "res://ui/main_menu/main_menu_screen.tscn"
 const SCENE_CHARACTER_CREATION := "res://ui/character_creation/character_creation_screen.tscn"
 const SCENE_COMBAT             := "res://scenes/combat/combat_test.tscn"
-const SCENE_EXPLORATION        := "res://scenes/exploration/exploration_test.tscn"
+const SCENE_EXPLORATION        := "res://scenes/exploration/tutorial/exploration_tutorial.tscn"
 
 const OVERLAY_SHOP       := "res://ui/shop/shop_ui.tscn"
 const OVERLAY_INVENTORY  := "res://ui/inventory/inventory_ui.tscn"
