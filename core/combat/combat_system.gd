@@ -184,7 +184,7 @@ func _on_player_turn_started() -> void:
 
 	# 1. Ticks de recursos (bleeding, regen, drain)
 	_process_resource_ticks(PLAYER_ID)
-	
+
 	# 2. Expirar buffs de tipo "turn" del jugador
 	_expire_turn_buffs(PLAYER_ID)
 
@@ -279,10 +279,13 @@ func _on_skill_used(entity_id: String, skill_id: String):
 		print("[CombatSystem] 🎯 precision_up: skill_value → %d" % skill_value)
 		
 	# critical_bonus: amplía el umbral de crítico (no se consume, dura X turnos)
+	# Spike 2: el umbral ya no es la constante fija "2" — se lee de SkillRoller,
+	# que ahora lo calcula de forma dinámica (skill_value / 20 + bonus). Se pide
+	# aquí en vez de hardcodear el valor para no duplicar la fórmula.
 	var crit_bonus: int = 0
 	if has_buff(entity_id, "critical_bonus"):
 		crit_bonus = int(_get_buff_value(entity_id, "critical_bonus"))
-		print("[CombatSystem] 🎯 critical_bonus activo: umbral crítico → %d" % (2 + crit_bonus))
+		print("[CombatSystem] 🎯 critical_bonus activo: umbral crítico → %d" % SkillRoller.get_critical_threshold(skill_value, crit_bonus))
 
 	var roll_result = SkillRoller.roll_skill(skill_value, false, crit_bonus)
 	
@@ -303,7 +306,10 @@ func _on_skill_used(entity_id: String, skill_id: String):
 		_play_skill_animation(entity_id, skill_id)
 		
 		var is_critical = (roll_result.result == SkillRoller.RollResult.CRITICAL)
-		result = _process_skill_effects(entity_id, skill_def, is_critical, target_id)
+		# Spike 2: grado SPECIAL — cuenta como éxito (ver SkillRoller._is_success())
+		# pero con su propio multiplicador de daño, menor que el de crítico.
+		var is_special = (roll_result.result == SkillRoller.RollResult.SPECIAL)
+		result = _process_skill_effects(entity_id, skill_def, is_critical, target_id, is_special)
 		result["roll_result"] = roll_result
 		
 		if result.get("success", false) and result.get("damage", 0) > 0:
@@ -353,7 +359,8 @@ func _on_skill_used(entity_id: String, skill_id: String):
 	
 	if result.get("success", false):
 		var crit_text = " (CRITICAL!)" if result.get("critical", false) else ""
-		print("[CombatSystem] ✅ %s dealt %.1f damage%s" % [skill_id, result.get("damage", 0), crit_text])
+		var special_text = " (SPECIAL!)" if result.get("special", false) else ""
+		print("[CombatSystem] ✅ %s dealt %.1f damage%s%s" % [skill_id, result.get("damage", 0), crit_text, special_text])
 	else:
 		var fumble_text = " (FUMBLE!)" if result.get("fumble", false) else ""
 		print("[CombatSystem] ❌ Skill missed%s" % fumble_text)
@@ -371,6 +378,11 @@ func _on_skill_failed(entity_id: String, skill_id: String, reason: String):
 
 ## Resuelve el resultado de una habilidad de combate
 ## Calcula daño usando AttributeResolver y procesa efectos
+##
+## NOTA: esta función no está en el camino real de _on_skill_used() (que
+## calcula el daño llamando a _process_skill_effects() directamente) — no se
+## ha tocado en Spike 2 por eso; is_special no se propaga aquí y usará el
+## default (false) de _process_skill_effects() si algún día se conecta.
 func _resolve_combat_skill(
 	entity_id: String,
 	skill_id: String,
@@ -403,7 +415,8 @@ func _process_skill_effects(
 	entity_id: String,
 	skill_def: SkillDefinition,
 	is_critical: bool,
-	target_id: String = ""    # ← NUEVO: necesario para buffs con target="target"
+	target_id: String = "",    # ← NUEVO: necesario para buffs con target="target"
+	is_special: bool = false   # ← Spike 2: grado SPECIAL, multiplicador propio menor que crítico
 ) -> Dictionary:
 	var character_state = Characters.get_character_state(entity_id)
 	if not character_state:
@@ -424,9 +437,15 @@ func _process_skill_effects(
 				if is_critical:
 					var crit_multiplier: float = effect.get("critical_multiplier", 2.0)
 					damage *= crit_multiplier
+				elif is_special:
+					# Spike 2: bonus de daño para el grado SPECIAL, menor que el
+					# de crítico. Configurable por skill vía "special_multiplier"
+					# en el effect, mismo patrón que "critical_multiplier".
+					var special_multiplier: float = effect.get("special_multiplier", 1.2)
+					damage *= special_multiplier
 
-				print("[CombatSystem] Damage calculated: %.1f (base: %.1f, modifier: %.2f, crit: %s)" % [
-					damage, resolved_damage, damage_modifier, is_critical
+				print("[CombatSystem] Damage calculated: %.1f (base: %.1f, modifier: %.2f, crit: %s, special: %s)" % [
+					damage, resolved_damage, damage_modifier, is_critical, is_special
 				])
 
 			"BUFF":
@@ -457,6 +476,7 @@ func _process_skill_effects(
 		"success": true,
 		"damage": damage,
 		"critical": is_critical,
+		"special": is_special,
 		"buffs_applied": buffs_applied
 	}
 

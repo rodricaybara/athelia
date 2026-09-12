@@ -1,7 +1,7 @@
 class_name NarrativeSceneOption
 extends Resource
 
-## NarrativeSceneOption — Spike 1: Motor Narrativo Base
+## NarrativeSceneOption — Spike 1: Motor Narrativo Base / Spike 2: grado SPECIAL
 ##
 ## Una opción dentro de una NarrativeSceneDefinition. Puede resolver
 ## directo (outcome_default) o requerir una tirada de habilidad, en cuyo
@@ -9,15 +9,13 @@ extends Resource
 ## El destino/consecuencias en sí viven en NarrativeSceneOutcome (fichero
 ## propio — ver ese fichero para por qué no es clase interna).
 ##
-## NOTA (decisión de spike, ver docs/spike_1_narrativa_informe_cierre.md):
-## SkillRoller.RollResult solo tiene 4 grados en Spike 1
-## (FUMBLE, FAILURE, SUCCESS, CRITICAL). Un quinto grado "especial" se
-## discutió durante el diseño y se difiere explícitamente a Spike 2 —
-## no existe en SkillRoller hoy, por eso no hay outcome_special aquí.
+## NOTA (Spike 2): SkillRoller.RollResult tiene ahora 5 grados (FUMBLE,
+## FAILURE, SUCCESS, SPECIAL, CRITICAL) — outcome_special añadido con el
+## mismo patrón de fallback ya usado para fumble/critical en Spike 1.
 ##
 ## Progresión de skill narrativa (enganche vía SkillProgression.
-## execute_learning_session / LearningSession) también se discutió y se
-## difiere a Spike 2 — por eso no hay campo challenge_level en esta versión.
+## execute_learning_session / LearningSession) se discutió y se difiere a
+## Spike 2b/3 — por eso no hay campo challenge_level en esta versión.
 ##
 ## NOTA: from_dict() usa new() en vez de NarrativeSceneOption.new() —
 ## autorreferenciar el propio class_name dentro del mismo script no se
@@ -34,11 +32,13 @@ var roll_modifier: int = 0
 var outcome_default: NarrativeSceneOutcome = null
 
 ## Usados solo si skill_id no está vacío. success/failure son obligatorios
-## en la práctica (validate() los exige); fumble/critical son opcionales —
-## si vienen null, get_outcome_for_grade() hace fallback a failure/success.
+## en la práctica (validate() los exige); fumble/special/critical son
+## opcionales — si vienen null, get_outcome_for_grade() hace fallback:
+## fumble→failure, special→success, critical→success.
 var outcome_fumble: NarrativeSceneOutcome = null
 var outcome_failure: NarrativeSceneOutcome = null
 var outcome_success: NarrativeSceneOutcome = null
+var outcome_special: NarrativeSceneOutcome = null
 var outcome_critical: NarrativeSceneOutcome = null
 
 
@@ -57,6 +57,8 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOption:
 		option.outcome_failure = NarrativeSceneOutcome.from_dict(data["outcome_failure"])
 	if data.has("outcome_success"):
 		option.outcome_success = NarrativeSceneOutcome.from_dict(data["outcome_success"])
+	if data.has("outcome_special"):
+		option.outcome_special = NarrativeSceneOutcome.from_dict(data["outcome_special"])
 	if data.has("outcome_critical"):
 		option.outcome_critical = NarrativeSceneOutcome.from_dict(data["outcome_critical"])
 
@@ -64,7 +66,10 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOption:
 
 
 ## Devuelve el outcome a aplicar para un grado de resultado dado.
-## Fallback: FUMBLE sin definir → usa FAILURE. CRITICAL sin definir → usa SUCCESS.
+## Fallback: FUMBLE sin definir → usa FAILURE. SPECIAL sin definir → usa
+## SUCCESS. CRITICAL sin definir → usa SUCCESS. Mismo criterio en los tres
+## casos: degradar hacia el tier "normal" más cercano (failure o success)
+## en vez de inventar una regla nueva por grado.
 func get_outcome_for_grade(grade: SkillRoller.RollResult) -> NarrativeSceneOutcome:
 	match grade:
 		SkillRoller.RollResult.FUMBLE:
@@ -73,6 +78,8 @@ func get_outcome_for_grade(grade: SkillRoller.RollResult) -> NarrativeSceneOutco
 			return outcome_failure
 		SkillRoller.RollResult.SUCCESS:
 			return outcome_success
+		SkillRoller.RollResult.SPECIAL:
+			return outcome_special if outcome_special else outcome_success
 		SkillRoller.RollResult.CRITICAL:
 			return outcome_critical if outcome_critical else outcome_success
 
