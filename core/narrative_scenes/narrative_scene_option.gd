@@ -2,6 +2,7 @@ class_name NarrativeSceneOption
 extends Resource
 
 ## NarrativeSceneOption — Spike 1: Motor Narrativo Base / Spike 2: grado SPECIAL
+## y progresión de skill narrativa
 ##
 ## Una opción dentro de una NarrativeSceneDefinition. Puede resolver
 ## directo (outcome_default) o requerir una tirada de habilidad, en cuyo
@@ -9,13 +10,21 @@ extends Resource
 ## El destino/consecuencias en sí viven en NarrativeSceneOutcome (fichero
 ## propio — ver ese fichero para por qué no es clase interna).
 ##
-## NOTA (Spike 2): SkillRoller.RollResult tiene ahora 5 grados (FUMBLE,
-## FAILURE, SUCCESS, SPECIAL, CRITICAL) — outcome_special añadido con el
-## mismo patrón de fallback ya usado para fumble/critical en Spike 1.
+## NOTA (Spike 2, punto 1): SkillRoller.RollResult tiene ahora 5 grados
+## (FUMBLE, FAILURE, SUCCESS, SPECIAL, CRITICAL) — outcome_special añadido
+## con el mismo patrón de fallback ya usado para fumble/critical en Spike 1.
 ##
-## Progresión de skill narrativa (enganche vía SkillProgression.
-## execute_learning_session / LearningSession) se discutió y se difiere a
-## Spike 2b/3 — por eso no hay campo challenge_level en esta versión.
+## NOTA (Spike 2, punto 2): challenge_level habilita progresión de skill vía
+## SkillProgression.execute_learning_session() (SourceType.NARRATIVE). Es
+## opt-in explícito del autor de la escena: por defecto es 0, que significa
+## "esta opción no ofrece progresión" — no toda tirada narrativa tiene por
+## qué dar opción a mejorar la skill. Solo si es > 0, y solo en tiradas
+## exitosas (SUCCESS/SPECIAL/CRITICAL), NarrativeSceneViewModel intenta la
+## mejora — misma filosofía que combate, donde solo el éxito genera tick.
+## El valor se pasa tal cual como LearningSession.source_level (el anti-
+## grinding de SkillProgressionService exige que sea al menos el 50% del
+## valor actual de la skill; rango recomendado 20–80, igual que el resto de
+## LearningSession).
 ##
 ## NOTA: from_dict() usa new() en vez de NarrativeSceneOption.new() —
 ## autorreferenciar el propio class_name dentro del mismo script no se
@@ -27,6 +36,10 @@ var text_key: String = ""
 ## Vacío = opción sin tirada, resuelve directo por outcome_default.
 var skill_id: String = ""
 var roll_modifier: int = 0
+
+## Spike 2, punto 2 — ver nota de cabecera. 0 = sin progresión para esta
+## opción (comportamiento por defecto, igual que antes de Spike 2).
+var challenge_level: int = 0
 
 ## Usado solo si skill_id está vacío.
 var outcome_default: NarrativeSceneOutcome = null
@@ -48,6 +61,7 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOption:
 	option.text_key = data.get("text_key", "")
 	option.skill_id = data.get("skill_id", "")
 	option.roll_modifier = data.get("roll_modifier", 0)
+	option.challenge_level = data.get("challenge_level", 0)
 
 	if data.has("outcome_default"):
 		option.outcome_default = NarrativeSceneOutcome.from_dict(data["outcome_default"])
@@ -103,6 +117,11 @@ func validate(owner_scene_id: String) -> bool:
 				% [owner_scene_id, option_id]
 			)
 			return false
+		if challenge_level > 0:
+			push_warning(
+				"[NarrativeSceneOption] '%s.%s': challenge_level %d definido sin skill_id — no hay tirada, se ignora"
+				% [owner_scene_id, option_id, challenge_level]
+			)
 	else:
 		if not outcome_failure or not outcome_success:
 			push_error(

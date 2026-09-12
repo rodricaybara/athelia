@@ -4,8 +4,8 @@ extends RefCounted
 ## LearningSession - Value object que describe una sesión de aprendizaje fuera de combate
 ##
 ## RESPONSABILIDAD: Transportar los parámetros de una sesión de mejora
-## entre quien la solicita (NPC entrenador, libro) y quien la ejecuta
-## (SkillProgressionService.execute_learning_session).
+## entre quien la solicita (NPC entrenador, libro, escena narrativa) y quien
+## la ejecuta (SkillProgressionService.execute_learning_session).
 ##
 ## NO contiene lógica — es un contenedor de datos con validación mínima.
 ##
@@ -14,11 +14,15 @@ extends RefCounted
 ##     → EventBus.learning_session_requested → SkillEventHandler → aquí
 ##   - Libro (consumible) → ItemCharacterBridge._apply_consumable
 ##     → learning_data en ItemDefinition → aquí
+##   - Escena narrativa (Spike 2) → NarrativeSceneViewModel.request_option()
+##     construye la sesión directamente en código (no vía JSON) cuando la
+##     opción define challenge_level > 0 y la tirada tuvo éxito
 
 enum SourceType {
-	TRAINER,  ## Entrenador NPC — nivel basado en su experiencia
-	BOOK,     ## Libro — nivel basado en la dificultad del texto
-	PRACTICE, ## Práctica libre — nivel más bajo, sin guía
+	TRAINER,    ## Entrenador NPC — nivel basado en su experiencia
+	BOOK,       ## Libro — nivel basado en la dificultad del texto
+	PRACTICE,   ## Práctica libre — nivel más bajo, sin guía
+	NARRATIVE,  ## Escena narrativa (Spike 2) — nivel = challenge_level de la opción
 }
 
 ## Entidad que aprende (normalmente "player")
@@ -54,9 +58,10 @@ static func create(
 ## Parsea el tipo desde String (para uso desde JSON/señales)
 static func _parse_source_type(type_str: String) -> SourceType:
 	match type_str.to_upper():
-		"TRAINER":  return SourceType.TRAINER
-		"BOOK":     return SourceType.BOOK
-		"PRACTICE": return SourceType.PRACTICE
+		"TRAINER":   return SourceType.TRAINER
+		"BOOK":      return SourceType.BOOK
+		"PRACTICE":  return SourceType.PRACTICE
+		"NARRATIVE": return SourceType.NARRATIVE
 		_:
 			push_warning("[LearningSession] Unknown source_type '%s', defaulting to TRAINER" % type_str)
 			return SourceType.TRAINER
@@ -77,7 +82,7 @@ func is_valid() -> bool:
 
 
 func _to_string() -> String:
-	var type_names = ["TRAINER", "BOOK", "PRACTICE"]
+	var type_names = ["TRAINER", "BOOK", "PRACTICE", "NARRATIVE"]
 	return "LearningSession(entity=%s, skill=%s, level=%d, source=%s)" % [
 		entity_id, skill_id, source_level, type_names[source_type]
 	]

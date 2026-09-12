@@ -1,7 +1,8 @@
 class_name NarrativeSceneViewModel
 extends Node
 
-## NarrativeSceneViewModel — Spike 1: Motor Narrativo Base
+## NarrativeSceneViewModel — Spike 1: Motor Narrativo Base / Spike 2, punto 2:
+## progresión de skill narrativa
 ##
 ## Sigue el contrato MVVM estándar del proyecto (docs/athelia_ui_architecture.md):
 ## enum de estados, señal única changed(reason), métodos de intención
@@ -17,9 +18,11 @@ extends Node
 ## EXPLORATION; este ViewModel no conoce GameLoop para cerrar, solo para
 ## disparar combate (ver _apply_outcome).
 ##
-## Progresión de skill narrativa: diferida a Spike 2 (decisión de diseño,
-## ver docs/spike_1_narrativa_informe_cierre.md). Esta versión NO llama a
-## SkillProgression bajo ningún resultado de tirada.
+## Progresión de skill narrativa (Spike 2, punto 2): enganchada vía
+## SkillProgression.execute_learning_session() (SourceType.NARRATIVE), NO
+## notify_skill_outcome() — ese está hard-gated a _combat_active y esto pasa
+## en EXPLORATION/NARRATIVE_SCENE. Opt-in por opción (NarrativeSceneOption.
+## challenge_level > 0) y solo en tiradas exitosas — ver request_option().
 
 ## NOTA: el enum de estados se llama PanelState, no SceneState — "SceneState"
 ## es una clase nativa del motor (usada por PackedScene) y el nombre colisiona
@@ -71,12 +74,36 @@ func request_option(option_id: String) -> void:
 		outcome = option.get_outcome_for_grade(roll.result)
 		SkillRoller.print_roll_result(roll, "NarrativeScene:%s" % option.skill_id)
 
+		_try_narrative_progression(option, roll)
+
 	_apply_outcome(outcome)
 
 
 # ============================================
 # INTERNO
 # ============================================
+
+## Spike 2, punto 2 — intenta una mejora de skill fuera de combate.
+## Opt-in explícito: solo si la opción define challenge_level > 0 (ver
+## NarrativeSceneOption). Gateado en éxito (SUCCESS/SPECIAL/CRITICAL) —
+## misma filosofía que combate, donde solo el éxito genera oportunidad de
+## mejora (SkillProgressionService._handle_success vs _handle_failure).
+## No usa notify_skill_outcome(): ese camino está hard-gated a
+## _combat_active y aquí no estamos en combate.
+func _try_narrative_progression(option: NarrativeSceneOption, roll: Dictionary) -> void:
+	if option.challenge_level <= 0:
+		return
+	if not roll.success:
+		return
+
+	var session := LearningSession.create(
+		GameLoop.PLAYER_ID,
+		option.skill_id,
+		option.challenge_level,
+		"NARRATIVE"
+	)
+	SkillProgression.execute_learning_session(session)
+
 
 func _load_scene(scene_id: String, reason: String) -> void:
 	var scene := NarrativeSceneDB.get_scene(scene_id)
