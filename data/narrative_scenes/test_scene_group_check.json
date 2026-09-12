@@ -1,0 +1,53 @@
+{
+  "scene_id": "test_group_check",
+  "image_path": "",
+  "text_key": "TEST_NARRATIVE_GROUP_CHECK",
+  "options": [
+	{
+	  "option_id": "sneak_worst",
+	  "text_key": "TEST_NARRATIVE_OPTION_SNEAK_WORST",
+	  "skill_id": "skill.exploration.perception",
+	  "roll_modifier": 0,
+	  "challenge_level": 30,
+	  "group_aggregate": "worst",
+	  "outcome_fumble": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_group_worst_fumble",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_failure": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_group_worst_failed",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_success": {
+		"next_scene_id": "test_success",
+		"flag_to_set": "flag.test_narrative_group_worst_done",
+		"combat_enemy_ids": []
+	  }
+	},
+	{
+	  "option_id": "sneak_best",
+	  "text_key": "TEST_NARRATIVE_OPTION_SNEAK_BEST",
+	  "skill_id": "skill.exploration.perception",
+	  "roll_modifier": 0,
+	  "challenge_level": 30,
+	  "group_aggregate": "best",
+	  "outcome_fumble": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_group_best_fumble",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_failure": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_group_best_failed",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_success": {
+		"next_scene_id": "test_success",
+		"flag_to_set": "flag.test_narrative_group_best_done",
+		"combat_enemy_ids": []
+	  }
+	}
+  ]
+}

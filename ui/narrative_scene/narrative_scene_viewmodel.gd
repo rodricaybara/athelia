@@ -3,15 +3,16 @@ extends Node
 
 ## NarrativeSceneViewModel — Spike 1: Motor Narrativo Base
 ## Spike 2: progresión de skill narrativa (punto 2), tiradas acumulativas
-## con contador (punto 3)
+## con contador (punto 3), tiradas agregadas de grupo (punto 4)
 ##
 ## Sigue el contrato MVVM estándar del proyecto (docs/athelia_ui_architecture.md):
 ## enum de estados, señal única changed(reason), métodos de intención
 ## open()/request_option(). Siempre hijo de NarrativeScenePanel — muere con ella.
 ##
-## Consume SkillRoller (tirada) y Characters (valor de skill) sin tocar su
-## lógica interna. Aplica consecuencias contra Narrative (flags) y GameLoop
-## (combate) — ambos ya existentes, sin sistemas nuevos inventados.
+## Consume SkillRoller (tirada), Characters (valor de skill) y Party (miembros
+## activos del grupo) sin tocar su lógica interna. Aplica consecuencias contra
+## Narrative (flags) y GameLoop (combate) — todos ya existentes, sin sistemas
+## nuevos inventados.
 ##
 ## Cierre: emite EventBus.narrative_scene_closed en vez de llamar a GameLoop
 ## directamente — mismo patrón desacoplado que DialogueViewModel (dialogue_ended)
@@ -32,6 +33,16 @@ extends Node
 ## partida). Se reinicia solo al completar/perder la racha, o implícitamente al
 ## salir de la escena (el overlay se destruye e instancia de nuevo en cada
 ## apertura — no hace falta limpieza explícita). Ver _handle_accumulative_roll().
+##
+## Tiradas agregadas de grupo (Spike 2, punto 4): sin cambios en Party ni en
+## Characters — _get_group_entity_ids() combina GameLoop.PLAYER_ID + Party.
+## get_active_members() (los incapacitados no participan), y
+## _get_effective_skill_value() reduce sus valores de skill a peor/mejor.
+## No hay tirada opuesta real (segunda tirada de NPC / tabla de resistencia):
+## la "oposición" se codifica en roll_modifier, decisión explícita por
+## coste-beneficio. Si la opción también da progresión (challenge_level > 0),
+## CADA miembro del grupo intenta su propia mejora de forma independiente —
+## nunca un resultado de progresión compartido.
 
 ## NOTA: el enum de estados se llama PanelState, no SceneState — "SceneState"
 ## es una clase nativa del motor (usada por PackedScene) y el nombre colisiona
@@ -92,7 +103,7 @@ func request_option(option_id: String) -> void:
 		_apply_outcome(option.outcome_default)
 		return
 
-	var skill_value: int = Characters.get_skill_value(GameLoop.PLAYER_ID, option.skill_id)
+	var skill_value: int = _get_effective_skill_value(option)
 	var roll: Dictionary = SkillRoller.roll_skill(skill_value + option.roll_modifier)
 	SkillRoller.print_roll_result(roll, "NarrativeScene:%s" % option.skill_id)
 
@@ -106,6 +117,38 @@ func request_option(option_id: String) -> void:
 # ============================================
 # INTERNO
 # ============================================
+
+## Spike 2, punto 4 — entidades que participan en una opción.
+## Sin group_aggregate: solo el jugador (comportamiento idéntico a antes de
+## este punto). Con group_aggregate ("worst"/"best"): jugador + companions
+## activos (Party.get_active_members() ya excluye incapacitados). Se
+## reutiliza tanto para el valor efectivo de la tirada como para la
+## progresión de skill (punto 2).
+func _get_group_entity_ids(option: NarrativeSceneOption) -> Array[String]:
+	var ids: Array[String] = [GameLoop.PLAYER_ID]
+	if not option.group_aggregate.is_empty():
+		ids.append_array(Party.get_active_members())
+	return ids
+
+
+## Spike 2, punto 4 — valor de skill usado para la tirada. Sin
+## group_aggregate, es el valor individual del jugador (igual que siempre).
+## Con group_aggregate, es el peor o mejor valor de skill_id entre jugador +
+## companions activos. Un group_aggregate no reconocido (avisado ya en
+## validate()) se trata como "worst".
+func _get_effective_skill_value(option: NarrativeSceneOption) -> int:
+	if option.group_aggregate.is_empty():
+		return Characters.get_skill_value(GameLoop.PLAYER_ID, option.skill_id)
+
+	var values: Array[int] = []
+	for entity_id in _get_group_entity_ids(option):
+		values.append(Characters.get_skill_value(entity_id, option.skill_id))
+
+	if option.group_aggregate == "best":
+		return values.max()
+	else:  # "worst" (default, incluye cualquier valor no reconocido)
+		return values.min()
+
 
 ## Spike 2, punto 3 — resuelve una tirada de una opción con required_successes > 0.
 ## Reglas (confirmadas explícitamente, no son consecuencia directa del spec):
@@ -163,19 +206,27 @@ func _emit_streak_progress(option: NarrativeSceneOption, current: int) -> void:
 ## mejora (SkillProgressionService._handle_success vs _handle_failure).
 ## No usa notify_skill_outcome(): ese camino está hard-gated a
 ## _combat_active y aquí no estamos en combate.
+##
+## Spike 2, punto 4: en una opción de grupo, cada miembro (jugador +
+## companions activos) intenta su propia LearningSession de forma
+## independiente contra su propio valor de skill — nunca un resultado
+## compartido. Para una opción normal (sin group_aggregate),
+## _get_group_entity_ids() devuelve solo [player], así que el comportamiento
+## es idéntico al del punto 2 antes de este punto.
 func _try_narrative_progression(option: NarrativeSceneOption, roll: Dictionary) -> void:
 	if option.challenge_level <= 0:
 		return
 	if not roll.success:
 		return
 
-	var session := LearningSession.create(
-		GameLoop.PLAYER_ID,
-		option.skill_id,
-		option.challenge_level,
-		"NARRATIVE"
-	)
-	SkillProgression.execute_learning_session(session)
+	for entity_id in _get_group_entity_ids(option):
+		var session := LearningSession.create(
+			entity_id,
+			option.skill_id,
+			option.challenge_level,
+			"NARRATIVE"
+		)
+		SkillProgression.execute_learning_session(session)
 
 
 func _load_scene(scene_id: String, reason: String) -> void:

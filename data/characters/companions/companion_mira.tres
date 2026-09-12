@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://companion_mira_001"]
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://cxtfn4f50kjcc"]
 
 [ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
 
@@ -21,11 +21,10 @@ starting_resources = {
 "health": 28,
 "stamina": 22
 }
-skills = Array[String](["skill.attack.light", "skill.combat.dodge"])
+skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception"])
 starting_skill_values = {
 "skill.attack.light": 40,
-"skill.combat.dodge": 35
+"skill.combat.dodge": 35,
+"skill.exploration.perception": 60
 }
 inventory_slots = 15
-loot_table_id = ""
-equipment_slots = Array[String](["head", "body", "hands", "feet", "weapon", "shield"])

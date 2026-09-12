@@ -3,7 +3,8 @@ extends Resource
 
 ## NarrativeSceneOption — Spike 1: Motor Narrativo Base
 ## Spike 2: grado SPECIAL (punto 1), progresión de skill narrativa (punto 2),
-## tiradas acumulativas/reintentables con contador (punto 3)
+## tiradas acumulativas/reintentables con contador (punto 3), tiradas
+## agregadas de grupo (punto 4)
 ##
 ## Una opción dentro de una NarrativeSceneDefinition. Puede resolver
 ## directo (outcome_default) o requerir una tirada de habilidad, en cuyo
@@ -46,6 +47,18 @@ extends Resource
 ##       transicionando a otro nodo — el propio grafo narrativo es lo que
 ##       impide el reintento infinito (hay que volver a llegar aquí).
 ##
+## NOTA (Spike 2, punto 4): group_aggregate habilita una tirada agregada de
+## grupo. Vacío (default) = comportamiento normal, solo el jugador. "worst"
+## o "best" = la tirada usa el peor/mejor valor de skill_id entre jugador +
+## companions activos (NarrativeSceneViewModel._get_effective_skill_value()).
+## No hay tirada opuesta real (segunda tirada del NPC / tabla de resistencia)
+## — decisión explícita por coste-beneficio: la "oposición" se codifica en
+## el propio roll_modifier, calculado por el autor de la escena al escribir
+## el JSON, no por el motor a partir de un valor de NPC almacenado en datos.
+## Si además challenge_level > 0, TODOS los miembros del grupo (jugador +
+## companions activos) intentan progresión, cada uno de forma independiente
+## contra su propio valor de skill — no un resultado compartido.
+##
 ## NOTA: from_dict() usa new() en vez de NarrativeSceneOption.new() —
 ## autorreferenciar el propio class_name dentro del mismo script no se
 ## resuelve de forma fiable en GDScript. Ver narrative_scene_outcome.gd.
@@ -65,6 +78,10 @@ var challenge_level: int = 0
 ## (comportamiento por defecto, igual que antes de Spike 2).
 var required_successes: int = 0
 var retry_policy: String = "immediate"
+
+## Spike 2, punto 4 — ver nota de cabecera. "" = sin agregación de grupo
+## (comportamiento por defecto, igual que antes de Spike 2).
+var group_aggregate: String = ""
 
 ## Usado solo si skill_id está vacío.
 var outcome_default: NarrativeSceneOutcome = null
@@ -89,6 +106,7 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOption:
 	option.challenge_level = data.get("challenge_level", 0)
 	option.required_successes = data.get("required_successes", 0)
 	option.retry_policy = data.get("retry_policy", "immediate")
+	option.group_aggregate = data.get("group_aggregate", "")
 
 	if data.has("outcome_default"):
 		option.outcome_default = NarrativeSceneOutcome.from_dict(data["outcome_default"])
@@ -154,6 +172,11 @@ func validate(owner_scene_id: String) -> bool:
 				"[NarrativeSceneOption] '%s.%s': required_successes %d definido sin skill_id — no hay tirada, se ignora"
 				% [owner_scene_id, option_id, required_successes]
 			)
+		if not group_aggregate.is_empty():
+			push_warning(
+				"[NarrativeSceneOption] '%s.%s': group_aggregate '%s' definido sin skill_id — no hay tirada, se ignora"
+				% [owner_scene_id, option_id, group_aggregate]
+			)
 	else:
 		if not outcome_failure or not outcome_success:
 			push_error(
@@ -165,6 +188,11 @@ func validate(owner_scene_id: String) -> bool:
 			push_warning(
 				"[NarrativeSceneOption] '%s.%s': retry_policy '%s' desconocido, se tratará como 'immediate'"
 				% [owner_scene_id, option_id, retry_policy]
+			)
+		if not group_aggregate.is_empty() and not group_aggregate in ["worst", "best"]:
+			push_warning(
+				"[NarrativeSceneOption] '%s.%s': group_aggregate '%s' desconocido, se tratará como 'worst'"
+				% [owner_scene_id, option_id, group_aggregate]
 			)
 
 	return true
