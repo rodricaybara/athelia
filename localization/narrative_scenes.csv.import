@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dcc00iygwprvj"
+
+[deps]
+
+files=["res://localization/narrative_scenes.en.translation", "res://localization/narrative_scenes.es.translation"]
+
+source_file="res://localization/narrative_scenes.csv"
+dest_files=["res://localization/narrative_scenes.en.translation", "res://localization/narrative_scenes.es.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

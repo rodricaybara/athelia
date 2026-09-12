@@ -18,6 +18,7 @@ enum GameState {
 	EXPLORATION,
 	DIALOGUE,
 	SHOP,
+	NARRATIVE_SCENE,
 	COMBAT_ACTIVE,
 	VICTORY,
 	DEFEAT,
@@ -28,9 +29,10 @@ enum GameState {
 const VALID_STATE_TRANSITIONS: Dictionary = {
 	GameState.MENU:               [GameState.EXPLORATION, GameState.CHARACTER_CREATION],
 	GameState.CHARACTER_CREATION: [GameState.EXPLORATION, GameState.MENU],
-	GameState.EXPLORATION:        [GameState.DIALOGUE, GameState.SHOP, GameState.COMBAT_ACTIVE, GameState.PAUSE, GameState.SAVE_TRANSITION],
+	GameState.EXPLORATION:        [GameState.DIALOGUE, GameState.SHOP, GameState.NARRATIVE_SCENE, GameState.COMBAT_ACTIVE, GameState.PAUSE, GameState.SAVE_TRANSITION],
 	GameState.DIALOGUE:           [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
 	GameState.SHOP:               [GameState.EXPLORATION],
+	GameState.NARRATIVE_SCENE:    [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
 	GameState.COMBAT_ACTIVE:      [GameState.VICTORY, GameState.DEFEAT, GameState.EXPLORATION],
 	GameState.VICTORY:            [GameState.EXPLORATION],
 	GameState.DEFEAT:             [GameState.MENU, GameState.EXPLORATION],
@@ -136,10 +138,14 @@ func enter_shop(shop_id: String) -> void:
 	if request_state_change(GameState.SHOP, {"shop_id": shop_id}):
 		EventBus.emit_signal("shop_open_requested", shop_id, PLAYER_ID)
 
+func enter_narrative_scene(scene_id: String) -> void:
+	request_state_change(GameState.NARRATIVE_SCENE, {"scene_id": scene_id})
+
 func is_input_blocked() -> bool:
 	return current_game_state in [
 		GameState.DIALOGUE,
 		GameState.SHOP,
+		GameState.NARRATIVE_SCENE,
 		GameState.COMBAT_ACTIVE,
 		GameState.SAVE_TRANSITION,
 		GameState.VICTORY,
@@ -155,7 +161,7 @@ func get_state_name() -> String:
 # ============================================
 
 func start_combat(enemy_ids: Array[String]) -> void:
-	if current_game_state != GameState.EXPLORATION and current_game_state != GameState.DIALOGUE and current_game_state != GameState.MENU:
+	if current_game_state != GameState.EXPLORATION and current_game_state != GameState.DIALOGUE and current_game_state != GameState.MENU and current_game_state != GameState.NARRATIVE_SCENE:
 		push_warning("[GameLoopSystem] Cannot start combat: wrong state %s" % GameState.keys()[current_game_state])
 		return
 

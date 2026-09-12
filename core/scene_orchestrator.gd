@@ -32,6 +32,7 @@ const SCENE_EXPLORATION        := "res://scenes/exploration/tutorial/exploration
 const OVERLAY_SHOP       := "res://ui/shop/shop_ui.tscn"
 const OVERLAY_INVENTORY  := "res://ui/inventory/inventory_ui.tscn"
 const OVERLAY_DIALOGUE   := "res://ui/dialogue/dialogue_panel.tscn"
+const OVERLAY_NARRATIVE_SCENE  := "res://ui/narrative_scene/narrative_scene_panel.tscn"
 const OVERLAY_PARTY      := "res://ui/party/party_ui.tscn"
 const OVERLAY_GAME_OVER  := "res://ui/gameover/game_over_ui.tscn"
 const OVERLAY_SKILL_TREE := "res://ui/skill_tree/skill_tree_screen.tscn"
@@ -73,6 +74,7 @@ func _ready() -> void:
 		EventBus.game_state_context.connect(_on_game_state_context)
 		EventBus.dialogue_ended.connect(_on_dialogue_ended)
 		EventBus.shop_closed.connect(_on_shop_closed)
+		EventBus.narrative_scene_closed.connect(_on_narrative_scene_closed)
 		EventBus.combat_ended.connect(_on_combat_ended)
 		EventBus.player_incapacitated.connect(_on_player_incapacitated)
 	else:
@@ -111,6 +113,10 @@ func _on_game_state_changed(new_state: int) -> void:
 		GameLoopSystem.GameState.SHOP:
 			var shop_id: String = _pending_context.get("shop_id", "")
 			_handle_shop(shop_id)
+
+		GameLoopSystem.GameState.NARRATIVE_SCENE:
+			var scene_id: String = _pending_context.get("scene_id", "")
+			_handle_narrative_scene(scene_id)
 
 		GameLoopSystem.GameState.COMBAT_ACTIVE:
 			_handle_combat()
@@ -187,6 +193,18 @@ func _handle_dialogue(dialogue_id: String) -> void:
 
 	print("[SceneOrchestrator] Dialogue overlay shown for: %s" % dialogue_id)
 
+func _handle_narrative_scene(scene_id: String) -> void:
+	if scene_id.is_empty():
+		push_warning("[SceneOrchestrator] enter_narrative_scene called with empty scene_id")
+		return
+
+	_hide_current_overlay()
+	_show_overlay(OVERLAY_NARRATIVE_SCENE)
+
+	if _current_overlay and _current_overlay.has_method("open"):
+		_current_overlay.open(scene_id)
+
+	print("[SceneOrchestrator] Narrative scene overlay shown for: %s" % scene_id)
 
 func _handle_shop(shop_id: String) -> void:
 	if shop_id.is_empty():
@@ -424,6 +442,13 @@ func _on_dialogue_ended(_dialogue_id: String) -> void:
 	if game_loop:
 		game_loop.enter_exploration()
 
+func _on_narrative_scene_closed(_scene_id: String) -> void:
+	# NarrativeSceneViewModel emite narrative_scene_closed al llegar a un
+	# nodo final (sin next_scene_id, sin combate) → volvemos a EXPLORATION.
+	# _hide_current_overlay() ya se dispara dentro de _handle_exploration().
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if game_loop:
+		game_loop.enter_exploration()
 
 func _on_shop_closed(_shop_id: String) -> void:
 	# EconomySystem emite shop_closed → SceneOrchestrator devuelve a EXPLORATION

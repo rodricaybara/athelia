@@ -50,6 +50,7 @@ WorldObjectSystem="*uid://ci3tyggc14jqn"
 CombatLootSpawner="*uid://bqxbuiko8c4iy"
 Party="*uid://bsgelk03ryah"
 PartyEventHandler="*uid://krqxj71rudvc"
+NarrativeSceneDB="*uid://f83s38eh5frk"
 
 [input]
 
@@ -136,4 +137,4 @@ combat_scape={
 
 [internationalization]
 
-locale/translations=PackedStringArray("res://localization/translations.en.translation", "res://localization/translations.es.translation", "res://localization/dialogues.en.translation", "res://localization/dialogues.es.translation", "res://localization/items.en.translation", "res://localization/items.es.translation", "res://localization/world_objects.en.translation", "res://localization/world_objects.es.translation", "res://localization/menus.en.translation", "res://localization/menus.es.translation", "res://localization/character_creation.en.translation", "res://localization/character_creation.es.translation")
+locale/translations=PackedStringArray("res://localization/translations.en.translation", "res://localization/translations.es.translation", "res://localization/dialogues.en.translation", "res://localization/dialogues.es.translation", "res://localization/items.en.translation", "res://localization/items.es.translation", "res://localization/world_objects.en.translation", "res://localization/world_objects.es.translation", "res://localization/menus.en.translation", "res://localization/menus.es.translation", "res://localization/character_creation.en.translation", "res://localization/character_creation.es.translation", "res://localization/narrative_scenes.en.translation", "res://localization/narrative_scenes.es.translation")

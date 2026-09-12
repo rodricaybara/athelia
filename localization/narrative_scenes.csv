@@ -1,0 +1,6 @@
+id,en,es
+TEST_NARRATIVE_INTRO,"You stand at the edge of a dark forest. A faint sound comes from within.","Estás en el borde de un bosque oscuro. Un sonido apenas perceptible llega desde el interior."
+TEST_NARRATIVE_OPTION_LISTEN,"Listen carefully","Escuchar con atención"
+TEST_NARRATIVE_SUCCESS,"You make out the sound clearly: a wolf, close by, and alone.","Distingues el sonido con claridad: un lobo, cerca, y solo."
+TEST_NARRATIVE_FAILURE,"The sound fades before you can make sense of it.","El sonido se desvanece antes de que puedas identificarlo."
+TEST_NARRATIVE_OPTION_CONTINUE,"Continue","Continuar"

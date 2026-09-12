@@ -109,6 +109,18 @@ signal dialogue_ended(dialogue_id: String)
 signal dialogue_options_updated(options: Array)
 
 # ==============================================
+# EVENTOS DE ESCENA NARRATIVA
+# ==============================================
+
+## Emitido por NarrativeSceneViewModel al cerrar una escena (fin de rama,
+## sin next_scene_id y sin combate). SceneOrchestrator lo escucha para
+## volver a EXPLORATION — mismo patrón que dialogue_ended/shop_closed.
+## NO se dispara cuando la escena cierra porque dispara combate: en ese
+## caso GameLoop.start_combat() transiciona directo a COMBAT_ACTIVE y
+## SceneOrchestrator._handle_combat() destruye el overlay por su cuenta.
+signal narrative_scene_closed(scene_id: String)
+
+# ==============================================
 # EVENTOS DE GAMELOOP
 # ==============================================
 
@@ -284,6 +296,8 @@ func _connect_debug_listeners():
 	dialogue_ended.connect(_on_dialogue_ended_debug)
 	dialogue_options_updated.connect(_on_dialogue_options_updated_debug)
 
+	narrative_scene_closed.connect(_on_narrative_scene_closed_debug)
+
 	checkpoint_reached.connect(_on_checkpoint_reached_debug)
 	checkpoint_applied.connect(_on_checkpoint_applied_debug)
 	values_consolidated.connect(_on_values_consolidated_debug)
@@ -380,6 +394,10 @@ func _on_dialogue_ended_debug(dialogue_id: String):
 	if _should_log("dialogue_ended"):
 		print("[EventBus] dialogue_ended ← %s" % dialogue_id)
 
+func _on_narrative_scene_closed_debug(scene_id: String):
+	if _should_log("narrative_scene_closed"):
+		print("[EventBus] narrative_scene_closed ← %s" % scene_id)
+		
 func _on_dialogue_options_updated_debug(options: Array):
 	if _should_log("dialogue_options_updated"):
 		print("[EventBus] dialogue_options_updated ← %d options available" % options.size())

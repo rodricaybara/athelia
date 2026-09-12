@@ -44,7 +44,7 @@ vertices = PackedVector2Array(401, -289.0078, 401, 289.0078, -453, 289.97656, -4
 polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3)])
 outlines = Array[PackedVector2Array]([PackedVector2Array(-463, -300, 411, -299, 411, 299, -463, 300)])
 
-[node name="ExplorationTest" type="Node2D" unique_id=1153919779]
+[node name="ExplorationScene" type="Node2D" unique_id=1153919779]
 script = ExtResource("1_bbrv3")
 
 [node name="ExplorationController" type="Node" parent="." unique_id=742659171]
