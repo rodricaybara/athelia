@@ -1,8 +1,9 @@
 class_name NarrativeSceneViewModel
 extends Node
 
-## NarrativeSceneViewModel — Spike 1: Motor Narrativo Base / Spike 2, punto 2:
-## progresión de skill narrativa
+## NarrativeSceneViewModel — Spike 1: Motor Narrativo Base
+## Spike 2: progresión de skill narrativa (punto 2), tiradas acumulativas
+## con contador (punto 3)
 ##
 ## Sigue el contrato MVVM estándar del proyecto (docs/athelia_ui_architecture.md):
 ## enum de estados, señal única changed(reason), métodos de intención
@@ -22,7 +23,15 @@ extends Node
 ## SkillProgression.execute_learning_session() (SourceType.NARRATIVE), NO
 ## notify_skill_outcome() — ese está hard-gated a _combat_active y esto pasa
 ## en EXPLORATION/NARRATIVE_SCENE. Opt-in por opción (NarrativeSceneOption.
-## challenge_level > 0) y solo en tiradas exitosas — ver request_option().
+## challenge_level > 0) y solo en tiradas exitosas — ver _try_narrative_progression().
+##
+## Tiradas acumulativas (Spike 2, punto 3): el contador de racha de éxitos
+## vive aquí (_success_streaks), nunca en NarrativeSceneDB (sigue siendo solo
+## consulta síncrona sin estado — decisión de Spike 1) ni en NarrativeSceneOption
+## (se recarga desde JSON en cada consulta, no es sitio para estado mutable de
+## partida). Se reinicia solo al completar/perder la racha, o implícitamente al
+## salir de la escena (el overlay se destruye e instancia de nuevo en cada
+## apertura — no hace falta limpieza explícita). Ver _handle_accumulative_roll().
 
 ## NOTA: el enum de estados se llama PanelState, no SceneState — "SceneState"
 ## es una clase nativa del motor (usada por PackedScene) y el nombre colisiona
@@ -31,14 +40,20 @@ extends Node
 enum PanelState { HIDDEN, SHOWING, WAITING_ROLL, TRANSITIONING }
 
 ## Razones:
-##   "opened"       → render completo del nodo inicial
-##   "node_changed" → nuevo nodo tras resolver una opción, render completo
-##                     (misma acción de render que "opened"; se distingue
-##                     por si en el futuro la View quiere una transición
-##                     distinta entre nodo inicial y nodo siguiente)
-##   "closed"       → ocultar panel (el nodo se destruye aparte, vía
-##                     SceneOrchestrator, al volver a EXPLORATION o entrar
-##                     en COMBAT_ACTIVE)
+##   "opened"          → render completo del nodo inicial
+##   "node_changed"     → nuevo nodo tras resolver una opción, render completo
+##                        (misma acción de render que "opened"; se distingue
+##                        por si en el futuro la View quiere una transición
+##                        distinta entre nodo inicial y nodo siguiente)
+##   "streak_progress"  → tirada acumulativa procesada sin completar ni perder
+##                        la racha definitivamente (éxito parcial, o fallo con
+##                        retry_policy "immediate"). El nodo NO cambia — la
+##                        View debe quedarse en el mismo render y, si quiere,
+##                        mostrar streak_current/streak_required. No se aplica
+##                        ningún NarrativeSceneOutcome en este caso.
+##   "closed"           → ocultar panel (el nodo se destruye aparte, vía
+##                        SceneOrchestrator, al volver a EXPLORATION o entrar
+##                        en COMBAT_ACTIVE)
 ##
 ## NOTA: WAITING_ROLL existe en el enum pero no se emite en Spike 1 —
 ## SkillRoller.roll_skill() es síncrono, no hay ventana real de espera.
@@ -48,6 +63,15 @@ signal changed(reason: String)
 
 var state: PanelState = PanelState.HIDDEN
 var current_node: NarrativeSceneDefinition = null
+
+## Progreso de la racha de éxitos de la última tirada acumulativa procesada.
+## Solo válido leerlo justo después de recibir changed("streak_progress").
+var streak_option_id: String = ""
+var streak_current: int = 0
+var streak_required: int = 0
+
+## Spike 2, punto 3 — contador de éxitos seguidos por opción. option_id → int.
+var _success_streaks: Dictionary = {}
 
 
 func open(scene_id: String) -> void:
@@ -64,24 +88,73 @@ func request_option(option_id: String) -> void:
 		push_error("[NarrativeSceneViewModel] Opción no encontrada: %s" % option_id)
 		return
 
-	var outcome: NarrativeSceneOutcome
-
 	if option.skill_id.is_empty():
-		outcome = option.outcome_default
+		_apply_outcome(option.outcome_default)
+		return
+
+	var skill_value: int = Characters.get_skill_value(GameLoop.PLAYER_ID, option.skill_id)
+	var roll: Dictionary = SkillRoller.roll_skill(skill_value + option.roll_modifier)
+	SkillRoller.print_roll_result(roll, "NarrativeScene:%s" % option.skill_id)
+
+	if option.required_successes > 0:
+		_handle_accumulative_roll(option, roll)
 	else:
-		var skill_value: int = Characters.get_skill_value(GameLoop.PLAYER_ID, option.skill_id)
-		var roll: Dictionary = SkillRoller.roll_skill(skill_value + option.roll_modifier)
-		outcome = option.get_outcome_for_grade(roll.result)
-		SkillRoller.print_roll_result(roll, "NarrativeScene:%s" % option.skill_id)
-
 		_try_narrative_progression(option, roll)
-
-	_apply_outcome(outcome)
+		_apply_outcome(option.get_outcome_for_grade(roll.result))
 
 
 # ============================================
 # INTERNO
 # ============================================
+
+## Spike 2, punto 3 — resuelve una tirada de una opción con required_successes > 0.
+## Reglas (confirmadas explícitamente, no son consecuencia directa del spec):
+##   - PIFIA siempre transiciona (ignora retry_policy) — consecuencia dramática
+##     propia, no un simple "vuelve a intentarlo".
+##   - Progresión de skill (punto 2) solo se intenta al COMPLETAR la racha
+##     entera, nunca en un éxito parcial — evita una vía de grinding que el
+##     anti-grind de SkillProgressionService no está pensado para frenar
+##     (limita el umbral de dificultad, no la frecuencia de intentos).
+##   - "blocked": un fallo normal (no fumble) transiciona de verdad — es el
+##     propio grafo narrativo el que impide el reintento infinito, sin
+##     necesidad de un sistema de flags nuevo.
+func _handle_accumulative_roll(option: NarrativeSceneOption, roll: Dictionary) -> void:
+	var is_fumble: bool = (roll.result == SkillRoller.RollResult.FUMBLE)
+
+	if is_fumble:
+		_success_streaks.erase(option.option_id)
+		_apply_outcome(option.get_outcome_for_grade(roll.result))
+		return
+
+	if roll.success:
+		var current: int = _success_streaks.get(option.option_id, 0) + 1
+
+		if current >= option.required_successes:
+			_success_streaks.erase(option.option_id)
+			_try_narrative_progression(option, roll)
+			_apply_outcome(option.get_outcome_for_grade(roll.result))
+		else:
+			_success_streaks[option.option_id] = current
+			_emit_streak_progress(option, current)
+		return
+
+	# Fallo normal (no fumble): el contador siempre se reinicia
+	_success_streaks.erase(option.option_id)
+
+	if option.retry_policy == "blocked":
+		_apply_outcome(option.get_outcome_for_grade(roll.result))
+	else:
+		# "immediate" (o un valor no reconocido — ya avisado en validate()):
+		# te quedas en el mismo nodo, reintento inmediato
+		_emit_streak_progress(option, 0)
+
+
+func _emit_streak_progress(option: NarrativeSceneOption, current: int) -> void:
+	streak_option_id = option.option_id
+	streak_current = current
+	streak_required = option.required_successes
+	changed.emit("streak_progress")
+
 
 ## Spike 2, punto 2 — intenta una mejora de skill fuera de combate.
 ## Opt-in explícito: solo si la opción define challenge_level > 0 (ver
@@ -136,10 +209,10 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 
 	if not outcome.combat_enemy_ids.is_empty():
 		# GameLoop.start_combat() ya acepta NARRATIVE_SCENE como estado de
-		# origen (ver patch_game_loop_system.md) — no hace falta pasar por
-		# EXPLORATION antes. _transition_game_state() a COMBAT_ACTIVE disparará
-		# game_state_changed, y SceneOrchestrator._handle_combat() destruye
-		# este overlay igual que hace con Shop/Dialogue.
+		# origen — no hace falta pasar por EXPLORATION antes.
+		# _transition_game_state() a COMBAT_ACTIVE disparará game_state_changed,
+		# y SceneOrchestrator._handle_combat() destruye este overlay igual que
+		# hace con Shop/Dialogue.
 		state = PanelState.TRANSITIONING
 		changed.emit("closed")
 		GameLoop.start_combat(outcome.combat_enemy_ids)

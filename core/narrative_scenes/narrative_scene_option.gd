@@ -1,8 +1,9 @@
 class_name NarrativeSceneOption
 extends Resource
 
-## NarrativeSceneOption — Spike 1: Motor Narrativo Base / Spike 2: grado SPECIAL
-## y progresión de skill narrativa
+## NarrativeSceneOption — Spike 1: Motor Narrativo Base
+## Spike 2: grado SPECIAL (punto 1), progresión de skill narrativa (punto 2),
+## tiradas acumulativas/reintentables con contador (punto 3)
 ##
 ## Una opción dentro de una NarrativeSceneDefinition. Puede resolver
 ## directo (outcome_default) o requerir una tirada de habilidad, en cuyo
@@ -26,6 +27,25 @@ extends Resource
 ## valor actual de la skill; rango recomendado 20–80, igual que el resto de
 ## LearningSession).
 ##
+## NOTA (Spike 2, punto 3): required_successes/retry_policy habilitan una
+## tirada acumulativa — necesita N éxitos SEGUIDOS antes de resolverse. El
+## contador de racha vive en NarrativeSceneViewModel (nunca aquí ni en
+## NarrativeSceneDB — sigue siendo solo consulta síncrona sin estado,
+## decisión de Spike 1), porque esta clase se recarga desde JSON en cada
+## consulta y no es el sitio para estado mutable de una partida en curso.
+## - required_successes = 0 (default): comportamiento normal, sin cambios.
+## - required_successes > 0: hacen falta esa cantidad de éxitos seguidos.
+##   Un fallo reinicia el contador siempre. Una PIFIA siempre transiciona
+##   (aplica outcome_fumble/outcome_failure), ignorando retry_policy — una
+##   pifia narrativa suele tener consecuencia dramática propia, no un simple
+##   "vuelve a intentarlo".
+## - retry_policy solo importa si required_successes > 0:
+##     "immediate" (default): un fallo normal (no fumble) reinicia el
+##       contador pero te deja en el mismo nodo, reintento inmediato.
+##     "blocked": un fallo normal aplica outcome_failure de verdad,
+##       transicionando a otro nodo — el propio grafo narrativo es lo que
+##       impide el reintento infinito (hay que volver a llegar aquí).
+##
 ## NOTA: from_dict() usa new() en vez de NarrativeSceneOption.new() —
 ## autorreferenciar el propio class_name dentro del mismo script no se
 ## resuelve de forma fiable en GDScript. Ver narrative_scene_outcome.gd.
@@ -40,6 +60,11 @@ var roll_modifier: int = 0
 ## Spike 2, punto 2 — ver nota de cabecera. 0 = sin progresión para esta
 ## opción (comportamiento por defecto, igual que antes de Spike 2).
 var challenge_level: int = 0
+
+## Spike 2, punto 3 — ver nota de cabecera. 0 = sin tirada acumulativa
+## (comportamiento por defecto, igual que antes de Spike 2).
+var required_successes: int = 0
+var retry_policy: String = "immediate"
 
 ## Usado solo si skill_id está vacío.
 var outcome_default: NarrativeSceneOutcome = null
@@ -62,6 +87,8 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOption:
 	option.skill_id = data.get("skill_id", "")
 	option.roll_modifier = data.get("roll_modifier", 0)
 	option.challenge_level = data.get("challenge_level", 0)
+	option.required_successes = data.get("required_successes", 0)
+	option.retry_policy = data.get("retry_policy", "immediate")
 
 	if data.has("outcome_default"):
 		option.outcome_default = NarrativeSceneOutcome.from_dict(data["outcome_default"])
@@ -122,6 +149,11 @@ func validate(owner_scene_id: String) -> bool:
 				"[NarrativeSceneOption] '%s.%s': challenge_level %d definido sin skill_id — no hay tirada, se ignora"
 				% [owner_scene_id, option_id, challenge_level]
 			)
+		if required_successes > 0:
+			push_warning(
+				"[NarrativeSceneOption] '%s.%s': required_successes %d definido sin skill_id — no hay tirada, se ignora"
+				% [owner_scene_id, option_id, required_successes]
+			)
 	else:
 		if not outcome_failure or not outcome_success:
 			push_error(
@@ -129,5 +161,10 @@ func validate(owner_scene_id: String) -> bool:
 				% [owner_scene_id, option_id]
 			)
 			return false
+		if required_successes > 0 and not retry_policy in ["immediate", "blocked"]:
+			push_warning(
+				"[NarrativeSceneOption] '%s.%s': retry_policy '%s' desconocido, se tratará como 'immediate'"
+				% [owner_scene_id, option_id, retry_policy]
+			)
 
 	return true

@@ -1,0 +1,55 @@
+{
+  "scene_id": "test_streak",
+  "image_path": "",
+  "text_key": "TEST_NARRATIVE_STREAK",
+  "options": [
+	{
+	  "option_id": "track_immediate",
+	  "text_key": "TEST_NARRATIVE_OPTION_TRACK_IMMEDIATE",
+	  "skill_id": "skill.exploration.perception",
+	  "roll_modifier": 0,
+	  "challenge_level": 35,
+	  "required_successes": 3,
+	  "retry_policy": "immediate",
+	  "outcome_fumble": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_streak_fumble",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_failure": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_success": {
+		"next_scene_id": "test_success",
+		"flag_to_set": "flag.test_narrative_streak_immediate_done",
+		"combat_enemy_ids": []
+	  }
+	},
+	{
+	  "option_id": "track_blocked",
+	  "text_key": "TEST_NARRATIVE_OPTION_TRACK_BLOCKED",
+	  "skill_id": "skill.exploration.perception",
+	  "roll_modifier": 0,
+	  "challenge_level": 35,
+	  "required_successes": 3,
+	  "retry_policy": "blocked",
+	  "outcome_fumble": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_streak_fumble",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_failure": {
+		"next_scene_id": "test_failure",
+		"flag_to_set": "flag.test_narrative_streak_blocked_failed",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_success": {
+		"next_scene_id": "test_success",
+		"flag_to_set": "flag.test_narrative_streak_blocked_done",
+		"combat_enemy_ids": []
+	  }
+	}
+  ]
+}
