@@ -51,6 +51,7 @@ CombatLootSpawner="*uid://bqxbuiko8c4iy"
 Party="*uid://bsgelk03ryah"
 PartyEventHandler="*uid://krqxj71rudvc"
 NarrativeSceneDB="*uid://f83s38eh5frk"
+EnemyWorldLink="*uid://cgdukmwcmga6t"
 
 [input]
 

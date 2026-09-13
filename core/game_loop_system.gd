@@ -82,7 +82,17 @@ var _companion_turn_index: int = 0
 ## reposo si start_combat() no recibió un CombatEncounterDefinition — cero
 ## comportamiento nuevo para combates que no lo usan.
 var _current_encounter: CombatEncounterDefinition = null
-var _group_initial_max_hp: float = 0.0
+
+## Spike 3, Grupo A — deja de ser "inicial": se recalcula cada vez que llega
+## un refuerzo (ver _group_morale_base_dirty). Renombrada desde
+## _group_initial_max_hp porque ese nombre ya no describía el campo.
+var _group_morale_base_hp: float = 0.0
+
+## Spike 3, Grupo A — true tras _spawn_reinforcements(), hasta que
+## _check_group_morale() recalcula _group_morale_base_hp en su siguiente
+## evaluación (que solo ocurre cuando muere alguien — ver _check_combat_conditions()).
+var _group_morale_base_dirty: bool = false
+
 var _morale_broken: bool = false
 var _reinforcement_countdown_active: bool = false
 var _reinforcement_rounds_elapsed: int = 0
@@ -206,7 +216,8 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 
 	# Spike 2, punto 6 — reset de estado de moral/refuerzos por combate
 	_current_encounter = encounter
-	_group_initial_max_hp = 0.0
+	_group_morale_base_hp = 0.0
+	_group_morale_base_dirty = false
 	_morale_broken = false
 	_reinforcement_rounds_elapsed = 0
 	_reinforcement_spawned = false
@@ -217,9 +228,9 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 			for enemy_id in enemy_ids:
 				var state = Resources.get_resource_state(enemy_id, "health")
 				if state:
-					_group_initial_max_hp += state.max_effective
+					_group_morale_base_hp += state.max_effective
 			print("[GameLoopSystem] 🏳️ Moral de grupo activa: umbral %.0f%%, HP inicial del grupo %.1f" % [
-				_current_encounter.morale_threshold_pct, _group_initial_max_hp
+				_current_encounter.morale_threshold_pct, _group_morale_base_hp
 			])
 
 		if not _current_encounter.reinforcement_enemy_ids.is_empty():
@@ -262,7 +273,8 @@ func end_combat(result: String) -> void:
 	# Spike 2, punto 6 — limpiar estado de moral/refuerzos, no debe fugarse
 	# a un combate siguiente
 	_current_encounter = null
-	_group_initial_max_hp = 0.0
+	_group_morale_base_hp = 0.0
+	_group_morale_base_dirty = false
 	_morale_broken = false
 	_reinforcement_countdown_active = false
 	_reinforcement_rounds_elapsed = 0
@@ -340,6 +352,7 @@ func configure_active_encounter(encounter: CombatEncounterDefinition) -> void:
 
 	_current_encounter = encounter
 	_morale_broken = false
+	_group_morale_base_dirty = false
 	_reinforcement_rounds_elapsed = 0
 	_reinforcement_spawned = false
 	_reinforcement_countdown_active = (
@@ -347,16 +360,16 @@ func configure_active_encounter(encounter: CombatEncounterDefinition) -> void:
 		and not encounter.reinforcement_enemy_ids.is_empty()
 	)
 
-	_group_initial_max_hp = 0.0
+	_group_morale_base_hp = 0.0
 	if encounter.morale_threshold_pct > 0.0:
 		for enemy_id in get_active_enemies():
 			var state = Resources.get_resource_state(enemy_id, "health")
 			if state:
-				_group_initial_max_hp += state.max_effective
+				_group_morale_base_hp += state.max_effective
 
 	print("[GameLoopSystem] 🧪 Encounter configurado sobre combate en marcha: moral %.0f%%, HP base %.1f, refuerzos %s" % [
 		encounter.morale_threshold_pct,
-		_group_initial_max_hp,
+		_group_morale_base_hp,
 		"contador inmediato" if _reinforcement_countdown_active else "esperando trigger o sin refuerzos"
 	])
 
@@ -437,6 +450,15 @@ func _spawn_reinforcements() -> void:
 		turn_order.append(enemy_id)
 		EventBus.reinforcement_spawned.emit(enemy_id, _current_encounter.reinforcement_definition_id)
 
+	# Spike 3, Grupo A — moral con base dinámica: no recalculamos aquí mismo
+	# (el refuerzo puede no estar registrado todavía en ResourceSystem — su
+	# registro lo hace la escena en respuesta a reinforcement_spawned, fuera
+	# de nuestro control). Marcamos la base como pendiente; se recalcula en
+	# la siguiente llamada a _check_group_morale(), que solo ocurre cuando
+	# muere alguien — tiempo de sobra para que el refuerzo ya esté registrado.
+	if _current_encounter.morale_threshold_pct > 0.0:
+		_group_morale_base_dirty = true
+
 	print("[GameLoopSystem] 🆘 Reinforcements arrived: %s" % str(_current_encounter.reinforcement_enemy_ids))
 
 
@@ -451,7 +473,7 @@ func _check_group_morale() -> void:
 		return
 	if _morale_broken:
 		return
-	if _group_initial_max_hp <= 0.0:
+	if _group_morale_base_hp <= 0.0 and not _group_morale_base_dirty:
 		return  # no se pudo calcular al iniciar combate — no evaluamos
 
 	var active_enemies: Array[String] = get_active_enemies()
@@ -462,7 +484,18 @@ func _check_group_morale() -> void:
 	for enemy_id in active_enemies:
 		current_total_hp += maxf(0.0, Resources.get_resource_amount(enemy_id, "health"))
 
-	var current_pct: float = (current_total_hp / _group_initial_max_hp) * 100.0
+	# Spike 3, Grupo A — base dinámica: si ha llegado un refuerzo desde la
+	# última evaluación, la base pasa a ser el HP actual total DE ESTE
+	# MOMENTO (supervivientes + refuerzo recién llegado). Un refuerzo recién
+	# spawneado tiene HP actual == HP máximo, así que esto es exactamente
+	# "HP actual de supervivientes + HP máximo del refuerzo" sin tener que
+	# resolverlo por separado — reutiliza el mismo current_total_hp de abajo.
+	if _group_morale_base_dirty:
+		_group_morale_base_hp = current_total_hp
+		_group_morale_base_dirty = false
+		print("[GameLoopSystem] 🏳️ Base de moral recalculada tras refuerzo: %.1f" % _group_morale_base_hp)
+
+	var current_pct: float = (current_total_hp / _group_morale_base_hp) * 100.0
 
 	if current_pct <= _current_encounter.morale_threshold_pct:
 		_morale_broken = true

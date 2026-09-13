@@ -92,11 +92,15 @@ func _on_game_state_context(_new_state: int, context: Dictionary) -> void:
 
 
 func _on_game_state_changed(new_state: int) -> void:
-	var state := new_state as GameLoopSystem.GameState
+	# Sin variable intermedia tipada como GameLoopSystem.GameState: un enum
+	# anidado en otra clase no se puede anotar de forma fiable como tipo
+	# explícito en esta versión de GDScript (falla incluso con ": Tipo",
+	# no solo con ":="). new_state ya es int, y un enum es un int por
+	# debajo — comparar contra GameLoopSystem.GameState.MENU en el match
+	# funciona igual sin necesidad de castear ni tipar nada.
+	print("[SceneOrchestrator] Handling state: %s" % GameLoopSystem.GameState.keys()[new_state])
 
-	print("[SceneOrchestrator] Handling state: %s" % GameLoopSystem.GameState.keys()[state])
-
-	match state:
+	match new_state:
 		GameLoopSystem.GameState.MENU:
 			_handle_main_menu()
 

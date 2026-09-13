@@ -96,13 +96,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("quickload"): # Tecla F9
 		_quickload()
 
-	# --- DEBUG SPIKE 1 — MOTOR NARRATIVO --------------------------------
-	# Temporal y desechable: dispara la escena de prueba del motor
-	# narrativo (test_intro → test_success / test_failure). Eliminar este
-	# bloque y _debug_test_narrative_scene() al cerrar el spike.
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F1:
-		_debug_test_narrative_scene()
-	# ---------------------------------------------------------------------
 
 # ============================================
 # CALLBACKS DE INTERACTUABLES
@@ -265,7 +258,3 @@ func _quickload() -> void:
 		save_manager.load_game("quicksave")
 	else:
 		push_warning("[ExplorationController] SaveManager not found")
-
-func _debug_test_narrative_scene() -> void:
-	game_loop.enter_narrative_scene("test_intro")
-	print("[ExplorationController][DEBUG] enter_narrative_scene('test_intro')")

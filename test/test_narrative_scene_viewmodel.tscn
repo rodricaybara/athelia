@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cqps33sur23dt"]
+
+[ext_resource type="Script" uid="uid://boksvlsjxqnyh" path="res://test/test_narrative_scene_viewmodel.gd" id="1_tp8e6"]
+
+[node name="TestNarrativeSceneViewmodel" type="Node" unique_id=1826918001]
+script = ExtResource("1_tp8e6")

@@ -18,12 +18,12 @@ extends Resource
 ## sin loot ni animación de muerte), y refuerzos reutiliza el mismo camino
 ## de spawn que ya usa CombatTestScene para los enemigos iniciales.
 ##
-## NOTA: la moral de grupo se calcula solo sobre el HP total del grupo
-## ORIGINAL de enemigos, capturado una vez al iniciar combate — los
-## refuerzos que lleguen no se suman a esa base. Es una simplificación
-## explícita, no una limitación técnica: no hay un encuentro real todavía
-## que diga si un refuerzo debería "diluir" la moral del grupo original o
-## no. Revisar si Spike 3 lo necesita.
+## NOTA (actualizada Spike 3, Grupo A): la base de moral YA NO es fija.
+## Se recalcula cada vez que llega un refuerzo, sumando su HP máximo al HP
+## actual de los supervivientes en ese momento — el umbral (%) configurado
+## aquí se sigue aplicando siempre sobre la base vigente, que solo cambia
+## al llegar un refuerzo, nunca golpe a golpe. Ver GameLoopSystem
+## ._group_morale_base_hp / ._check_group_morale().
 
 ## 0 = el grupo nunca huye (comportamiento por defecto, igual que antes de
 ## Spike 2). >0 = cuando el HP total restante de los enemigos vivos cae a
