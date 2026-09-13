@@ -7,6 +7,11 @@ extends Node2D
 ## - Registrar en sistemas (Resources, Characters, Skills)
 ## - Iniciar/terminar combate de prueba
 ## - Actualizar UI con estado actual
+##
+## Spike 2, punto 6: escucha reinforcement_spawned/enemy_group_fled para
+## reflejar visualmente moral de grupo y refuerzos cronometrados. Reutiliza
+## el mismo camino de spawn de _initialize_enemies_from_gameloop() para un
+## refuerzo individual, en vez de duplicarlo.
 
 @onready var game_loop: GameLoopSystem = get_node("/root/GameLoop")
 
@@ -102,6 +107,10 @@ func _ready():
 	EventBus.combat_ended.connect(_on_combat_ended)
 	EventBus.target_changed.connect(_on_target_changed)
 	EventBus.combat_action_completed.connect(_on_combat_action_completed)
+
+	# Spike 2, punto 6 — moral de grupo y refuerzos cronometrados
+	EventBus.reinforcement_spawned.connect(_on_reinforcement_spawned)
+	EventBus.enemy_group_fled.connect(_on_enemy_group_fled)
 	
 	# No llamar start_combat() aquí — cuando se llega desde exploración,
 	# GameLoop.start_combat() ya fue llamado por ExplorationController.
@@ -111,6 +120,13 @@ func _ready():
 		_start_combat()
 	else:
 		print("[CombatTest] Combat already started by GameLoop — skipping _start_combat()")
+		# Spike 2, punto 6 — TEST TEMPORAL: cuando el combate lo arranca
+		# ExplorationController (no _start_combat() de este fichero), no hay
+		# forma de pasarle un CombatEncounterDefinition en start_combat() sin
+		# tocar exploration_controller.gd. configure_active_encounter() lo
+		# adjunta a posteriori, sobre el combate que ya está en marcha.
+		# Quitar esta llamada (o comentarla) cuando termine la validación.
+		_inject_test_encounter()
 	
 	print("\n[CombatTest] Scene ready - Press F5 to start combat")
 
@@ -205,41 +221,54 @@ func _initialize_enemies_from_gameloop() -> void:
 ## Genera las barras de HP de enemigos dinámicamente en la UI.
 ## Llamado desde _initialize_enemies_from_gameloop() antes del spawn visual.
 func _build_enemy_bars(enemy_ids: Array) -> void:
-	var vbox = $UI/Panel/VBoxContainer
-
 	# Limpiar barras de un combate anterior (por restart con F5)
 	for entry in _enemy_bars.values():
 		entry["container"].queue_free()
 	_enemy_bars.clear()
 
-	# Insertar las nuevas barras antes de EscapeInfoLabel para mantener el orden visual
-	var escape_label = $UI/Panel/VBoxContainer/EscapeInfoLabel
-
 	for enemy_id in enemy_ids:
-		var hbox := HBoxContainer.new()
-		hbox.name = "%sHPContainer" % enemy_id
-
-		var lbl := Label.new()
-		lbl.custom_minimum_size = Vector2(100, 0)
-		lbl.text = "%s HP:" % enemy_id
-
-		var bar := ProgressBar.new()
-		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bar.add_theme_constant_override("outline_size", 1)
-		bar.step = 0.1
-		bar.value = 100.0
-
-		hbox.add_child(lbl)
-		hbox.add_child(bar)
-		vbox.add_child(hbox)
-		vbox.move_child(hbox, escape_label.get_index())
-
-		_enemy_bars[enemy_id] = {"container": hbox, "bar": bar, "label": lbl}
+		_add_single_enemy_bar(enemy_id)
 
 	print("[CombatTest] Built %d enemy HP bars" % _enemy_bars.size())
 
 
-func _initialize_enemy(enemy_id: String, enemy_node: Node2D):
+## Spike 2, punto 6 — añade UNA barra de HP de enemigo sin tocar las demás.
+## _build_enemy_bars() la reutiliza para el spawn inicial (limpia y llama a
+## esto por cada enemigo); _on_reinforcement_spawned() la llama sola a
+## mitad de combate, cuando limpiar todo el diccionario borraría las barras
+## de los enemigos que ya estaban peleando.
+func _add_single_enemy_bar(enemy_id: String) -> void:
+	var vbox = $UI/Panel/VBoxContainer
+	var escape_label = $UI/Panel/VBoxContainer/EscapeInfoLabel
+
+	var hbox := HBoxContainer.new()
+	hbox.name = "%sHPContainer" % enemy_id
+
+	var lbl := Label.new()
+	lbl.custom_minimum_size = Vector2(100, 0)
+	lbl.text = "%s HP:" % enemy_id
+
+	var bar := ProgressBar.new()
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_theme_constant_override("outline_size", 1)
+	bar.step = 0.1
+	bar.value = 100.0
+
+	hbox.add_child(lbl)
+	hbox.add_child(bar)
+	vbox.add_child(hbox)
+	vbox.move_child(hbox, escape_label.get_index())
+
+	_enemy_bars[enemy_id] = {"container": hbox, "bar": bar, "label": lbl}
+
+
+## definition_id: Spike 2, punto 6 — antes hardcodeado a "enemy_base" para
+## todo enemigo sea cual sea su origen. Un refuerzo puede ser de un tipo
+## distinto al resto del encuentro (CombatEncounterDefinition.
+## reinforcement_definition_id), así que se hace configurable — los dos
+## call sites existentes (spawn inicial) no pasan este argumento y siguen
+## usando "enemy_base" exactamente como antes.
+func _initialize_enemy(enemy_id: String, enemy_node: Node2D, definition_id: String = "enemy_base"):
 	print("\n[CombatTest] Initializing Enemy: %s..." % enemy_id)
 	
 	# 1. ResourceSystem — ya registrado por ExplorationController antes de start_combat().
@@ -254,11 +283,11 @@ func _initialize_enemy(enemy_id: String, enemy_node: Node2D):
 	# 2. Registrar en CharacterSystem — guard idéntico al de ResourceSystem:
 	# ExplorationController ya lo registró, solo actuar si falta.
 	if not Characters.has_entity(enemy_id):
-		if Characters.has_definition("enemy_base"):
-			Characters.register_entity(enemy_id, "enemy_base")
-			print("  ✓ Registered in CharacterSystem")
+		if Characters.has_definition(definition_id):
+			Characters.register_entity(enemy_id, definition_id)
+			print("  ✓ Registered in CharacterSystem (%s)" % definition_id)
 		else:
-			push_warning("  ⚠ enemy_base definition not found")
+			push_warning("  ⚠ %s definition not found" % definition_id)
 	else:
 		print("  ↩ %s already in CharacterSystem — skipping" % enemy_id)
 	
@@ -478,6 +507,62 @@ func _on_combat_action_completed(result: Dictionary):
 		if crit:
 			msg += " (CRITICAL!)"
 		print("[CombatTest] Action result: %s" % msg)
+
+# ============================================
+# SPIKE 2, PUNTO 6 — MORAL DE GRUPO Y REFUERZOS
+# ============================================
+
+## TEST TEMPORAL — ver comentario en _ready(). "enemy_6" se elige para no
+## chocar con los enemy_1..N que ya haya traído ExplorationController desde
+## el world object de turno (esta partida usó hasta enemy_5).
+func _inject_test_encounter() -> void:
+	if Characters and not Characters.has_entity("enemy_6"):
+		Characters.register_entity("enemy_6", "enemy_base")
+	if Resources:
+		Resources.register_entity("enemy_6")
+		Resources.set_resource("enemy_6", "health", 50.0)
+
+	var encounter := CombatEncounterDefinition.new()
+	encounter.morale_threshold_pct = 40.0
+	encounter.reinforcement_delay_rounds = 2
+	encounter.reinforcement_enemy_ids = ["enemy_6"]
+	encounter.reinforcement_definition_id = "enemy_base"
+
+	game_loop.configure_active_encounter(encounter)
+
+## Reacciona a un refuerzo añadido por GameLoopSystem. Reutiliza el mismo
+## camino de spawn que _initialize_enemies_from_gameloop(): instanciar
+## ENEMY_COMBAT_NODE, setup() antes de add_child(), _initialize_enemy()
+## después — no lo duplica, solo lo llama una vez para un enemigo suelto.
+func _on_reinforcement_spawned(enemy_id: String, definition_id: String) -> void:
+	print("[CombatTest] 🆘 Reinforcement arriving: %s (%s)" % [enemy_id, definition_id])
+
+	_add_single_enemy_bar(enemy_id)
+
+	var slot_index: int = _enemy_bars.size() - 1
+	var enemy_node: Node2D = ENEMY_COMBAT_NODE.instantiate()
+
+	if slot_index < ENEMY_SLOT_POSITIONS.size():
+		enemy_node.position = ENEMY_SLOT_POSITIONS[slot_index]
+	else:
+		enemy_node.position = Vector2(600 + slot_index * 60, 300)
+
+	enemy_node.setup(enemy_id)
+	$EnemyContainer.add_child(enemy_node)
+	_initialize_enemy(enemy_id, enemy_node, definition_id)
+
+
+## Reacciona a una huida de grupo: NO es una muerte (GameLoopSystem ya sacó
+## a estas entidades de participants/turn_order) — atenuación distinta al
+## gris de _on_enemy_defeated() para que en las pruebas se distinga huida
+## de derrota a simple vista. No se destruye el nodo (fuera de alcance de
+## este spike; queda visible pero claramente "fuera de combate").
+func _on_enemy_group_fled(fled_enemy_ids: Array) -> void:
+	print("[CombatTest] 🏃 Enemies fled: %s" % str(fled_enemy_ids))
+	for enemy_id in fled_enemy_ids:
+		var enemy_node = get_tree().get_first_node_in_group(enemy_id)
+		if enemy_node:
+			enemy_node.modulate = Color(1.0, 1.0, 1.0, 0.35)
 
 # ============================================
 # EVENTOS DE COMBATE

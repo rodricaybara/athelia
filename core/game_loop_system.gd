@@ -7,6 +7,9 @@ extends Node
 ## v2: Añadida fase COMPANION_ACTION_RESOLVE para turno de companions.
 ## Los companions actúan después del jugador, antes de los enemigos.
 ## v3: Añadido estado CHARACTER_CREATION para flujo de nueva partida.
+## Spike 2, punto 6: moral de grupo y refuerzos cronometrados, vía el
+## parámetro opcional CombatEncounterDefinition en start_combat(). Sin él,
+## un combate se comporta exactamente igual que antes de Spike 2.
 
 # ============================================
 # ESTADOS Y FASES
@@ -74,6 +77,16 @@ var _is_processing: bool = false
 
 ## Índice del companion actual procesando su turno
 var _companion_turn_index: int = 0
+
+## Spike 2, punto 6 — moral de grupo y refuerzos cronometrados. Todo nulo/en
+## reposo si start_combat() no recibió un CombatEncounterDefinition — cero
+## comportamiento nuevo para combates que no lo usan.
+var _current_encounter: CombatEncounterDefinition = null
+var _group_initial_max_hp: float = 0.0
+var _morale_broken: bool = false
+var _reinforcement_countdown_active: bool = false
+var _reinforcement_rounds_elapsed: int = 0
+var _reinforcement_spawned: bool = false
 
 # ============================================
 # REFERENCIAS
@@ -160,7 +173,9 @@ func get_state_name() -> String:
 # API PÚBLICA — GESTIÓN DE COMBATE
 # ============================================
 
-func start_combat(enemy_ids: Array[String]) -> void:
+## encounter: opcional (Spike 2, punto 6) — moral de grupo y refuerzos
+## cronometrados. Sin él, comportamiento idéntico a antes de Spike 2.
+func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition = null) -> void:
 	if current_game_state != GameState.EXPLORATION and current_game_state != GameState.DIALOGUE and current_game_state != GameState.MENU and current_game_state != GameState.NARRATIVE_SCENE:
 		push_warning("[GameLoopSystem] Cannot start combat: wrong state %s" % GameState.keys()[current_game_state])
 		return
@@ -188,6 +203,31 @@ func start_combat(enemy_ids: Array[String]) -> void:
 	round_number = 0
 	current_turn_index = 0
 	_companion_turn_index = 0
+
+	# Spike 2, punto 6 — reset de estado de moral/refuerzos por combate
+	_current_encounter = encounter
+	_group_initial_max_hp = 0.0
+	_morale_broken = false
+	_reinforcement_rounds_elapsed = 0
+	_reinforcement_spawned = false
+	_reinforcement_countdown_active = false
+
+	if _current_encounter:
+		if _current_encounter.morale_threshold_pct > 0.0:
+			for enemy_id in enemy_ids:
+				var state = Resources.get_resource_state(enemy_id, "health")
+				if state:
+					_group_initial_max_hp += state.max_effective
+			print("[GameLoopSystem] 🏳️ Moral de grupo activa: umbral %.0f%%, HP inicial del grupo %.1f" % [
+				_current_encounter.morale_threshold_pct, _group_initial_max_hp
+			])
+
+		if not _current_encounter.reinforcement_enemy_ids.is_empty():
+			if _current_encounter.reinforcement_trigger.is_empty():
+				_reinforcement_countdown_active = true
+				print("[GameLoopSystem] 🆘 Refuerzos programados: %d asaltos (contador inmediato)" % _current_encounter.reinforcement_delay_rounds)
+			else:
+				print("[GameLoopSystem] 🆘 Refuerzos programados: esperando evento '%s'" % _current_encounter.reinforcement_trigger)
 
 	_transition_game_state(GameState.COMBAT_ACTIVE)
 	EventBus.emit_signal("combat_started", participants.duplicate())
@@ -218,6 +258,15 @@ func end_combat(result: String) -> void:
 	_companion_turn_index = 0
 	round_number = 0
 	current_phase = TurnPhase.ROUND_START
+
+	# Spike 2, punto 6 — limpiar estado de moral/refuerzos, no debe fugarse
+	# a un combate siguiente
+	_current_encounter = null
+	_group_initial_max_hp = 0.0
+	_morale_broken = false
+	_reinforcement_countdown_active = false
+	_reinforcement_rounds_elapsed = 0
+	_reinforcement_spawned = false
 
 	EventBus.emit_signal("combat_ended", result)
 
@@ -255,6 +304,61 @@ func get_state() -> Dictionary:
 		"turn_order": turn_order.duplicate(),
 		"current_turn_index": current_turn_index
 	}
+
+
+## Spike 2, punto 6 — activa el contador de refuerzos si coincide con el
+## reinforcement_trigger del encuentro activo. Cualquier sistema puede
+## llamarlo (una skill, un futuro outcome narrativo, un world object...) —
+## este método no sabe nada de quién lo dispara ni por qué.
+func trigger_combat_event(event_name: String) -> void:
+	if not is_in_combat() or not _current_encounter:
+		return
+	if _current_encounter.reinforcement_trigger.is_empty():
+		return
+	if _current_encounter.reinforcement_trigger != event_name:
+		return
+	if _reinforcement_countdown_active or _reinforcement_spawned:
+		return
+
+	_reinforcement_countdown_active = true
+	_reinforcement_rounds_elapsed = 0
+	print("[GameLoopSystem] 🆘 Evento '%s' disparado — contador de refuerzos activado (%d asaltos)" % [
+		event_name, _current_encounter.reinforcement_delay_rounds
+	])
+
+
+## Spike 2, punto 6 — adjunta (o sustituye) el CombatEncounterDefinition de
+## un combate YA EN MARCHA. Pensado para caminos que arrancan combate sin
+## pasar por el parámetro de start_combat() — hoy, ExplorationController —
+## y para pruebas, sin tener que tocar ese fichero. Recalcula el HP base de
+## moral sobre los enemigos activos EN ESTE MOMENTO, no sobre los que había
+## al llamar a start_combat().
+func configure_active_encounter(encounter: CombatEncounterDefinition) -> void:
+	if not is_in_combat():
+		push_warning("[GameLoopSystem] configure_active_encounter ignorado: no hay combate activo")
+		return
+
+	_current_encounter = encounter
+	_morale_broken = false
+	_reinforcement_rounds_elapsed = 0
+	_reinforcement_spawned = false
+	_reinforcement_countdown_active = (
+		encounter.reinforcement_trigger.is_empty()
+		and not encounter.reinforcement_enemy_ids.is_empty()
+	)
+
+	_group_initial_max_hp = 0.0
+	if encounter.morale_threshold_pct > 0.0:
+		for enemy_id in get_active_enemies():
+			var state = Resources.get_resource_state(enemy_id, "health")
+			if state:
+				_group_initial_max_hp += state.max_effective
+
+	print("[GameLoopSystem] 🧪 Encounter configurado sobre combate en marcha: moral %.0f%%, HP base %.1f, refuerzos %s" % [
+		encounter.morale_threshold_pct,
+		_group_initial_max_hp,
+		"contador inmediato" if _reinforcement_countdown_active else "esperando trigger o sin refuerzos"
+	])
 
 
 # ============================================
@@ -295,7 +399,84 @@ func _start_new_round() -> void:
 		_transition_to_phase(TurnPhase.ROUND_START)
 	EventBus.emit_signal("round_started", round_number)
 
+	# Spike 2, punto 6 — avanzar el contador de refuerzos una vez por ronda
+	_advance_reinforcement_countdown()
+
 	_start_player_turn()
+
+
+## Spike 2, punto 6 — avanza el contador de refuerzos (si está activo) y
+## los spawnea al cumplirse reinforcement_delay_rounds. Se llama una vez
+## por ronda, desde _start_new_round().
+func _advance_reinforcement_countdown() -> void:
+	if not _current_encounter or not _reinforcement_countdown_active or _reinforcement_spawned:
+		return
+
+	_reinforcement_rounds_elapsed += 1
+	print("[GameLoopSystem] 🆘 Refuerzos: %d/%d asaltos" % [
+		_reinforcement_rounds_elapsed, _current_encounter.reinforcement_delay_rounds
+	])
+
+	if _reinforcement_rounds_elapsed >= _current_encounter.reinforcement_delay_rounds:
+		_spawn_reinforcements()
+
+
+## Spike 2, punto 6 — añade los refuerzos definidos por el encuentro activo
+## a participants/turn_order (al final: llegan a tiempo para la siguiente
+## ronda, nunca a mitad de la actual) y emite reinforcement_spawned por
+## cada uno para que la escena de combate instancie el nodo visual.
+func _spawn_reinforcements() -> void:
+	if not _current_encounter or _reinforcement_spawned:
+		return
+
+	_reinforcement_spawned = true
+	_reinforcement_countdown_active = false
+
+	for enemy_id in _current_encounter.reinforcement_enemy_ids:
+		participants.append(enemy_id)
+		turn_order.append(enemy_id)
+		EventBus.reinforcement_spawned.emit(enemy_id, _current_encounter.reinforcement_definition_id)
+
+	print("[GameLoopSystem] 🆘 Reinforcements arrived: %s" % str(_current_encounter.reinforcement_enemy_ids))
+
+
+## Spike 2, punto 6 — si hay moral de grupo activa y el HP total restante
+## de los enemigos vivos cae al umbral o menos, los saca a todos de
+## participants/turn_order de golpe (mismo mecanismo que una muerte, pero
+## sin loot ni animación de muerte) y emite enemy_group_fled. Se llama al
+## principio de _check_combat_conditions(), así que si huyen todos, el
+## chequeo de victoria que sigue justo después lo detecta gratis.
+func _check_group_morale() -> void:
+	if not _current_encounter or _current_encounter.morale_threshold_pct <= 0.0:
+		return
+	if _morale_broken:
+		return
+	if _group_initial_max_hp <= 0.0:
+		return  # no se pudo calcular al iniciar combate — no evaluamos
+
+	var active_enemies: Array[String] = get_active_enemies()
+	if active_enemies.is_empty():
+		return
+
+	var current_total_hp: float = 0.0
+	for enemy_id in active_enemies:
+		current_total_hp += maxf(0.0, Resources.get_resource_amount(enemy_id, "health"))
+
+	var current_pct: float = (current_total_hp / _group_initial_max_hp) * 100.0
+
+	if current_pct <= _current_encounter.morale_threshold_pct:
+		_morale_broken = true
+		var fled: Array[String] = active_enemies.duplicate()
+
+		for enemy_id in fled:
+			participants.erase(enemy_id)
+			turn_order.erase(enemy_id)
+
+		print("[GameLoopSystem] 🏃 Group morale broken (%.1f%% HP left, threshold %.0f%%) — fleeing: %s" % [
+			current_pct, _current_encounter.morale_threshold_pct, str(fled)
+		])
+		EventBus.enemy_group_fled.emit(fled)
+
 
 func _start_player_turn() -> void:
 	_transition_to_phase(TurnPhase.PLAYER_TURN_START)
@@ -529,6 +710,11 @@ func _on_character_died(character_id: String) -> void:
 ## El resto del archivo no cambia.
 
 func _check_combat_conditions() -> bool:
+	# Spike 2, punto 6 — moral de grupo: puede vaciar active_enemies antes
+	# de que se evalúe la victoria, de forma que una huida masiva del
+	# último grupo de enemigos se detecta como victoria sin lógica extra.
+	_check_group_morale()
+
 	# ── Victoria: todos los enemigos muertos ──────────────────────────────────
 	var active_enemies: Array[String] = get_active_enemies()
 	if active_enemies.is_empty():

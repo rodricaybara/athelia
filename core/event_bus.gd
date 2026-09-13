@@ -159,6 +159,22 @@ signal enemy_defeated(enemy_id: String)
 signal combat_loot_bag_spawned(enemy_id: String, instance_id: String, position: Vector2)
 signal combat_loot_collected(entity_id: String, instance_id: String)
 
+## Spike 2, punto 6 — moral de grupo: emitido cuando los enemigos vivos
+## restantes huyen todos a la vez al caer el HP total del grupo por debajo
+## de CombatEncounterDefinition.morale_threshold_pct. NO es una muerte —
+## no dispara loot ni animación de muerte, solo retirada del combate
+## (GameLoopSystem ya los ha sacado de participants/turn_order cuando esto
+## se emite; la escena solo necesita reaccionar visualmente).
+signal enemy_group_fled(fled_enemy_ids: Array[String])
+
+## Spike 2, punto 6 — refuerzos cronometrados: emitido cuando se cumple
+## CombatEncounterDefinition.reinforcement_delay_rounds y GameLoopSystem
+## añade un refuerzo a participants/turn_order. La escena de combate
+## escucha esto para instanciar el nodo visual — reutiliza el mismo camino
+## de _initialize_enemy() que ya usa para los enemigos iniciales, no lo
+## duplica.
+signal reinforcement_spawned(enemy_id: String, definition_id: String)
+
 # ==============================================
 # EVENTOS DE DEFENSA / HUIDA / ESQUIVA
 # ==============================================

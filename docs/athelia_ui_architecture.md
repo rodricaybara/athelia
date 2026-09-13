@@ -149,7 +149,10 @@ Al volver a MENU desde cualquier otro estado (ej: CharacterCreation → "Volver 
 class_name MiPantallaViewModel
 extends Node
 
-# 1. Enum de estados — siempre
+# 1. Enum de estados — siempre. NUNCA llamarlo SceneState: es una clase
+#    nativa del motor (la usa PackedScene internamente) y el nombre
+#    colisiona ("member X shadows a native class") con errores de tipado
+#    en cascada. Usar PanelState o un nombre específico de la pantalla.
 enum PanelState { HIDDEN, SHOWING, ... }
 
 # 2. Señal única hacia la View — siempre
@@ -217,6 +220,33 @@ class SlotData:
         d.is_empty = false
         return d
 ```
+
+**Excepción a lo anterior — self-reference dentro de factory methods
+estáticos (lección del Spike 1 Motor Narrativo):** si la data class vive
+en su **propio fichero** con `class_name` (no como clase interna de otro
+script), su factory estático NUNCA debe llamarse a sí mismo por el nombre
+de su `class_name` — GDScript no lo resuelve de forma fiable dentro del
+mismo script y provoca fallos de compilación en cascada que además rompen
+la resolución del tipo desde *otros* ficheros. Usar `new()` a secas:
+
+```gdscript
+# ❌ MAL — autorreferencia por class_name dentro del propio script
+class_name NarrativeSceneOutcome
+extends Resource
+
+static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
+    var outcome := NarrativeSceneOutcome.new()   # falla en cascada
+    ...
+
+# ✅ BIEN — new() a secas, instancia el script actual sin pasar por
+#    la tabla global de clases
+static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
+    var outcome := new()
+    ...
+```
+
+Esto solo aplica a data classes en fichero propio con `class_name`. Las
+clases internas anidadas (como `SlotData` arriba) no tienen este problema.
 
 ### Tipado estricto
 
@@ -311,7 +341,7 @@ btn_new_game.text = tr("MENU_NEW_GAME")
 btn_new_game.text = "Nueva Partida"
 ```
 
-Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; Character Creation usa `character_creation.csv`; otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
+Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; Character Creation usa `character_creation.csv`; NarrativeScene usa `narrative_scenes.csv`; otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
 
 ---
 
@@ -360,6 +390,16 @@ const OVERLAY_MI_PANTALLA := "res://ui/nombre_pantalla/nombre_panel.tscn"
 
 Y añadir el handler correspondiente en `_on_game_state_changed()` o como método público (`open_X()`).
 
+**Nota (Spike 1 Motor Narrativo):** si la pantalla necesita su propio
+`GameState` (como `NARRATIVE_SCENE`, análogo a `DIALOGUE`/`SHOP`), no hace
+falta una señal de apertura dedicada salvo que algún sistema externo
+necesite enterarse de forma asíncrona (como `EconomySystem` con
+`shop_open_requested`). Si la consulta de datos es local y síncrona
+(como `NarrativeSceneDB.get_scene()`), el `scene_id`/`id` correspondiente
+ya viaja gratis por `_pending_context`, poblado por
+`GameLoop.request_state_change(state, {"id": ...})` — léelo en
+`_on_game_state_changed()` igual que `dialogue_id`/`shop_id`.
+
 ### Paso 7 — Añadir claves de localización
 
 Toda cadena visible en la UI debe tener su clave en el `.csv` de localización correspondiente:
@@ -387,6 +427,8 @@ Godot genera los `.translation` automáticamente al recargar el proyecto cuando 
 | Tipado estricto en GDScript | Godot 4 trata warnings como errores en este proyecto |
 | Sin `static` en funciones de autoload | Los autoloads son instancias, no clases estáticas |
 | Nombres de variables no colisionan con propiedades de Node | Ej: usar `btn_size` en lugar de `size` en Button |
+| El enum de estados del ViewModel nunca se llama `SceneState` | Colisiona con la clase nativa del motor del mismo nombre — usar `PanelState` u otro nombre específico |
+| Una data class en fichero propio (`class_name`) nunca se autorreferencia por nombre en sus factory methods | GDScript no lo resuelve de forma fiable dentro del mismo script — usar `new()` a secas |
 | Textos siempre via `tr()`, nunca hardcodeados | Consistencia con el sistema de localización |
 | Labels y botones vacíos en el .tscn | Los textos se asignan por código en `_setup_static_text()` |
 | ViewModel de una Main Scene persistente escucha `EventBus.game_state_changed` | Puede volver a su estado por un camino externo — no solo por su propio código |
@@ -534,6 +576,29 @@ Este antipatrón solo aplica a pantallas cuya View es una Main Scene persistente
 
 ---
 
+### ❌ Self-reference por `class_name` dentro del propio script
+
+```gdscript
+# MAL — falla en cascada (ver Spike 1 Motor Narrativo): el script nunca
+# termina de registrarse como clase global, y OTROS ficheros dejan de
+# encontrar el tipo también
+class_name NarrativeSceneOutcome
+extends Resource
+
+static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
+    var outcome := NarrativeSceneOutcome.new()
+    ...
+```
+
+```gdscript
+# BIEN — new() a secas, sin pasar por la tabla global de clases
+static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
+    var outcome := new()
+    ...
+```
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
@@ -545,6 +610,8 @@ Este antipatrón solo aplica a pantallas cuya View es una Main Scene persistente
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable. Abierta desde `SceneOrchestrator` via `show_shop_direct()`. |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. |
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. |
+| PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
+| NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Sigue sin contenido real de aventura (eso es Spike 3). |
 
 ### Pantallas sin ViewModel (casos especiales)
 
@@ -554,4 +621,6 @@ Este antipatrón solo aplica a pantallas cuya View es una Main Scene persistente
 
 ---
 
-*Última actualización: Spike Character Creation — CharacterCreationScreen implementada (ya no es stub), nuevo antipatrón de ViewModel persistente sin listener de EventBus (detectado en MainMenuViewModel). Godot 4.7.1.*
+*Última actualización: Spike 2 — Reglas de RuneQuest para el Motor Narrativo — NarrativeScene ampliada (grado especial, progresión narrativa, tiradas acumulativas, agregación de grupo) sin ningún cambio al contrato MVVM en sí: todo entra como lógica de dominio nueva dentro de `request_option()` y razones adicionales de `changed(reason)`, ningún antipatrón nuevo de arquitectura UI detectado en este spike. Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo (los hallazgos de este spike son de GDScript/sistemas de combate, documentados en `athelia_estructura_proyecto_actualizado.md`, no de este patrón).
+
+*Última actualización anterior: Spike 1 Motor Narrativo (pivote hacia RPG narrativo) — añadida NarrativeScene a la referencia de pantallas, nuevo antipatrón de self-reference por class_name dentro del propio script, regla de nombrado PanelState (nunca SceneState) elevada de ejemplo a regla explícita. Spike Character Creation — CharacterCreationScreen implementada (ya no es stub), nuevo antipatrón de ViewModel persistente sin listener de EventBus (detectado en MainMenuViewModel). Spike Producción Post-Character-Creation — añadida PlayerMenu a la referencia de pantallas (bug corregido: `character_name` leía `definition_id` en vez del nombre real). Godot 4.7.1.*
