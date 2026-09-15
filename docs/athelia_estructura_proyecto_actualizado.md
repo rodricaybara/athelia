@@ -45,6 +45,7 @@ Estos sistemas están disponibles globalmente en todo el proyecto sin necesidad 
 | `Economy` | `core/economy/economy_system.gd` | Sistema económico: compra, venta y precios. |
 | `WorldObjects` | `core/world_objects/world_object_registry.gd` | Registro de objetos interactuables del mundo. |
 | `WorldObjectSystem` | `core/world_objects/world_object_system.gd` | Lógica de interacción con objetos del mundo. |
+| `EnemyWorldLink` | `core/combat/enemy_world_link.gd` | **[Spike 3, Grupo A]** Hueco genérico para limpiar la representación en exploración/world objects de un enemigo que huye (`EventBus.enemy_group_fled`). Guarda un `Callable` de limpieza por `entity_id` vía `register_fled_cleanup()` — no conoce WorldObjectSystem ni ningún tipo de representación concreta. No-op si nadie registró nada. |
 
 ### Sistemas de narrativa y diálogo
 | Singleton | Script | Descripción |
@@ -93,7 +94,8 @@ athelia/
 │   │   ├── defense_module.gd       # Módulo de defensa
 │   │   ├── escape_module.gd        # Módulo de huida
 │   │   ├── skill_roller.gd         # Tiradas de habilidad (RollResult: FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL desde Spike 2 — CRITICAL/SPECIAL dinámicos skill/20 y skill/5, FUMBLE absoluto)
-│   │   ├── combat_encounter_definition.gd  # ← NUEVO (Spike 2): Resource opcional para start_combat() — moral de grupo (morale_threshold_pct) y refuerzos cronometrados (reinforcement_trigger/delay_rounds/enemy_ids)
+│   │   ├── combat_encounter_definition.gd  # Resource opcional para start_combat() — moral de grupo (morale_threshold_pct, base dinámica desde Spike 3 Grupo A), refuerzos cronometrados, y sorpresa (Spike 3/B: surprise_favors "party"/"enemies", surprise_vulnerable_pct — vía buff staggered/vulnerable en GameLoopSystem._apply_surprise(), sin tocar turn_order)
+│   │   ├── enemy_world_link.gd     # [Autoload: EnemyWorldLink] ← NUEVO (Spike 3, Grupo A): hueco genérico de limpieza para enemigos que huyen
 │   │   └── enemy_ai.gd             # IA de enemigos
 │   │
 │   ├── companions/                 # Sistema de companions y party
@@ -140,7 +142,7 @@ athelia/
 │   │   ├── narrative_scene_registry.gd     # [Autoload: NarrativeSceneDB] carga JSON → Resource, sin estado runtime
 │   │   ├── narrative_scene_definition.gd   # Resource: escena (imagen, texto, opciones)
 │   │   ├── narrative_scene_option.gd       # Resource: opción (tirada opcional, referencias a outcomes por grado)
-│   │   └── narrative_scene_outcome.gd      # Resource: destino/consecuencias (fichero propio, no clase interna — ver lecciones del spike)
+│   │   └── narrative_scene_outcome.gd      # Resource: destino/consecuencias — Spike 3/B: + combat_encounter (CombatEncounterDefinition opcional), combat_enemy_definitions (mapeo enemy_id→definition_id, necesario porque combate disparado desde narrativa no tiene Interactable del que leerlo), grant_item_id/quantity/target
 │   │
 │   ├── resources/                  # Sistema de recursos vitales
 │   │   ├── resource_system.gd      # [Autoload: Resources]
@@ -175,12 +177,15 @@ athelia/
 ├── data/                           # Datos del juego (Resources .tres y JSON)
 │   ├── characters/                 # Definiciones de personajes
 │   │   ├── player_base.tres        # Plantilla de TEST/DEBUG — usada por combat_test_scene y exploration_test, NO para partidas reales
-│   │   ├── player_new.tres         # ← NUEVO: plantilla real para Character Creation (atributos placeholder, kit fijo de skills)
+│   │   ├── player_new.tres         # ← Plantilla real para Character Creation (atributos placeholder, kit fijo de skills — Spike 3/B: kit leído directo de aquí, ya no de una constante duplicada en el ViewModel)
 │   │   ├── enemy_base.tres
 │   │   ├── wolf_test.tres
+│   │   ├── telmori/                # Spike 3, Grupo B — personajes específicos de "Los Telmori"
+│   │   │   ├── telmori_warrior_base.tres
+│   │   │   └── telmori_wolf_base.tres
 │   │   ├── companions/
 │   │   │   ├── companion_base.tres
-│   │   │   └── companion_mira.tres
+│   │   │   └── companion_mira.tres # Spike 3/B: kit de skills ampliado (+ track/search)
 │   │   └── portrait/               # Retratos de personajes (PNG)
 │   │       ├── guard.png
 │   │       ├── merchant.png
@@ -204,10 +209,13 @@ athelia/
 │   │   ├── stamina_potion_small.tres
 │   │   ├── lockpick_quality.tres
 │   │   ├── steel_sword.tres / .png
+│   │   ├── telmori/                # Spike 3, Grupo B — ítems específicos de una aventura
+│   │   │   └── silver_arrow.tres   # Sin ranura de equipo — va por aventura, no por tipo de arma
 │   │   └── weapons/                # Por slot: weapon, body, head, feet, shield, accesory
 │   │       ├── weapon/
 │   │       │   ├── iron_sword.tres / .png
-│   │       │   └── shortbow.tres
+│   │       │   ├── shortbow.tres
+│   │       │   └── enchanted_spear.tres   # Spike 3, Grupo B — ítem de ranura manda sobre aventura
 │   │       ├── body/
 │   │       │   └── leather_armor.tres / .png
 │   │       ├── head/
@@ -225,10 +233,13 @@ athelia/
 │   │   ├── checkpoints.json
 │   │   └── narrative_events.json
 │   │
-│   ├── narrative_scenes/           # ← NUEVO (Spike 1): un JSON por escena narrativa
-│   │   ├── test_scene_intro.json   # Escena de prueba desechable — eliminar antes de Spike 3
-│   │   ├── test_scene_success.json
-│   │   └── test_scene_failure.json
+│   ├── narrative_scenes/           # Un JSON por escena narrativa de contenido real
+│   │   # Spike 3, Grupo B — primer contenido real: 11 escenas de "Los Telmori"
+│   │   # (village_arrival, sheriff_briefing, equipment_arrows, equipment_spear,
+│   │   # hills_search_day1 + 3 intermedias por grado — nothing/tracks/mauled_sheep,
+│   │   # day2_approach, post_ambush_tracking, guarida_door). Ver
+│   │   # docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md para el detalle completo.
+│   │   # (Los JSON de prueba de Spike 1, más los de Spike 2, se eliminaron en Spike 3, Grupo A.)
 │   │
 │   ├── resources/                  # Definiciones de recursos
 │   │   ├── gold.tres
@@ -260,7 +271,9 @@ athelia/
 │   │       ├── dash.tres
 │   │       ├── lockpick.tres
 │   │       ├── perception.tres
-│   │       └── sprint.tres
+│   │       ├── search.tres         # Spike 3, Grupo B — skill.exploration.search (Buscar)
+│   │       ├── sprint.tres
+│   │       └── track.tres          # Spike 3, Grupo B — skill.exploration.track (Rastrear)
 │   │
 │   └── world_objects/              # Definiciones de objetos y loot tables
 │       ├── chest_01.tres
@@ -286,7 +299,9 @@ athelia/
 │   ├── spike_main_menu_informe_cierre.md
 │   ├── spike_character_creation_informe_cierre.md
 │   ├── spike_1_motor_narrativo_informe_cierre.md  # pivote hacia RPG narrativo, motor base
-│   └── spike_2_reglas_runequest_informe_cierre.md  # ← NUEVO: reglas de RuneQuest sobre el motor narrativo (seis puntos), moral/refuerzos en combate
+│   ├── spike_2_reglas_runequest_informe_cierre.md  # reglas de RuneQuest sobre el motor narrativo (seis puntos), moral/refuerzos en combate
+│   ├── spike_3_grupoA_motor_limpieza_informe_cierre.md  # moral dinámica, EnemyWorldLink, retirada de andamiaje Spike 1
+│   └── spike_3_grupoB_pueblo_guarida_informe_cierre.md  # ← NUEVO: primer contenido real, "Los Telmori" hasta la puerta de la guarida
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales
@@ -307,9 +322,15 @@ athelia/
 │   ├── character_creation.csv      # Textos de creación de personaje
 │   ├── character_creation.en.translation
 │   ├── character_creation.es.translation
-│   ├── narrative_scenes.csv        # ← NUEVO (Spike 1): textos de escenas narrativas (solo escena de prueba por ahora)
+│   ├── narrative_scenes.csv        # Textos de escenas narrativas (solo cabecera hasta Spike 3/B — claves de test de Spike 1/2 retiradas en Grupo A)
 │   ├── narrative_scenes.en.translation
-│   └── narrative_scenes.es.translation
+│   ├── narrative_scenes.es.translation
+│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B — CSV propio por aventura (22 claves)
+│   ├── narrative_scenes_telmori.en.translation
+│   ├── narrative_scenes_telmori.es.translation
+│   ├── characters_telmori.csv          # Spike 3, Grupo B — nombre/desc de telmori_warrior/wolf
+│   ├── characters_telmori.en.translation
+│   └── characters_telmori.es.translation
 │
 ├── scenes/                         # Escenas del juego
 │   ├── combat/
@@ -325,15 +346,19 @@ athelia/
 │   ├── exploration/                 # scripts COMPARTIDOS entre todas las zonas de exploración
 │   │   ├── exploration_test.tscn    # sandbox de desarrollo — nodo raíz debe llamarse "ExplorationScene" para que SceneOrchestrator._handle_exploration() lo reconozca al ejecutarlo suelto (F6); si no, intenta instanciar otra copia de la escena de producción encima y crashea ("Parent node is busy setting up children")
 │   │   ├── exploration_test.gd
-│   │   ├── exploration_controller.gd  # Input de exploración (interact, inventory, party, player_menu, F5/F9 quicksave/quickload) — incluye tecla F1 de debug temporal para probar NarrativeScene (Spike 1), a eliminar antes de Spike 3
+│   │   ├── exploration_controller.gd  # Input de exploración (interact, inventory, party, player_menu, F5/F9 quicksave/quickload) — tecla F1 de debug de Spike 1 retirada en Spike 3, Grupo A; Spike 3/B: _on_interaction_requested() gana el caso "narrative_scene" (ver Interactable abajo)
 │   │   ├── exploration_hud.gd
 │   │   ├── player_exploration.gd
 │   │   ├── companion_follow_node.gd
-│   │   ├── interactable.gd
+│   │   ├── interactable.gd            # interaction_type: "dialogue"/"shop"/"combat"/"item"/"narrative_scene" (el último, Spike 3/B — antes solo existía como tecla de debug temporal en Spike 1, ya retirada)
 │   │   │
-│   │   └── tutorial/                # primera zona de PRODUCCIÓN (mini-tutorial)
-│   │       ├── exploration_tutorial.tscn
-│   │       └── exploration_tutorial.gd
+│   │   ├── tutorial/                # zona de producción original (mini-tutorial) — OBSOLETA desde Spike 3/B, pendiente de retirar
+│   │   │   ├── exploration_tutorial.tscn
+│   │   │   └── exploration_tutorial.gd
+│   │   │
+│   │   └── telmori_village/         # ← NUEVO (Spike 3, Grupo B): primera zona de producción real
+│   │       ├── exploration_telmori_village.tscn
+│   │       └── exploration_telmori_village.gd
 │   │
 │   ├── player/                      # ⚠️ player.gd/player.tscn: código muerto, limpieza APARCADA
 │   │   ├── player.gd                #    (bloqueada por test/test_shop_ui.gd, que aún los referencia)
@@ -349,8 +374,11 @@ athelia/
 │
 ├── test/                           # Tests unitarios e integración
 │   ├── test_character_creation_viewmodel.gd  # 30 asserts, ViewModel aislado
+│   ├── test_narrative_scene_viewmodel.gd     # 23 asserts — fixtures en código (sin JSON ni NarrativeSceneDB), outcome_default, fallback de get_outcome_for_grade(), contador de racha
+│   ├── test_group_morale.gd                  # 11 asserts — reproduce los dos ejemplos numéricos de la base de moral dinámica, manipulando estado interno de GameLoop directamente
 │   ├── test_character_persistence.gd         # Roundtrip save/load de CharacterSystem
-│   └── [otros test_*.gd por sistema]          # NarrativeSceneViewModel no tiene test unitario todavía — candidato para Spike 2
+│   ├── test_narrative_system.gd              # Sistema de EVENTOS narrativos (NarrativeSystem/NarrativeDB) — NO el motor de escenas narrativas de Grupo B, fácil de confundir por el nombre
+│   └── [otros test_*.gd por sistema]
 │
 └── ui/                             # Componentes de interfaz de usuario
     ├── damage_number.gd
@@ -364,7 +392,7 @@ athelia/
     │   └── damage_number.tscn
     │
     ├── character_creation/         # Creación de personaje (patrón MVVM)
-    │   ├── character_creation_viewmodel.gd
+    │   ├── character_creation_viewmodel.gd  # Spike 3/B: kit inicial de skills leído de player_new.tres, ya no de una constante duplicada (STARTING_SKILL_VALUES, eliminada)
     │   ├── character_creation_screen.gd
     │   └── character_creation_screen.tscn
     │
@@ -396,7 +424,7 @@ athelia/
     │   └── option_button.tscn
     │
     ├── gameover/                   # Pantalla de Game Over
-    │   ├── game_over_ui.gd
+    │   ├── game_over_ui.gd         # Spike 3/B: _on_new_game_pressed() reinicia vía enter_main_menu()+enter_character_creation() (antes saltaba a exploration_test.tscn sin re-registrar al jugador)
     │   └── game_over_ui.tscn
     │
     ├── inventory/                  # Pantalla de inventario (patrón MVVM)
@@ -427,9 +455,9 @@ athelia/
     │   ├── main_menu_screen.gd
     │   └── main_menu_screen.tscn   # ← Main Scene del proyecto
     │
-    ├── narrative_scene/             # ← NUEVO (Spike 1): escena narrativa (patrón MVVM)
-    │   ├── narrative_scene_viewmodel.gd  # enum PanelState (no SceneState — colisiona con clase nativa)
-    │   ├── narrative_scene_panel.gd
+    ├── narrative_scene/             # Escena narrativa (patrón MVVM)
+    │   ├── narrative_scene_viewmodel.gd  # enum PanelState (no SceneState) — Spike 3/B: _apply_outcome() resuelve grant_item_*/combat_encounter, registra enemigos antes de start_combat()
+    │   ├── narrative_scene_panel.gd      # Spike 3/B: consume "streak_progress" (hueco abierto desde Spike 2); UIPanel anclado a tamaño fijo (bug de autowrap sin ancho)
     │   └── narrative_scene_panel.tscn
     │
     ├── party/                      # Pantalla de party (patrón MVVM)
@@ -486,11 +514,13 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 → TURN_END → ROUND_END → ROUND_START
 ```
 
-- La iniciativa se calcula al inicio del combate y determina el `turn_order`.
+- La iniciativa se calcula al inicio del combate y determina el `turn_order`. Se calcula una sola vez en `_calculate_initiative()`, llamada solo desde `start_combat()` — nunca se recalcula ronda a ronda.
 - Los companions actúan **después del jugador, antes de los enemigos**.
 - Un companion incapacitado permanece en `turn_order` pero `CompanionAI` skipea su turno.
 - Victoria: todos los enemigos muertos. Derrota: jugador muerto (los companions no evitan la derrota actualmente).
 - `start_combat()` acepta como estado de origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard explícito, independiente de `VALID_STATE_TRANSITIONS` — `start_combat()` transiciona directo con `_transition_game_state()`, no pasa por `request_state_change()`).
+- **Nota sobre `request_state_change()` (confirmado en Spike 3/B):** `DEFEAT` solo tiene transición válida hacia `EXPLORATION`/`MENU` — nunca directo a `CHARACTER_CREATION`. Cualquier flujo de reinicio de partida tras Game Over debe pasar por `enter_main_menu()` antes de `enter_character_creation()`, igual que el camino real de "Nueva Partida" desde el menú.
+- **Sorpresa de combate (Spike 3, Grupo B):** `CombatEncounterDefinition.surprise_favors` no toca `turn_order` ni `TurnPhase` — la estructura de fases ya obliga a jugador+companions a actuar antes que los enemigos cada ronda, así que reordenar iniciativa no tendría ningún efecto real. En su lugar, el bando sorprendido recibe el buff `staggered` ya existente en `CombatSystem` (pierde su primera acción) y, opcionalmente, `vulnerable` (`surprise_vulnerable_pct`, daño extra recibido). Lógica compartida en `GameLoopSystem._apply_surprise()`, llamada desde `start_combat()` y `configure_active_encounter()` — esta segunda ruta hace falta porque un combate disparado desde `ExplorationController` ya está en marcha antes de que se le adjunte el encounter. El `turns_left` del buff `vulnerable` es asimétrico: 2 si perjudica a jugador/companions (actúan antes en la ronda, necesitan sobrevivir a su propio tick), 1 si perjudica a enemigos (actúan al final, su tick ya llega después del ataque).
 
 ### Nomenclatura y organización de escenas de juego
 
@@ -508,9 +538,12 @@ scenes/exploration/
 ├── exploration_controller.gd    ← compartido
 ├── exploration_hud.gd           ← compartido
 ├── player_exploration.gd        ← compartido
-└── tutorial/                    ← una zona = una subcarpeta
-    ├── exploration_tutorial.tscn
-    └── exploration_tutorial.gd
+├── tutorial/                    ← una zona = una subcarpeta (OBSOLETA desde Spike 3/B)
+│   ├── exploration_tutorial.tscn
+│   └── exploration_tutorial.gd
+└── telmori_village/             ← NUEVO (Spike 3, Grupo B) — zona de producción real
+    ├── exploration_telmori_village.tscn
+    └── exploration_telmori_village.gd
 ```
 
 Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes/narrative/<evento>/`. El orden de progresión del jugador (qué zona sigue a cuál) debe vivir en datos (futuro registro de niveles/zonas), no en el nombre del archivo — un número no comunica contenido y se rompe al reordenar. Decidido en `docs/spike_produccion_post_character_creation_informe_cierre.md`.
@@ -524,8 +557,21 @@ Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes
 - Hay un problema de timing conocido con la tienda (el evento `shop_opened` se emite antes de que el overlay exista); se resuelve llamando directamente a `show_shop_direct()` con un snapshot del `EconomySystem`. **NarrativeScene no tiene este problema** — `NarrativeSceneDB.get_scene()` es una consulta local síncrona, así que `_handle_narrative_scene()` no necesita ningún `show_X_direct()` especial, el `scene_id` llega vía `_pending_context` igual que `dialogue_id`/`shop_id`.
 - El menú principal es la **Main Scene** del proyecto. `_handle_main_menu()` solo limpia overlays residuales; no instancia nada.
 - `_handle_character_creation()` usa `_show_overlay()` (igual que Shop/Inventory/Party) — importante: instanciarla manualmente contra `get_tree().root` sin pasar por `_show_overlay()` deja la escena huérfana de `_current_overlay`, y `_hide_current_overlay()` nunca la destruye al salir.
-- `_handle_exploration()` instancia `SCENE_EXPLORATION` si no existe ya en el árbol (comprobando por nombre de nodo `"ExplorationScene"`) — necesario para el flujo real Menú → Character Creation → Exploration, no solo para correr una escena de exploración de forma aislada. **`SCENE_EXPLORATION` apunta a `res://scenes/exploration/tutorial/exploration_tutorial.tscn`** (escena de producción) desde el spike de producción — `exploration_test.tscn` queda como sandbox de desarrollo, ya no en la ruta de producción. **Importante para pruebas manuales:** si ejecutas `exploration_test.tscn` suelto (F6), su nodo raíz debe llamarse literalmente `"ExplorationScene"` o esta búsqueda falla y el sistema intenta instanciar otra copia de la escena de producción encima, en medio del arranque del árbol (`add_child()` con "Parent node is busy setting up children").
-- `_handle_narrative_scene(scene_id)` — nuevo en Spike 1, calcado de `_handle_dialogue()`: `_hide_current_overlay()` → `_show_overlay(OVERLAY_NARRATIVE_SCENE)` → `open(scene_id)` en el overlay instanciado. Cierre vía `EventBus.narrative_scene_closed` → `_on_narrative_scene_closed()` → `GameLoop.enter_exploration()`, mismo patrón que `_on_shop_closed()`.
+- `_handle_exploration()` instancia `SCENE_EXPLORATION` si no existe ya en el árbol (comprobando por nombre de nodo `"ExplorationScene"`) — necesario para el flujo real Menú → Character Creation → Exploration, no solo para correr una escena de exploración de forma aislada. El nodo instanciado se **renombra** a `"ExplorationScene"` en el propio `_handle_exploration()`, independientemente del nombre que tenga el nodo raíz dentro del `.tscn` — así que el nombre interno del `.tscn` no tiene que coincidir. **Importante para pruebas manuales:** si ejecutas `exploration_test.tscn` suelto (F6), su nodo raíz debe llamarse literalmente `"ExplorationScene"` o esta búsqueda falla y el sistema intenta instanciar otra copia de la escena de producción encima, en medio del arranque del árbol (`add_child()` con "Parent node is busy setting up children").
+- **`SCENE_EXPLORATION` apunta ahora a `res://scenes/exploration/telmori_village/exploration_telmori_village.tscn`** (Spike 3, Grupo B) — antes apuntaba a `exploration_tutorial.tscn`, que queda obsoleta (pensada para un mundo 2D más amplio que ya no es el centro de la jugabilidad tras el pivote narrativo) y pendiente de retirar del proyecto.
+- `_handle_narrative_scene(scene_id)` — calcado de `_handle_dialogue()`: `_hide_current_overlay()` → `_show_overlay(OVERLAY_NARRATIVE_SCENE)` → `open(scene_id)` en el overlay instanciado. Cierre vía `EventBus.narrative_scene_closed` → `_on_narrative_scene_closed()` → `GameLoop.enter_exploration()`, mismo patrón que `_on_shop_closed()`.
+
+### Interactable — tipos de interacción (Spike 3, Grupo B)
+
+`Interactable.interaction_type` (`@export_enum`) admite 5 valores:
+
+| `interaction_type` | Efecto en `ExplorationController._on_interaction_requested()` |
+|---|---|
+| `"dialogue"` | `GameLoop.enter_dialogue(target_id)` |
+| `"shop"` | `GameLoop.enter_shop(target_id)` |
+| `"combat"` | Registra enemigos (`enemy_id → definition_id` leído de `Interactable.enemy_definitions`) y llama a `GameLoop.start_combat()` |
+| `"item"` | Recoge ítem vía `WorldObjectSystem`, sin cambio de `GameState` |
+| `"narrative_scene"` | `GameLoop.enter_narrative_scene(target_id)` — **nuevo en Spike 3/B**. Antes no existía ningún camino de producción para entrar en una escena narrativa desde exploración; la única vía que había existido nunca era una tecla de debug (F1) de Spike 1, ya retirada en Spike 3, Grupo A |
 
 ### Menú principal — Arquitectura
 
@@ -568,9 +614,20 @@ Estados del `CharacterCreationViewModel`: `ROLLING → ASSIGNING → NAMING → 
 
 Usa `data/characters/player_new.tres` (no `player_base.tres`, que es plantilla de test/debug con skillset completo pre-desbloqueado). `_create_player_entity()` registra la entidad en `Characters`, `Resources`, `Skills` (kit fijo explícito, no el catálogo completo), `Equipment` e `Inventory`, en un orden concreto: `Resources.register_entity()` debe preceder a `set_base_attribute()`, porque este último dispara `ModifierApplicator` de forma síncrona y necesita que `ResourceSystem` ya conozca a la entidad.
 
+**Spike 3, Grupo B — el kit fijo de skills se lee de la propia `CharacterDefinition`.** Antes, `_create_player_entity()` registraba el kit vía una constante hardcodeada (`STARTING_SKILL_VALUES`) duplicada e independiente de `player_new.tres` — al añadir skills nuevas al `.tres` sin tocar la constante, `SkillSystem` nunca las registraba (aunque `CharacterState.skill_values`, que sí lee del `.tres` directamente, funcionaba bien — de ahí que las tiradas resolvieran con % correcto pero `SkillSystem.get_skill_instance()` fallara al terminar combate). Eliminada la constante; ahora se lee `chars.get_definition(PLAYER_DEFINITION_ID).skills`.
+
 Ver `docs/spike_character_creation_informe_cierre.md` para el detalle completo.
 
-### Exploration Tutorial — Arquitectura (primera escena de exploración de producción)
+### Skills — dos sistemas paralelos de valores (aclarado en Spike 3, Grupo B)
+
+Dos accesores distintos para lo que parece "lo mismo", sin relación entre sí:
+
+- **`CharacterState.skill_values`** (vía `Characters.get_skill_value()` / `Characters.list_known_skills()`) — se inicializa desde `CharacterDefinition.starting_skill_values` dentro de `CharacterState.new(definition)`, en el propio `register_entity()`. Es lo que leen tanto combate como las tiradas narrativas para resolver el % de una tirada.
+- **`SkillSystem._entity_skills`** (vía `Skills.get_skill_instance()` / `Skills.register_entity_skills()`) — registro separado, una sola vez (`register_entity_skills()` tiene guard de registro único: `if _entity_skills.has(entity_id): return`), usado solo para desbloqueo (`is_unlocked`) y conteo de progresión (`SkillProgressionService._process_improvement_rolls()` itera `list_known_skills()` pero busca la instancia aquí).
+
+Si el registro de `SkillSystem` no incluye una skill que sí aparece en `list_known_skills()` (porque se pasó una lista distinta a `register_entity_skills()`), el síntoma es un aviso de `SkillSystem` ("Skill not found for entity") al terminar combate, sin que las tiradas en sí se vean afectadas — fácil de pasar por alto. Tanto `CharacterCreationViewModel` (jugador) como `PartyManager._register_in_systems()` (companions) deben pasar `definition.skills` explícitamente a `register_entity_skills()`, nunca una lista propia ni el array vacío por defecto (que registra el catálogo entero).
+
+### Exploration Tutorial — Arquitectura (OBSOLETA desde Spike 3, Grupo B)
 
 ```
 ExplorationTutorial (Node2D)              ← script: exploration_tutorial.gd
@@ -590,13 +647,45 @@ ExplorationTutorial (Node2D)              ← script: exploration_tutorial.gd
     │   └── Sprite2D
 ```
 
+Pensada originalmente para enseñar mecánicas de un mundo 2D más amplio que dejó de ser el centro de la jugabilidad tras el pivote narrativo. `SCENE_EXPLORATION` ya no apunta aquí (ver `Telmori Village` abajo) — pendiente de retirar del proyecto.
+
 **A diferencia de `exploration_test.gd`, esta escena NO registra al jugador** — asume que `CharacterCreationViewModel._create_player_entity()` ya lo dejó registrado en `Characters`/`Resources`/`Skills`/`Equipment`/`Inventory` antes de que `GameLoop.enter_exploration()` la cargue. Sí registra los `WorldObjects` propios de la zona (`WorldObjectSystem.register_instance()`, `WorldObjectBridge`, `WorldObjectInteractionPanel`).
 
 **Convención de colisión para objetos de mundo sólidos:** todo objeto interactuable necesita **dos** cuerpos separados — `Interactable` (`Area2D`, detección de proximidad/prompt) y un `StaticBody2D` adicional (bloqueo físico). Un `Area2D` nunca bloquea movimiento por diseño de Godot; ambos roles no deben mezclarse en el mismo nodo.
 
 Ver `docs/spike_produccion_post_character_creation_informe_cierre.md` para el detalle completo (bugs corregidos, hallazgos aparcados).
 
-### Narrative Scene — Arquitectura (Spike 1, motor base del pivote hacia RPG narrativo)
+### Telmori Village — Arquitectura (Spike 3, Grupo B — escena de producción real)
+
+```
+TelmoriVillage (Node2D)                   ← script: exploration_telmori_village.gd
+├── ExplorationController (Node)          ← compartido
+├── ExplorationHUD (CanvasLayer)          ← compartido
+├── World (Node2D)                        ← vacío, sin arte todavía
+├── Player (CharacterBody2D, grupo "player")
+│   ├── CollisionShape2D
+│   ├── InteractRange (Area2D)
+│   ├── Personaje (Sprite2D)
+│   └── Camera2D
+└── WorldObjects (Node2D)
+    └── TrailSpawnPoint (Marker2D)        ← posición del rastro de continuación tras la emboscada
+```
+
+Igual que `ExplorationTutorial`, no registra al jugador (ya lo hace Character Creation). Sin `WorldObjectBridge`/panel — no hay ningún `WorldObject` real todavía en esta escena.
+
+Dos cosas propias, al entrar (`_ready()`):
+1. Dispara `telmori_village_arrival` automáticamente, guardado por `flag.telmori_village_visited` (para no repetirse en visitas posteriores).
+2. Añade a `companion_mira` al grupo (`Party.join_party()`) y equipa a jugador+companion (`Equipment.equip_item()` directo, sin pasar por `ItemCharacterBridge` — ese camino es para cuando el jugador usa un ítem desde la UI, no para setup por código).
+
+Escucha `EventBus.combat_ended` para la reconexión narrativa tras la emboscada (ver más abajo).
+
+### Reconexión narrativa tras combate (Spike 3, Grupo B)
+
+Un combate disparado desde una escena narrativa (`NarrativeSceneOutcome.combat_encounter`) cierra el panel y, al terminar, vuelve a `EXPLORATION` como cualquier otro combate — pero no hay ningún camino directo de vuelta a la escena narrativa. Resuelto sin extender `VALID_STATE_TRANSITIONS` ni tocar el contrato de victoria: al ganar, se spawnea dinámicamente un `Node2D` con un `Interactable` (`interaction_type = "narrative_scene"`) en la escena de exploración — mismo patrón que ya usa `_on_combat_loot_bag_spawned()` para la bolsa de loot, sin pasar por `WorldObjectSystem` (no hace falta tirada de habilidad ni loot table para esto).
+
+`InteractionOutcome.narrative_event_id` no sirve para esto — dispara `NarrativeSystem.apply_event()` (el sistema de eventos/checkpoints), no `GameLoop.enter_narrative_scene()` (el motor de escenas narrativas). Dos sistemas narrativos distintos en el proyecto, fácil de confundir.
+
+### Narrative Scene — Arquitectura (motor base del pivote hacia RPG narrativo)
 
 Sigue el patrón MVVM estándar. Vive fuera de `core/narrative/` deliberadamente — ese paquete (`NarrativeSystem`/`CheckpointSystem`) gestiona hitos recordados; `core/narrative_scenes/` resuelve "qué nodo se muestra ahora", responsabilidad distinta. Sin "system" runtime propio: `NarrativeSceneDB` es una consulta local síncrona sobre datos cargados de JSON, sin estado — el progreso por una escena vive enteramente en `NarrativeSceneViewModel`.
 
@@ -612,7 +701,14 @@ NarrativeScenePanel (CanvasLayer)
 
 Estados del `NarrativeSceneViewModel`: `HIDDEN → SHOWING ↔ WAITING_ROLL → TRANSITIONING → HIDDEN` (`WAITING_ROLL` reservado, no se emite todavía — `SkillRoller.roll_skill()` es síncrono, sin ventana real de espera en Spike 1).
 
-Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `NarrativeSceneOutcome`, todos Resource en fichero propio, no clases internas): una opción sin `skill_id` resuelve directo por `outcome_default`; con `skill_id`, tira contra `Characters.get_skill_value(entity_id, skill_id) + roll_modifier` vía `SkillRoller.roll_skill()`, y el grado de resultado (`FUMBLE`/`FAILURE`/`SUCCESS`/`SPECIAL`/`CRITICAL` desde Spike 2) determina qué `NarrativeSceneOutcome` aplicar (con fallback: fumble→failure, special→success, critical→success si no están definidos). Un outcome puede: cerrar la escena, encadenar a otro `next_scene_id`, marcar un flag vía `Narrative.set_flag()`, o disparar combate vía `GameLoop.start_combat(enemy_ids)`.
+Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `NarrativeSceneOutcome`, todos Resource en fichero propio, no clases internas): una opción sin `skill_id` resuelve directo por `outcome_default`; con `skill_id`, tira contra `Characters.get_skill_value(entity_id, skill_id) + roll_modifier` vía `SkillRoller.roll_skill()`, y el grado de resultado (`FUMBLE`/`FAILURE`/`SUCCESS`/`SPECIAL`/`CRITICAL` desde Spike 2) determina qué `NarrativeSceneOutcome` aplicar (con fallback: fumble→failure, special→success, critical→success si no están definidos). Un outcome puede: cerrar la escena, encadenar a otro `next_scene_id`, marcar un flag vía `Narrative.set_flag()`, disparar combate vía `GameLoop.start_combat(enemy_ids)`, u **otorgar un ítem** (Spike 3/B, ver abajo).
+
+**Spike 3, Grupo B — `NarrativeSceneOutcome` extendido:**
+- `combat_encounter: CombatEncounterDefinition` (opcional, null por defecto) — se pasa directo a `start_combat()`, sustituye la necesidad de `configure_active_encounter()` para este caso.
+- `combat_enemy_definitions: Dictionary` (enemy_id → definition_id, mismo formato que `Interactable.enemy_definitions`) — necesario porque un combate disparado desde narrativa no tiene ningún `Interactable` del que leer este mapeo. Sin él, los enemigos nunca se registrarían en `CharacterSystem`/`ResourceSystem` antes de `start_combat()`.
+- `grant_item_id` / `grant_item_quantity` / `grant_item_target` — entrega puntual de un ítem, resuelto vía `Inventory.add_item()`. `grant_item_target` es configurable en el JSON (por defecto `"player"`), pensado para poder entregar a un companion.
+
+`_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
 
 Cierre desacoplado: `NarrativeSceneViewModel` no llama a `GameLoop` directamente al terminar una rama — emite `EventBus.narrative_scene_closed(scene_id)`, y `SceneOrchestrator._on_narrative_scene_closed()` decide volver a `EXPLORATION`. Mismo patrón que `dialogue_ended`/`shop_closed`. Cuando el outcome dispara combate, no hay paso intermedio por `EXPLORATION`: `GameLoop.start_combat()` acepta `NARRATIVE_SCENE` como estado de origen directamente.
 
@@ -621,18 +717,41 @@ Ver `docs/spike_1_motor_narrativo_informe_cierre.md` para el detalle completo de
 ### Spike 2 — Reglas de RuneQuest para el Motor Narrativo (seis de seis puntos cerrados)
 
 Las seis piezas que Spike 1 dejó diferidas quedan implementadas y validadas.
-Ninguna toca contenido real de "Los Telmori" (eso sigue siendo Spike 3).
+Ninguna toca contenido real de "Los Telmori" (eso llegó en Spike 3, Grupos A y B).
 
 1. **Grado "especial"** — `SkillRoller.RollResult` pasa a 5 grados. `CRITICAL` y `SPECIAL` son dinámicos (`skill/20`, `skill/5`, fórmulas RuneQuest clásicas), `FUMBLE` se queda absoluto. En combate, `SPECIAL` aplica un multiplicador de daño propio (x1.2, vs x2 de crítico) vía `special_multiplier` en el effect. Cuenta como `"success"` en progresión, sin tick diferenciado.
 2. **Progresión de skill narrativa** — `NarrativeSceneOption.challenge_level: int` (0 = sin progresión, opt-in explícito) engancha a `SkillProgression.execute_learning_session()` con `SourceType.NARRATIVE`, gateado en éxito, nunca vía `notify_skill_outcome()` (hard-gated a combate).
-3. **Tiradas acumulativas** — `NarrativeSceneOption.required_successes`/`retry_policy` (`"immediate"`/`"blocked"`). El contador de racha vive en `NarrativeSceneViewModel`, nunca en `NarrativeSceneDB` ni en la propia `NarrativeSceneOption`. Una pifia siempre transiciona, ignorando `retry_policy`. La progresión solo se intenta al completar la racha entera, nunca en un éxito parcial.
+3. **Tiradas acumulativas** — `NarrativeSceneOption.required_successes`/`retry_policy` (`"immediate"`/`"blocked"`). El contador de racha vive en `NarrativeSceneViewModel`, nunca en `NarrativeSceneDB` ni en la propia `NarrativeSceneOption`. Una pifia siempre transiciona, ignorando `retry_policy`. La progresión solo se intenta al completar la racha entera, nunca en un éxito parcial. `changed("streak_progress")` expone `streak_current`/`streak_required`/`streak_option_id` — **la View no lo consumía hasta Spike 3, Grupo B** (ver antipatrón correspondiente en `athelia_ui_architecture.md`).
 4. **Tiradas agregadas de grupo** — `NarrativeSceneOption.group_aggregate` (`""`/`"worst"`/`"best"`). Sin tabla de resistencia real (decisión de coste-beneficio): la oposición se codifica en `roll_modifier`, no en un valor de NPC calculado por el motor. Sin cambios en `PartyManager` — la agregación vive en el ViewModel. Si hay progresión, cada miembro del grupo intenta su propia mejora de forma independiente.
 5. **Modificadores dinámicos** — cerrado sin código: `roll_modifier` (Spike 1) ya cubre el caso narrativo. El caso de combate (multiplicativo, ej. "mitad de puntería en oscuridad") se aplaza a Spike 3.
-6. **Moral y refuerzos cronometrados** — fichero nuevo `core/combat/combat_encounter_definition.gd` (Resource), parámetro opcional en `GameLoopSystem.start_combat(enemy_ids, encounter = null)`. Moral de **grupo** (no individual): los enemigos supervivientes huyen juntos cuando el HP total del grupo cae bajo `morale_threshold_pct`, vía una señal nueva (`enemy_group_fled`) que nunca pasa por `character_died` (sin loot, sin animación de muerte). Refuerzos genéricos vía `reinforcement_trigger`/`reinforcement_delay_rounds`, disparables por cualquier sistema con `GameLoop.trigger_combat_event()`. `GameLoopSystem.configure_active_encounter()` permite adjuntar un encuentro a un combate ya en marcha (necesario porque `ExplorationController` arranca combate sin pasar ningún encuentro).
+6. **Moral y refuerzos cronometrados** — fichero nuevo `core/combat/combat_encounter_definition.gd` (Resource), parámetro opcional en `GameLoopSystem.start_combat(enemy_ids, encounter = null)`. Moral de **grupo** (no individual): los enemigos supervivientes huyen juntos cuando el HP total del grupo cae bajo `morale_threshold_pct`, vía una señal nueva (`enemy_group_fled`) que nunca pasa por `character_died` (sin loot, sin animación de muerte). Refuerzos genéricos vía `reinforcement_trigger`/`reinforcement_delay_rounds`, disparables por cualquier sistema con `GameLoop.trigger_combat_event()`. `GameLoopSystem.configure_active_encounter()` permite adjuntar un encuentro a un combate ya en marcha (necesario porque `ExplorationController` arranca combate sin pasar ningún encuentro — y, desde Spike 3/B, también necesario para que la sorpresa se aplique en ese camino).
 
 **Hallazgos de GDScript reutilizables fuera de este spike:** un `match` sin rama `_:` no avisa si le falta un caso al crecer un enum (encontrado en `SkillRoller._is_success()`, que habría tratado un `SPECIAL` como fallo en combate); un array indexado directamente por el valor entero de un enum (`LearningSession._to_string()`) se sale de rango en silencio si el enum crece sin ampliar el array. Ambos son el mismo tipo de riesgo en dos formas distintas: cualquier extensión de un enum obliga a repasar *todos* sus consumidores, no solo los que parecen relevantes a simple vista.
 
 Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo, decisión por decisión, y la validación realizada en cada punto.
+
+### Spike 3, Grupo A — Motor y limpieza (los tres puntos de alcance cerrados)
+
+Grupo deliberadamente aislado del contenido de "Los Telmori" (Grupos B/C/D) — solo motor y retirada de andamiaje de Spike 1. Sin cambios al contrato MVVM ni a ningún patrón de arquitectura UI.
+
+1. **Moral con base dinámica** — la limitación explícita que dejó Spike 2 (base de moral fija, capturada solo al iniciar combate) queda resuelta. `GameLoopSystem._group_initial_max_hp` se renombra a `_group_morale_base_hp` (deja de ser "inicial") y se añade `_group_morale_base_dirty: bool`. Al llegar un refuerzo (`_spawn_reinforcements()`), la base no se recalcula ahí mismo — el refuerzo puede no estar registrado todavía en `ResourceSystem` (su registro lo hace la escena en respuesta a `reinforcement_spawned`, fuera de control de `GameLoopSystem`) — sino que se marca `_group_morale_base_dirty = true`. La recalculación real ocurre en la siguiente llamada a `_check_group_morale()` (que solo se dispara cuando muere alguien, vía `_check_combat_conditions()` — nunca golpe a golpe), y reutiliza el mismo `current_total_hp` que ya calcula el propio chequeo de umbral: como un refuerzo recién llegado tiene HP actual = HP máximo, ese total ya *es* "HP de supervivientes + HP máximo del refuerzo" sin necesidad de resolverlo por separado. `_check_combat_conditions()` no cambia su frecuencia de evaluación. Validado exactamente contra los dos ejemplos numéricos de la spec del grupo (500→400→refuerzo 100→base 500→umbral 200; 350→refuerzo 100→base 450→umbral 180) — ver `test/test_group_morale.gd`.
+2. **Hueco genérico de limpieza en mundo** — nuevo autoload `EnemyWorldLink` (`core/combat/enemy_world_link.gd`). Escucha `EventBus.enemy_group_fled` (que ya llevaba los `entity_ids` desde Spike 2, sin cambio de firma) y, por cada uno, invoca un `Callable` de limpieza si alguien lo registró vía `register_fled_cleanup(entity_id, cleanup)` — no-op si nadie lo hizo. No conoce `WorldObjectSystem` ni ningún tipo de representación concreta: quien registra decide qué significa "limpiar". Sin ningún caso de uso real todavía en el propio grupo — lo ejerció la emboscada de Grupo B.
+3. **Limpieza de Spike 1** — eliminados sin más: tecla F1 y `_debug_test_narrative_scene()` de `exploration_controller.gd`, los 5 JSON de `data/narrative_scenes/test_scene_*.json` (intro/success/failure de Spike 1, streak/group_check de Spike 2), y las claves `TEST_NARRATIVE_*` de `narrative_scenes.csv` (queda solo la cabecera). El hueco de test pendiente para `NarrativeSceneViewModel` se resuelve con `test/test_narrative_scene_viewmodel.gd`: fixtures de `NarrativeSceneDefinition`/`Option`/`Outcome` construidos en código con `new()`, sin JSON ni `NarrativeSceneDB`.
+
+**Hallazgo de GDScript nuevo (Spike 3, Grupo A):** un enum anidado en otra clase vía `class_name` (p. ej. `GameLoopSystem.GameState`) no se puede usar de forma fiable como anotación de tipo explícita en una variable (`var x: GameLoopSystem.GameState`) en esta versión de GDScript — falla con "Could not find type... in the current scope" incluso cuando la misma ruta funciona perfectamente como valor (`as GameLoopSystem.GameState` sin tipar, o dentro de un `match`). Además, si el propio script `class_name` tiene un error de compilación en cualquier punto — o su contenido se sobrescribe por error con el de otro fichero —, su nombre de clase global deja de resolverse en *todo* el proyecto, y el síntoma es "Identifier not declared" en decenas de ficheros no relacionados con la causa real. Solución práctica: no anotar el tipo del enum anidado, trabajar con `int` a secas.
+
+Ver `docs/spike_3_grupoA_motor_limpieza_informe_cierre.md` para el detalle completo.
+
+### Spike 3, Grupo B — Del pueblo a la puerta de la guarida
+
+Primer contenido real del pivote narrativo: 11 escenas de "Los Telmori", desde el gancho del sheriff hasta la puerta de la guarida, jugable de principio a fin. Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo (diseño de los cinco puntos de alcance, hallazgos de motor corregidos, contenido de datos creado). Resumen de lo más relevante a nivel de motor:
+
+- `NarrativeSceneOutcome` extendido con `combat_encounter`, `combat_enemy_definitions` y `grant_item_id/quantity/target`.
+- `CombatEncounterDefinition.surprise_favors`/`surprise_vulnerable_pct` — sorpresa de combate implementada vía el buff `staggered`/`vulnerable` ya existente, sin tocar `turn_order` ni `TurnPhase` (la estructura de fases ya obliga a jugador+companions a actuar antes que los enemigos, reordenar iniciativa no tendría efecto).
+- Nuevo `interaction_type` `"narrative_scene"` en `Interactable` — antes no existía ningún camino de producción para entrar en una escena narrativa desde exploración (solo una tecla de debug de Spike 1, ya retirada en Grupo A).
+- Corregidos dos bugs de cuelgue de turno (`STAGGERED`/`DISARMED` en `CombatSystem._on_execute_combat_action()` no emitían `player_action_completed`), uno de registro de enemigos en combate disparado desde narrativa, uno de reinicio tras Game Over, uno de dimensionado del panel narrativo, y uno de doble sistema de valores de skill desincronizado entre `CharacterState` y `SkillSystem` (`STARTING_SKILL_VALUES` hardcodeado en `CharacterCreationViewModel`, ahora lee de la propia `CharacterDefinition`).
+- `SCENE_EXPLORATION` apunta a la nueva `exploration_telmori_village.tscn`, primera zona de producción real.
+- Convención nueva: carpeta por aventura para personajes/ítems específicos (`data/characters/telmori/`, `data/items/telmori/`) y para localización (`_telmori.csv`), salvo ítems de arma con ranura, que siguen agrupándose por tipo de arma.
 
 ### Persistencia de personaje — CharacterSystem ↔ SaveSystem
 
@@ -653,7 +772,7 @@ El target de un modificador sigue el formato `tipo.id`:
 
 Operaciones soportadas: `add`, `mul`, `override`.
 
-Los ítems de tipo `EQUIPMENT` delegan a `EquipmentManager.toggle_equipment()` (equipa si no está equipado, desequipa si lo está).
+Los ítems de tipo `EQUIPMENT` delegan a `EquipmentManager.toggle_equipment()` (equipa si no está equipado, desequipa si lo está) — este es el camino para cuando el **jugador** usa un ítem desde la UI. Para equipar por código (setup inicial, NPCs, etc.), `Equipment.equip_item(entity_id, item_id)` es directo y no exige que el ítem esté en el inventario (aunque añadirlo también, vía `Inventory.add_item()`, mantiene la coherencia si se desequipa más tarde).
 
 Los libros de aprendizaje (`learning_data` en `ItemDefinition`) crean una `LearningSession` y delegan a `SkillProgression`. Pueden tener también modificadores de recurso adicionales.
 
@@ -662,7 +781,7 @@ Los libros de aprendizaje (`learning_data` en `ItemDefinition`) crean una `Learn
 Todos los componentes de UI deben usar el Design System centralizado:
 
 - **UITokens** (autoload): Define colores, espaciado y tamaños centralizados
-- **UIPanel**: PanelContainer con estilos consistentes
+- **UIPanel**: PanelContainer con estilos consistentes — **debe anclarse a un tamaño explícito** cuando contiene texto largo (ver antipatrón nuevo en `athelia_ui_architecture.md`, Spike 3/B); sin anclaje se dimensiona al contenido y puede desbordar la ventana
 - **UIButton**: Button con variants (PRIMARY, SECONDARY, etc.) y tamaños
 - **UISlot**: Slot de inventario/equipo con drag & drop
 - **UIResourceBar**: Barra de recurso (vida, stamina) con valores actuales/máximos
@@ -709,7 +828,7 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 
 **Bug conocido, sin resolver:** F9 (quickload) en una sesión activa ya en `EXPLORATION` (a diferencia de "Cargar Partida" desde el menú, que sí funciona) provoca un bloqueo total de input — ni movimiento ni menús responden, sin errores en Output/Debugger. Se descartaron como causa: bloqueo por `GameState` (`SAVE_TRANSITION` nunca se dispara en el proyecto), `get_tree().paused`, captura de input por `WorldObjectInteractionPanel`, y pérdida de foco de ventana. Causa raíz aún no confirmada — ver `docs/spike_produccion_post_character_creation_informe_cierre.md`.
 
-**Spike 1 Motor Narrativo añadió F1** como tecla de debug temporal en `_unhandled_input()` para disparar `GameLoop.enter_narrative_scene("test_intro")` — desechable, a eliminar antes de Spike 3. No usa InputMap (tecla física directa vía `event.keycode == KEY_F1`) para no dejar una acción huérfana en Project Settings tras borrarla.
+**Spike 1 Motor Narrativo añadió F1** como tecla de debug temporal en `_unhandled_input()` para disparar `GameLoop.enter_narrative_scene("test_intro")` — retirada en Spike 3, Grupo A junto con `_debug_test_narrative_scene()` y las escenas de prueba asociadas.
 
 ---
 
@@ -726,9 +845,15 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Main Scene del proyecto:** `res://ui/main_menu/main_menu_screen.tscn`
 - **Autoreferencia por `class_name`:** un script con `class_name X` nunca debe llamar `X.new()` dentro de sí mismo (p. ej. en un factory `from_dict()` estático) — GDScript no lo resuelve de forma fiable y provoca fallos de compilación en cascada que además rompen la resolución del tipo desde otros ficheros. Usar `new()` a secas.
 - **Nombres de enum reservados:** nunca nombrar un enum propio `SceneState` — colisiona con una clase nativa del motor.
+- **Datos específicos de una aventura (Spike 3, Grupo B):** personajes e ítems propios de una aventura concreta van en su propia subcarpeta por aventura (`data/characters/telmori/`, `data/items/telmori/`), no planos en la raíz de su categoría — salvo ítems de tipo arma con ranura, que se agrupan por tipo de arma por encima de la aventura (`data/items/weapons/<slot>/`). Skills se quedan sin carpeta de aventura al ser categorías generales. Mismo criterio para localización: un CSV propio por aventura (`_telmori.csv`) en vez de añadir al fichero general de la categoría.
+- **Kit fijo de skills, siempre desde la `CharacterDefinition`:** nunca duplicar la lista de skills iniciales de una entidad en el código que la registra (ViewModel, PartyManager...) — leer siempre `definition.skills` en el momento de registrar. Una copia paralela se desincroniza en cuanto se edita el `.tres` sin acordarse de la copia.
 
 ---
 
-*Última actualización: Spike 2 — Reglas de RuneQuest para el Motor Narrativo (seis de seis puntos del alcance cerrados y validados) — `SkillRoller.RollResult` a 5 grados con `CRITICAL`/`SPECIAL` dinámicos (skill/20, skill/5); progresión de skill narrativa vía `SourceType.NARRATIVE`; tiradas acumulativas con contador de racha en el ViewModel; tiradas agregadas de grupo sin tabla de resistencia (oposición codificada en `roll_modifier`); moral de grupo y refuerzos cronometrados en combate vía `CombatEncounterDefinition` (nuevo, opcional en `start_combat()`) y `GameLoopSystem.configure_active_encounter()`. Modificador dinámico multiplicativo de combate aplazado a Spike 3 por falta de caso real. Dos hallazgos de GDScript reutilizables: un `match` sin rama `_:` y un array indexado por enum no avisan si el enum crece sin revisar todos sus consumidores. Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo.
+*Última actualización: Spike 3, Grupo B — Del pueblo a la puerta de la guarida (los cinco puntos de alcance cerrados y validados en partida completa) — otorgar-ítem y combate opcional en `NarrativeSceneOutcome`; sorpresa de combate vía buffs existentes sin tocar turn_order; investigación por capas y rastreo acumulativo sobre contenido real; nuevo `interaction_type` "narrative_scene"; primera escena de exploración de producción real (`exploration_telmori_village`); varios bugs de motor preexistentes encontrados y corregidos (cuelgues de turno en STAGGERED/DISARMED, registro de enemigos en combate narrativo, reinicio tras Game Over, panel narrativo sin tamaño fijo, doble sistema de skills desincronizado). Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 3, Grupo A — Motor y limpieza (los tres puntos del alcance cerrados y validados) — moral de grupo con base dinámica (`_group_morale_base_hp`, recalculada al llegar un refuerzo, nunca golpe a golpe, validada contra los dos ejemplos numéricos de la spec en `test/test_group_morale.gd`); nuevo autoload `EnemyWorldLink` como hueco genérico de limpieza para enemigos que huyen; retirada completa del andamiaje de Spike 1 (tecla F1, JSON de prueba, claves de localización de test) con su hueco de test cubierto en `test/test_narrative_scene_viewmodel.gd` (fixtures en código, sin JSON ni registry). Un hallazgo de GDScript nuevo: un enum anidado en otra clase no se puede anotar como tipo explícito de forma fiable, y un fallo de compilación (o una sobrescritura accidental) en el script dueño de un `class_name` se manifiesta como "Identifier not declared" en cualquier fichero que lo consuma, no en el fichero real con el problema. Ver `docs/spike_3_grupoA_motor_limpieza_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 2 — Reglas de RuneQuest para el Motor Narrativo (seis de seis puntos del alcance cerrados y validados) — `SkillRoller.RollResult` a 5 grados con `CRITICAL`/`SPECIAL` dinámicos (skill/20, skill/5); progresión de skill narrativa vía `SourceType.NARRATIVE`; tiradas acumulativas con contador de racha en el ViewModel; tiradas agregadas de grupo sin tabla de resistencia (oposición codificada en `roll_modifier`); moral de grupo y refuerzos cronometrados en combate vía `CombatEncounterDefinition` (nuevo, opcional en `start_combat()`) y `GameLoopSystem.configure_active_encounter()`. Modificador dinámico multiplicativo de combate aplazado a Spike 3 por falta de caso real. Dos hallazgos de GDScript reutilizables: un `match` sin rama `_:` y un array indexado por enum no avisan si el enum crece sin revisar todos sus consumidores. Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo.
 
 *Última actualización anterior: Spike 1 Motor Narrativo (pivote hacia RPG narrativo) — nuevo sistema `core/narrative_scenes/` + `ui/narrative_scene/` (patrón MVVM, sin system runtime propio, solo registry síncrono), `GameState.NARRATIVE_SCENE` añadido a GameLoop con integración de combate y cierre desacoplado vía EventBus, escena de prueba desechable y tecla de debug F1 temporal en ExplorationController. Dos lecciones de GDScript registradas (self-reference por class_name, colisión de SceneState con clase nativa) y una de testing (nodo raíz "ExplorationScene" requerido para ejecutar exploration_test.tscn suelto). Spike Producción Post-Character-Creation (Grupo A) — escena de exploración de producción (`exploration_tutorial.tscn`), registro en frío de Resources/Skills en `load_game()`, nombre de personaje visible en PlayerMenuScreen. Pendientes abiertos: posición no restaurada en arranque en frío, bloqueo de input tras F9 en caliente, limpieza de `player.gd` aparcada. Godot 4.7.1.*

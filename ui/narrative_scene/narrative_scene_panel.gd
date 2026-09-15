@@ -38,11 +38,22 @@ func _on_vm_changed(reason: String) -> void:
 	match reason:
 		"opened", "node_changed":
 			_render_node()
+		"streak_progress":
+			_render_streak_progress()
 		"closed":
 			visible = false
 		_:
 			push_warning("[NarrativeScenePanel] Razón desconocida: %s" % reason)
 
+## Spike 2 dejó esto expuesto en el ViewModel (streak_current/streak_required)
+## sin consumidor en la View — se cierra ahora. Solo añade el progreso al
+## texto ya renderizado del nodo actual, sin tocar imagen ni opciones (no
+## cambian entre intentos de la misma racha).
+func _render_streak_progress() -> void:
+	var node := _vm.current_node
+	if not node:
+		return
+	scene_text.text = tr(node.text_key) + "\n\n(%d/%d)" % [_vm.streak_current, _vm.streak_required]
 
 func _render_node() -> void:
 	var node := _vm.current_node

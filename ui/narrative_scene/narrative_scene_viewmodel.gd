@@ -248,16 +248,28 @@ func _find_option(option_id: String) -> NarrativeSceneOption:
 			return option
 	return null
 
+# PATCH — narrative_scene_viewmodel.gd
+#
+# Reemplaza el método _apply_outcome() completo por esta versión. Dos
+# cambios: (1) otorgar ítem, independiente de si el outcome también
+# encadena escena o dispara combate; (2) combat_encounter se pasa a
+# start_combat() en vez de omitirse — null por defecto, mismo
+# comportamiento que antes si el outcome no lo usa.
 
 func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 	if not outcome:
 		push_error("[NarrativeSceneViewModel] Outcome nulo — cerrando escena por seguridad")
 		_close()
 		return
-
+ 
 	if not outcome.flag_to_set.is_empty():
 		Narrative.set_flag(outcome.flag_to_set)
-
+ 
+	# Spike 3, Grupo B — otorgar ítem: entrega puntual, independiente de si
+	# el outcome además dispara combate o encadena a otra escena.
+	if not outcome.grant_item_id.is_empty():
+		Inventory.add_item(outcome.grant_item_target, outcome.grant_item_id, outcome.grant_item_quantity)
+ 
 	if not outcome.combat_enemy_ids.is_empty():
 		# GameLoop.start_combat() ya acepta NARRATIVE_SCENE como estado de
 		# origen — no hace falta pasar por EXPLORATION antes.
@@ -266,14 +278,47 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 		# hace con Shop/Dialogue.
 		state = PanelState.TRANSITIONING
 		changed.emit("closed")
-		GameLoop.start_combat(outcome.combat_enemy_ids)
+ 
+		_register_combat_enemies(outcome.combat_enemy_ids, outcome.combat_enemy_definitions)
+ 
+		var loot_spawner = get_node_or_null("/root/CombatLootSpawner")
+		if loot_spawner:
+			loot_spawner.register_combat_enemies(outcome.combat_enemy_definitions)
+ 
+		# Spike 3, Grupo B — combat_encounter es opcional (null = comportamiento
+		# idéntico a antes de este punto, sin moral/refuerzos/sorpresa).
+		GameLoop.start_combat(outcome.combat_enemy_ids, outcome.combat_encounter)
 		return
-
+ 
 	if outcome.next_scene_id.is_empty():
 		_close()
 	else:
 		_load_scene(outcome.next_scene_id, "node_changed")
-
+ 
+ 
+## Réplica deliberada de ExplorationController._register_combat_enemies()
+## — ver nota arriba. Registra cada enemigo en CharacterSystem (para que
+## _calculate_initiative() lo encuentre) y en ResourceSystem con 50.0 HP
+## fijo, igual que el camino de combate desde exploración.
+func _register_combat_enemies(enemy_ids: Array[String], definitions: Dictionary) -> void:
+	var chars: CharacterSystem = get_node_or_null("/root/Characters")
+	var resources: ResourceSystem = get_node_or_null("/root/Resources")
+ 
+	for enemy_id in enemy_ids:
+		var def_id: String = definitions.get(enemy_id, "enemy_base")
+ 
+		if chars and not chars.has_entity(enemy_id):
+			if chars.has_definition(def_id):
+				chars.register_entity(enemy_id, def_id)
+			else:
+				push_warning("[NarrativeSceneViewModel] definition '%s' not found for %s — falling back to enemy_base" % [def_id, enemy_id])
+				if chars.has_definition("enemy_base"):
+					chars.register_entity(enemy_id, "enemy_base")
+ 
+		resources.register_entity(enemy_id)
+		resources.set_resource(enemy_id, "health", 50.0)
+ 
+		print("[NarrativeSceneViewModel] Pre-registered enemy: %s (def: %s)" % [enemy_id, def_id])
 
 func _close() -> void:
 	state = PanelState.HIDDEN

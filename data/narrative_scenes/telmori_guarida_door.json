@@ -1,0 +1,22 @@
+{
+  "scene_id": "telmori_guarida_door",
+  "image_path": "",
+  "text_key": "TELMORI_GUARIDA_DOOR",
+  "options": [
+    {
+      "option_id": "reach_lair",
+      "text_key": "TELMORI_GUARIDA_DOOR_OPTION_CONTINUE",
+      "skill_id": "",
+      "roll_modifier": 0,
+      "challenge_level": 0,
+      "required_successes": 0,
+      "retry_policy": "immediate",
+      "group_aggregate": "",
+      "outcome_default": {
+        "next_scene_id": "",
+        "flag_to_set": "flag.telmori_reached_lair_door",
+        "combat_enemy_ids": []
+      }
+    }
+  ]
+}

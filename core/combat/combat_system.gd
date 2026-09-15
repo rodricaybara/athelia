@@ -144,6 +144,12 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 			"staggered": true,
 			"actor": actor
 		})
+		if actor == PLAYER_ID:
+			EventBus.emit_signal("player_action_completed", {
+				"success": false,
+				"staggered": true,
+				"actor": actor
+			})
 		return
 
 	# --- DISARMED: bloquea skills con tags de arma ---
@@ -158,6 +164,17 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 			print("[CombatSystem] 🚫 %s is disarmed — cannot use %s" % [actor, skill_id])
 			EventBus.emit_signal("character_disarmed", actor, skill_id)
 			EventBus.emit_signal("combat_action_failed", actor, "DISARMED")
+			EventBus.emit_signal("combat_action_completed", {
+				"success": false,
+				"disarmed": true,
+				"actor": actor
+			})
+			if actor == PLAYER_ID:
+				EventBus.emit_signal("player_action_completed", {
+					"success": false,
+					"disarmed": true,
+					"actor": actor
+				})
 			return
 	
 	if target.is_empty() and not is_self_target:

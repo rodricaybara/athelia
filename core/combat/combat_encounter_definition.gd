@@ -2,6 +2,7 @@ class_name CombatEncounterDefinition
 extends Resource
 
 ## CombatEncounterDefinition — Spike 2, punto 6: moral y refuerzos cronometrados
+## Spike 3, Grupo B: campo de sorpresa añadido (ver más abajo).
 ##
 ## Datos opcionales de un combate concreto — moral de grupo y refuerzos
 ## cronometrados. Genérico, no específico de ninguna aventura: los números
@@ -10,13 +11,15 @@ extends Resource
 ##
 ## Se pasa como parámetro OPCIONAL a GameLoopSystem.start_combat(). Sin él
 ## (o con los valores por defecto), un combate se comporta exactamente
-## igual que antes de Spike 2 — el grupo nunca huye, nunca llegan refuerzos.
+## igual que antes de Spike 2 — el grupo nunca huye, nunca llegan refuerzos,
+## y desde Spike 3 tampoco hay sorpresa.
 ##
-## Ninguno de los dos mecanismos vive hardcodeado en EnemyAI ni en
+## Ninguno de los mecanismos vive hardcodeado en EnemyAI ni en
 ## CombatResolver — moral de grupo se resuelve entera en GameLoopSystem
 ## (saca entidades de participants/turn_order igual que una muerte, pero
-## sin loot ni animación de muerte), y refuerzos reutiliza el mismo camino
-## de spawn que ya usa CombatTestScene para los enemigos iniciales.
+## sin loot ni animación de muerte), refuerzos reutiliza el mismo camino
+## de spawn que ya usa CombatTestScene para los enemigos iniciales, y
+## sorpresa reutiliza el sistema de buffs ya existente en CombatSystem.
 ##
 ## NOTA (actualizada Spike 3, Grupo A): la base de moral YA NO es fija.
 ## Se recalcula cada vez que llega un refuerzo, sumando su HP máximo al HP
@@ -53,6 +56,31 @@ var reinforcement_enemy_ids: Array[String] = []
 ## distinto al resto del encuentro (ver nota en ese fichero).
 var reinforcement_definition_id: String = "enemy_base"
 
+## Spike 3, Grupo B — sorpresa de combate.
+## "" (default) = sin sorpresa, el combate empieza como siempre.
+## "party"   = el grupo (jugador + companions) sorprende a los enemigos.
+## "enemies" = los enemigos sorprenden al grupo.
+##
+## Implementado SIN tocar turn_order ni la máquina de TurnPhase (la
+## estructura de fases ya obliga a jugador+companions a actuar antes que
+## los enemigos cada ronda, así que reordenar iniciativa no tendría efecto
+## real). En su lugar, el bando sorprendido recibe un buff "staggered" —
+## el mismo que ya usa CombatSystem para aturdimiento — al montar el
+## combate, y pierde su primer intento de acción en la ronda 1. A partir
+## de ahí el combate sigue con las fases normales, sin más diferencia.
+## Ver GameLoopSystem.start_combat().
+var surprise_favors: String = ""
+
+## 0.0 (default) = la sorpresa solo hace perder la primera acción, sin
+## debuff adicional. >0.0 = además, el bando sorprendido recibe el buff
+## "vulnerable" ya existente en CombatSystem con este valor durante la
+## ronda de sorpresa — 100.0 = el doble de daño recibido, 200.0 = el
+## triple. Reutiliza el pipeline de buffs numéricos de daño que ya aplica
+## CombatSystem en cada golpe; no añade lógica de daño nueva. No combinar
+## con un "damage_bonus" al atacante para el mismo efecto — se multiplican
+## entre sí en vez de sumarse.
+var surprise_vulnerable_pct: float = 0.0
+
 
 ## Constructor de conveniencia para pruebas / código — sin loader desde
 ## JSON todavía porque no hay ningún combate en el proyecto que se arme
@@ -67,4 +95,6 @@ static func from_dict(data: Dictionary) -> CombatEncounterDefinition:
 	var ids: Array = data.get("reinforcement_enemy_ids", [])
 	def.reinforcement_enemy_ids.assign(ids)
 	def.reinforcement_definition_id = data.get("reinforcement_definition_id", "enemy_base")
+	def.surprise_favors = data.get("surprise_favors", "")
+	def.surprise_vulnerable_pct = data.get("surprise_vulnerable_pct", 0.0)
 	return def

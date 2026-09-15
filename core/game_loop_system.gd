@@ -185,35 +185,44 @@ func get_state_name() -> String:
 
 ## encounter: opcional (Spike 2, punto 6) — moral de grupo y refuerzos
 ## cronometrados. Sin él, comportamiento idéntico a antes de Spike 2.
+# PATCH — game_loop_system.gd
+#El único cambio real es el bloque nuevo "Spike 3, Grupo B — sorpresa" dentro del
+# `if _current_encounter:` ya existente — todo lo demás es idéntico al
+# original, copiado tal cual para que el reemplazo sea de método completo.
+#
+# Reutiliza la variable `party` ya declarada más arriba en la misma función
+# (para añadir companions a `participants`) — no la vuelvas a declarar con
+# `var party :=` una segunda vez o GDScript dará error de redeclaración.
+
 func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition = null) -> void:
 	if current_game_state != GameState.EXPLORATION and current_game_state != GameState.DIALOGUE and current_game_state != GameState.MENU and current_game_state != GameState.NARRATIVE_SCENE:
 		push_warning("[GameLoopSystem] Cannot start combat: wrong state %s" % GameState.keys()[current_game_state])
 		return
-
+ 
 	if enemy_ids.is_empty():
 		push_error("[GameLoopSystem] Cannot start combat with no enemies")
 		return
-
+ 
 	print("[GameLoopSystem] ⚔️ Starting combat with %d enemies" % enemy_ids.size())
-
+ 
 	participants.clear()
 	participants.append(PLAYER_ID)
-
+ 
 	# Añadir companions activos como participantes aliados
 	var party := get_node_or_null("/root/Party")
 	if party:
 		for companion_id in party.get_active_members():
 			participants.append(companion_id)
 			print("[GameLoopSystem]   + companion: %s" % companion_id)
-
+ 
 	participants.append_array(enemy_ids)
-
+ 
 	_calculate_initiative()
-
+ 
 	round_number = 0
 	current_turn_index = 0
 	_companion_turn_index = 0
-
+ 
 	# Spike 2, punto 6 — reset de estado de moral/refuerzos por combate
 	_current_encounter = encounter
 	_group_morale_base_hp = 0.0
@@ -222,7 +231,7 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 	_reinforcement_rounds_elapsed = 0
 	_reinforcement_spawned = false
 	_reinforcement_countdown_active = false
-
+ 
 	if _current_encounter:
 		if _current_encounter.morale_threshold_pct > 0.0:
 			for enemy_id in enemy_ids:
@@ -232,18 +241,19 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 			print("[GameLoopSystem] 🏳️ Moral de grupo activa: umbral %.0f%%, HP inicial del grupo %.1f" % [
 				_current_encounter.morale_threshold_pct, _group_morale_base_hp
 			])
-
+ 
 		if not _current_encounter.reinforcement_enemy_ids.is_empty():
 			if _current_encounter.reinforcement_trigger.is_empty():
 				_reinforcement_countdown_active = true
 				print("[GameLoopSystem] 🆘 Refuerzos programados: %d asaltos (contador inmediato)" % _current_encounter.reinforcement_delay_rounds)
 			else:
 				print("[GameLoopSystem] 🆘 Refuerzos programados: esperando evento '%s'" % _current_encounter.reinforcement_trigger)
-
+ 
+		_apply_surprise(_current_encounter)
+ 
 	_transition_game_state(GameState.COMBAT_ACTIVE)
 	EventBus.emit_signal("combat_started", participants.duplicate())
 	_start_new_round()
-
 
 func end_combat(result: String) -> void:
 	if current_game_state != GameState.COMBAT_ACTIVE:
@@ -285,7 +295,6 @@ func end_combat(result: String) -> void:
 
 func is_in_combat() -> bool:
 	return current_game_state == GameState.COMBAT_ACTIVE
-
 
 ## Retorna enemigos vivos (excluye jugador y companions)
 func get_active_enemies() -> Array[String]:
@@ -349,7 +358,7 @@ func configure_active_encounter(encounter: CombatEncounterDefinition) -> void:
 	if not is_in_combat():
 		push_warning("[GameLoopSystem] configure_active_encounter ignorado: no hay combate activo")
 		return
-
+ 
 	_current_encounter = encounter
 	_morale_broken = false
 	_group_morale_base_dirty = false
@@ -359,20 +368,72 @@ func configure_active_encounter(encounter: CombatEncounterDefinition) -> void:
 		encounter.reinforcement_trigger.is_empty()
 		and not encounter.reinforcement_enemy_ids.is_empty()
 	)
-
+ 
 	_group_morale_base_hp = 0.0
 	if encounter.morale_threshold_pct > 0.0:
 		for enemy_id in get_active_enemies():
 			var state = Resources.get_resource_state(enemy_id, "health")
 			if state:
 				_group_morale_base_hp += state.max_effective
-
+ 
 	print("[GameLoopSystem] 🧪 Encounter configurado sobre combate en marcha: moral %.0f%%, HP base %.1f, refuerzos %s" % [
 		encounter.morale_threshold_pct,
 		_group_morale_base_hp,
 		"contador inmediato" if _reinforcement_countdown_active else "esperando trigger o sin refuerzos"
 	])
+ 
+	# Spike 3, Grupo B — sorpresa. Ver nota en start_combat(): esta es la
+	# ruta que ejercita tu prueba con companion (encounter adjuntado tras
+	# arrancar combate vía ExplorationController).
+	_apply_surprise(encounter)
 
+## Spike 3, Grupo B — sorpresa. Compartido entre start_combat() (encounter
+## conocido desde el principio) y configure_active_encounter() (encounter
+## adjuntado a un combate ya en marcha — ExplorationController, o pruebas).
+## Usa get_active_enemies() en vez de recibir enemy_ids por parámetro para
+## que el mismo código sirva desde cualquiera de los dos sitios.
+##
+## No toca turn_order ni TurnPhase — ver el campo surprise_favors en
+## CombatEncounterDefinition para la explicación de por qué reordenar
+## iniciativa no serviría de nada aquí. El bando perjudicado pierde su
+## primer intento de acción vía el buff "staggered" ya existente en
+## CombatSystem, y opcionalmente recibe "vulnerable" si
+## surprise_vulnerable_pct > 0.0.
+##
+## turns_left asimétrico: el buff "turn" expira en el propio turno de quien
+## lo lleva, no en el de quien le ataca. Jugador/companions actúan ANTES
+## que los enemigos cada ronda → si son ellos los sorprendidos, su propio
+## tick llegaría antes de que los enemigos lleguen a golpear, así que
+## necesitan sobrevivir un tick extra (2). Los enemigos actúan al final →
+## su propio tick ya llega después de haber sido atacados (1 basta).
+func _apply_surprise(encounter: CombatEncounterDefinition) -> void:
+	if encounter.surprise_favors.is_empty():
+		return
+ 
+	var party := get_node_or_null("/root/Party")
+	var party_side: Array[String] = [PLAYER_ID]
+	if party:
+		party_side.append_array(party.get_active_members())
+ 
+	var disadvantaged: Array[String] = (
+		get_active_enemies() if encounter.surprise_favors == "party" else party_side
+	)
+	var vulnerable_turns: int = 2 if encounter.surprise_favors == "enemies" else 1
+ 
+	for id in disadvantaged:
+		Combat.apply_buff(id, {"buff_type": "staggered", "expires_on": "use"})
+		if encounter.surprise_vulnerable_pct > 0.0:
+			Combat.apply_buff(id, {
+				"buff_type": "vulnerable",
+				"value": encounter.surprise_vulnerable_pct,
+				"expires_on": "turn",
+				"turns_left": vulnerable_turns
+			})
+ 
+	print("[GameLoopSystem] 🫣 Surprise: favors '%s' — staggered %s (vulnerable %.0f%%, %d turns)" % [
+		encounter.surprise_favors, str(disadvantaged),
+		encounter.surprise_vulnerable_pct, vulnerable_turns
+	])
 
 # ============================================
 # SISTEMA DE INICIATIVA
@@ -672,8 +733,6 @@ func _on_player_action_completed(_result: Dictionary) -> void:
 
 ## Callback: acción de combate completada (jugador, companion o enemigo)
 func _on_combat_action_completed(_result: Dictionary) -> void:
-	var party := get_node_or_null("/root/Party")
-
 	if current_phase == TurnPhase.COMPANION_ACTION_RESOLVE:
 		# Acción de companion completada — continuar con el siguiente
 		print("[GameLoopSystem] Companion action completed via combat_action_completed")
@@ -772,9 +831,9 @@ func _check_combat_conditions() -> bool:
 		return true
 
 	# ── Todos los aliados caídos (jugador + companions) ───────────────────────
-	var party: Node = get_node_or_null("/root/Party")
+	var all_party: Node = get_node_or_null("/root/Party")
 	if _is_player_incapacitated():
-		var all_companions_down: bool = not party or not party.has_companions() or party.all_incapacitated()
+		var all_companions_down: bool = not all_party or not all_party.has_companions() or all_party.all_incapacitated()
 		if all_companions_down:
 			if current_game_state == GameState.COMBAT_ACTIVE:
 				print("[GameLoopSystem] All allies defeated — permanent defeat!")

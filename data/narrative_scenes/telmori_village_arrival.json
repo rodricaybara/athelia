@@ -1,0 +1,22 @@
+{
+  "scene_id": "telmori_village_arrival",
+  "image_path": "",
+  "text_key": "TELMORI_VILLAGE_ARRIVAL",
+  "options": [
+    {
+      "option_id": "continue_to_sheriff",
+      "text_key": "TELMORI_VILLAGE_ARRIVAL_OPTION_CONTINUE",
+      "skill_id": "",
+      "roll_modifier": 0,
+      "challenge_level": 0,
+      "required_successes": 0,
+      "retry_policy": "immediate",
+      "group_aggregate": "",
+      "outcome_default": {
+        "next_scene_id": "telmori_sheriff_briefing",
+        "flag_to_set": "",
+        "combat_enemy_ids": []
+      }
+    }
+  ]
+}

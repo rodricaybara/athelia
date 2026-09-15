@@ -196,7 +196,6 @@ func all_incapacitated() -> bool:
 			return false
 	return true
 
-
 # ============================================
 # REGISTRO EN SISTEMAS
 # ============================================
@@ -211,31 +210,37 @@ func _register_in_systems(companion_id: String, definition_id: String) -> bool:
 			return false
 	else:
 		print("[PartyManager] '%s' already in CharacterSystem — skipping" % companion_id)
-
+ 
 	Resources.register_entity(companion_id)
-
+ 
 	var skills_node: Node = get_node_or_null("/root/Skills")
 	if skills_node:
 		if not skills_node._entity_skills.has(companion_id):
-			skills_node.register_entity_skills(companion_id)
+			# Kit fijo leído de la propia CharacterDefinition del companion —
+			# antes se llamaba sin segundo argumento, que registra TODO el
+			# catálogo (19+ skills) en vez de solo las suyas.
+			var companion_def := Characters.get_definition(definition_id)
+			var companion_skill_ids: Array[String] = companion_def.skills if companion_def else []
+			if companion_skill_ids.is_empty():
+				push_warning("[PartyManager] '%s' tiene skills vacío en su CharacterDefinition" % definition_id)
+			skills_node.register_entity_skills(companion_id, companion_skill_ids)
 			for skill_id in skills_node._entity_skills.get(companion_id, {}).keys():
 				var instance: SkillInstance = skills_node.get_skill_instance(companion_id, skill_id)
 				if instance:
 					instance.is_unlocked = true
 		else:
 			print("[PartyManager] '%s' already in SkillSystem — skipping" % companion_id)
-
+ 
 	var inventory: Node = get_node_or_null("/root/Inventory")
 	if inventory:
 		inventory.register_entity(companion_id)
-
+ 
 	var equipment: Node = get_node_or_null("/root/Equipment")
 	if equipment:
 		equipment.register_entity(companion_id)
-
+ 
 	print("[PartyManager] '%s' registered in all systems" % companion_id)
 	return true
-
 
 func _unregister_from_systems(companion_id: String) -> void:
 	if Characters.has_entity(companion_id):

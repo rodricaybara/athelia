@@ -173,6 +173,12 @@ func _unlock_starting_skills() -> void:
 			instance.is_unlocked = true
 			print("[ExplorationTest] %s → UNLOCKED (starter)" % skill_id)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F1:
+		var game_loop: GameLoopSystem = get_node_or_null("/root/GameLoop")
+		if game_loop:
+			print("[ExplorationTest] 🧪 F1 — entering test_viewmodel_wiring")
+			game_loop.enter_narrative_scene("test_viewmodel_wiring")
 
 func _register_world_objects() -> void:
 	var wo_system: Node = get_node_or_null("/root/WorldObjectSystem")

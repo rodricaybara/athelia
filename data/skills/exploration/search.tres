@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.exploration.search"
+name_key = "SKILL_SEARCH_NAME"
+description_key = "SKILL_SEARCH_DESC"
+category = "MENTAL"
+subcategory = "EXPLORATION"
+costs = {
+"stamina": 0.0
+}
+tags = Array[String](["exploration", "search", "spotting"])
+base_success_rate = 35
+stress_type = "MENTAL"
+attribute_weights = {
+"intelligence": 0.7,
+"wisdom": 0.3
+}

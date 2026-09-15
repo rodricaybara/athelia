@@ -1,0 +1,87 @@
+[gd_scene format=3 uid="uid://d2e27if04sjnp"]
+
+[ext_resource type="Script" uid="uid://juxotnqvdtn1" path="res://scenes/exploration/telmori_village/exploration_telmori_village.gd" id="1_village"]
+[ext_resource type="Script" uid="uid://dadcx7potxl5c" path="res://scenes/exploration/exploration_controller.gd" id="2_controller"]
+[ext_resource type="Script" uid="uid://h4ojab1vgp2b" path="res://scenes/exploration/exploration_hud.gd" id="3_hud"]
+[ext_resource type="Script" uid="uid://dgjotf8dgubju" path="res://scenes/exploration/player_exploration.gd" id="4_player"]
+[ext_resource type="Texture2D" uid="uid://lfe8v508cdxm" path="res://scenes/exploration/personanje.png" id="5_sprite"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
+radius = 47.24
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interact_range"]
+radius = 50.0
+
+[node name="TelmoriVillage" type="Node2D" unique_id=2083820163]
+script = ExtResource("1_village")
+
+[node name="ExplorationController" type="Node" parent="." unique_id=307476178]
+script = ExtResource("2_controller")
+
+[node name="ExplorationHUD" type="CanvasLayer" parent="." unique_id=955919321]
+layer = 5
+script = ExtResource("3_hud")
+
+[node name="InteractPrompt" type="Label" parent="ExplorationHUD" unique_id=369903661]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -56.0
+offset_top = -23.0
+offset_right = 56.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "[E] Interactuar"
+
+[node name="ResourcesPanel" type="HBoxContainer" parent="ExplorationHUD" unique_id=1817130883]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="HP" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=531118794]
+layout_mode = 2
+text = "HP: --"
+
+[node name="Stamina" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1128076211]
+layout_mode = 2
+text = "ST: --"
+
+[node name="Gold" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1745864896]
+layout_mode = 2
+text = "G: --"
+
+[node name="StateDebugLabel" type="Label" parent="ExplorationHUD" unique_id=1424664735]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -117.0
+offset_bottom = 23.0
+grow_horizontal = 0
+text = "EXPLORATION"
+
+[node name="World" type="Node2D" parent="." unique_id=422448676]
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=812344907 groups=["player"]]
+position = Vector2(200, 200)
+script = ExtResource("4_player")
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1234123313]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1796306491]
+shape = SubResource("CircleShape2D_player")
+
+[node name="InteractRange" type="Area2D" parent="Player" unique_id=883145946]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/InteractRange" unique_id=1432332951]
+shape = SubResource("CircleShape2D_interact_range")
+
+[node name="Personaje" type="Sprite2D" parent="Player" unique_id=1143963721]
+position = Vector2(0, 1.9999999)
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("5_sprite")
+
+[node name="WorldObjects" type="Node2D" parent="." unique_id=1795734966]
+
+[node name="TrailSpawnPoint" type="Marker2D" parent="WorldObjects" unique_id=394005579]
+position = Vector2(400, 300)

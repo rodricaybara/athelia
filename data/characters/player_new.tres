@@ -13,10 +13,13 @@ starting_resources = {
 "health": 20,
 "stamina": 15
 }
-skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception"])
+skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception", "skill.exploration.track", "skill.exploration.search", "skill.attack.heavy"])
 starting_skill_values = {
-"skill.attack.light": 25,
+"skill.attack.heavy": 30,
+"skill.attack.light": 50,
 "skill.combat.dodge": 20,
-"skill.exploration.perception": 25
+"skill.exploration.perception": 25,
+"skill.exploration.search": 80,
+"skill.exploration.track": 50
 }
 metadata/_custom_type_script = "uid://cmvsxyq5sohf4"

@@ -139,6 +139,8 @@ Al volver a MENU desde cualquier otro estado (ej: CharacterCreation → "Volver 
 
 **Regla derivada:** cualquier ViewModel cuya View sea una Main Scene persistente (no instanciada/destruida por `SceneOrchestrator`) **debe** escuchar `EventBus.game_state_changed` en su propio `_ready()` y reaccionar tanto al entrar como al salir de su estado — no puede depender solo de que algo la invoque explícitamente, porque puede volver a ese estado por un camino que no pasa por su propio código (`GameLoop.enter_main_menu()` llamado desde otra pantalla, por ejemplo).
 
+**Nota (Spike 3, Grupo B):** este mismo motivo es por lo que `GameOverUI._on_new_game_pressed()` debe llamar a `GameLoop.enter_main_menu()` antes de `enter_character_creation()` — `DEFEAT` no tiene transición válida directa a `CHARACTER_CREATION` (ver `VALID_STATE_TRANSITIONS`), y saltarse `MENU` deja al jugador de la partida anterior registrado con sus stats viejas.
+
 ---
 
 ## Contrato del ViewModel
@@ -188,6 +190,8 @@ Las razones son strings cortos que permiten refreshes parciales en la View. Debe
 ##   "closed"   → ocultar panel
 signal changed(reason: String)
 ```
+
+**Regla derivada (Spike 3, Grupo B):** cuando un ViewModel gana una razón nueva de `changed()`, la View debe ganar su caso correspondiente en el mismo cambio, no como tarea aparte — ver antipatrón "Razón de `changed()` sin consumidor en la View" más abajo. Si el ViewModel se valida con fixtures aislados de la View, eso no garantiza que el contrato esté completo.
 
 ### `await` en el ViewModel — única excepción permitida
 
@@ -341,7 +345,7 @@ btn_new_game.text = tr("MENU_NEW_GAME")
 btn_new_game.text = "Nueva Partida"
 ```
 
-Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; Character Creation usa `character_creation.csv`; NarrativeScene usa `narrative_scenes.csv`; otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
+Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; Character Creation usa `character_creation.csv`; NarrativeScene usa `narrative_scenes.csv` (o un CSV propio por aventura, `narrative_scenes_<aventura>.csv`, desde Spike 3/B — ver convención en `athelia_estructura_proyecto_actualizado.md`); otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
 
 ---
 
@@ -373,6 +377,8 @@ Seguir la estructura de [Contrato del ViewModel](#contrato-del-viewmodel).
 
 Estructura de nodos con `%UniqueNames` para todos los nodos que la View referenciará. No añadir lógica en el inspector — solo estructura y propiedades visuales. Los textos de labels y botones se dejan vacíos; se asignan por código en `_setup_static_text()`.
 
+**Nota (Spike 3, Grupo B):** si el panel puede mostrar texto largo de contenido real (no líneas cortas de test), anclar el contenedor raíz a un tamaño explícito desde el principio — ver antipatrón "Panel sin tamaño fijo con texto largo" más abajo.
+
 ### Paso 5 — Implementar la View
 
 Archivo: `nombre_panel.gd` o `nombre_screen.gd`
@@ -399,6 +405,8 @@ necesite enterarse de forma asíncrona (como `EconomySystem` con
 ya viaja gratis por `_pending_context`, poblado por
 `GameLoop.request_state_change(state, {"id": ...})` — léelo en
 `_on_game_state_changed()` igual que `dialogue_id`/`shop_id`.
+
+**Nota (Spike 3, Grupo B):** el mundo 2D también puede entrar en una escena narrativa — `Interactable.interaction_type = "narrative_scene"` llama a `GameLoop.enter_narrative_scene(target_id)` desde `ExplorationController._on_interaction_requested()`, sin necesidad de tocar `SceneOrchestrator` para esto.
 
 ### Paso 7 — Añadir claves de localización
 
@@ -432,6 +440,8 @@ Godot genera los `.translation` automáticamente al recargar el proyecto cuando 
 | Textos siempre via `tr()`, nunca hardcodeados | Consistencia con el sistema de localización |
 | Labels y botones vacíos en el .tscn | Los textos se asignan por código en `_setup_static_text()` |
 | ViewModel de una Main Scene persistente escucha `EventBus.game_state_changed` | Puede volver a su estado por un camino externo — no solo por su propio código |
+| Un contenedor raíz con texto largo real lleva un tamaño/anclaje explícito | Sin él, el `Control` se dimensiona al contenido y `autowrap_mode` nunca tiene ancho contra el que envolver (Spike 3/B) |
+| Toda razón nueva de `changed()` en el ViewModel gana su caso en la View en el mismo cambio | Un ViewModel validado con fixtures aisladas no garantiza que la View lo consuma (Spike 3/B) |
 
 ---
 
@@ -599,6 +609,69 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 
 ---
 
+### ❌ Panel sin tamaño fijo con texto largo
+
+```gdscript
+# MAL — sin ancho ni anclaje, el Control se dimensiona al contenido.
+# Con líneas cortas de test nunca se nota; con un párrafo real, el
+# panel entero se desborda de la ventana y el autowrap del Label
+# nunca tiene ancho contra el que envolver.
+[node name="UIPanel" parent="Root" instance=ExtResource("...")]
+layout_mode = 0
+```
+
+```gdscript
+# BIEN — ancho real, autowrap funciona de verdad
+[node name="UIPanel" parent="Root" instance=ExtResource("...")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -350.0
+offset_top = -250.0
+offset_right = 350.0
+offset_bottom = 250.0
+```
+
+Encontrado en `narrative_scene_panel.tscn` en Spike 3, Grupo B — no se
+había detectado antes porque todo el contenido de prueba de Spike 1/2
+eran líneas cortas (`TEST_NARRATIVE_STREAK` y similares). Cualquier
+panel nuevo con texto largo real debe anclarse a un tamaño explícito
+desde el principio, no confiar en que el contenido lo dimensione bien.
+
+---
+
+### ❌ Razón de `changed()` nueva sin consumidor en la View
+
+```gdscript
+# MAL — el ViewModel emite una razón nueva, pero la View no la
+# conoce todavía. Cae en el caso `_:` por defecto — ni un error ni
+# un crash, solo un push_warning fácil de no ver, y la pantalla se
+# queda sin actualizar.
+func _on_vm_changed(reason: String) -> void:
+    match reason:
+        "opened", "node_changed": _render_node()
+        "closed": visible = false
+        _: push_warning("Razón desconocida: %s" % reason)
+```
+
+Pasó con `"streak_progress"` (tiradas acumulativas, Spike 2): el
+ViewModel exponía `streak_current`/`streak_required` desde que se
+diseñó la racha, pero como el test de esa pieza probaba el ViewModel
+con fixtures en código (sin View real de por medio), nadie notó que
+la View nunca añadió el caso correspondiente — hasta la primera
+partida real con una tirada acumulativa, en Spike 3, Grupo B.
+
+**Regla derivada:** cuando un ViewModel gana una razón nueva de
+`changed()`, añadir el caso en la View en el mismo cambio, no como
+tarea aparte — y si el ViewModel se valida con fixtures aislados de
+la View (como aquí), no dar por hecho que el contrato está completo
+solo porque el ViewModel pasa sus propios tests.
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
@@ -609,18 +682,23 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 | Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable. Abierta desde `SceneOrchestrator` via `show_shop_direct()`. |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. |
-| CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. |
+| CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
 | PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
-| NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Sigue sin contenido real de aventura (eso es Spike 3). |
+| NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). |
 
 ### Pantallas sin ViewModel (casos especiales)
 
 | Pantalla | Script | Descripción |
 |----------|--------|-------------|
 | LoadingScreen | `loading_screen.gd` | Pantalla de carga pasiva. Sin ViewModel por ausencia de estado complejo. Usa `ResourceLoader.load_threaded_request()` y emite `loading_finished(packed_scene)`. Actualmente implementada pero no conectada a `SceneOrchestrator`. |
+| GameOver | `game_over_ui.gd` | Pantalla de fin de partida. Sin ViewModel. Spike 3/B: `_on_new_game_pressed()` reinicia vía `enter_main_menu()` → `enter_character_creation()` (antes saltaba directo a una escena de exploración sin pasar por Character Creation, dejando al jugador muerto registrado con sus stats viejas). |
 
 ---
 
-*Última actualización: Spike 2 — Reglas de RuneQuest para el Motor Narrativo — NarrativeScene ampliada (grado especial, progresión narrativa, tiradas acumulativas, agregación de grupo) sin ningún cambio al contrato MVVM en sí: todo entra como lógica de dominio nueva dentro de `request_option()` y razones adicionales de `changed(reason)`, ningún antipatrón nuevo de arquitectura UI detectado en este spike. Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo (los hallazgos de este spike son de GDScript/sistemas de combate, documentados en `athelia_estructura_proyecto_actualizado.md`, no de este patrón).
+*Última actualización: Spike 3, Grupo B — Del pueblo a la puerta de la guarida — dos antipatrones nuevos (panel sin tamaño fijo con texto largo; razón de `changed()` sin consumidor en la View, ambos encontrados en la primera partida real de contenido, no en spikes de motor aislados) y cierre de los dos huecos que dejó abiertos Spike 2 en `NarrativeSceneViewModel`/`narrative_scene_panel.gd`. Ningún cambio al contrato MVVM en sí. Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo (motor, no patrón de UI).
+
+*Última actualización anterior: Spike 3, Grupo A — Motor y limpieza — ningún cambio al contrato MVVM ni a ningún patrón de arquitectura UI: el grupo fue deliberadamente de motor (`GameLoopSystem`) y limpieza de andamiaje de Spike 1, sin tocar ViewModels ni Views de producción. `NarrativeSceneViewModel` en sí no cambió — solo se le añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`, cerrando el hueco abierto desde Spike 1) y se retiró la tecla de debug F1 que lo invocaba desde `ExplorationController`. Ver `docs/spike_3_grupoA_motor_limpieza_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (moral de grupo, `EnemyWorldLink`).
+
+*Última actualización anterior: Spike 2 — Reglas de RuneQuest para el Motor Narrativo — NarrativeScene ampliada (grado especial, progresión narrativa, tiradas acumulativas, agregación de grupo) sin ningún cambio al contrato MVVM en sí: todo entra como lógica de dominio nueva dentro de `request_option()` y razones adicionales de `changed(reason)`, ningún antipatrón nuevo de arquitectura UI detectado en este spike. Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo (los hallazgos de este spike son de GDScript/sistemas de combate, documentados en `athelia_estructura_proyecto_actualizado.md`, no de este patrón).
 
 *Última actualización anterior: Spike 1 Motor Narrativo (pivote hacia RPG narrativo) — añadida NarrativeScene a la referencia de pantallas, nuevo antipatrón de self-reference por class_name dentro del propio script, regla de nombrado PanelState (nunca SceneState) elevada de ejemplo a regla explícita. Spike Character Creation — CharacterCreationScreen implementada (ya no es stub), nuevo antipatrón de ViewModel persistente sin listener de EventBus (detectado en MainMenuViewModel). Spike Producción Post-Character-Creation — añadida PlayerMenu a la referencia de pantallas (bug corregido: `character_name` leía `definition_id` en vez del nombre real). Godot 4.7.1.*

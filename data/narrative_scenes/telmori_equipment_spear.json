@@ -1,0 +1,25 @@
+{
+  "scene_id": "telmori_equipment_spear",
+  "image_path": "",
+  "text_key": "TELMORI_EQUIPMENT_SPEAR",
+  "options": [
+	{
+	  "option_id": "take_spear",
+	  "text_key": "TELMORI_EQUIPMENT_SPEAR_OPTION_TAKE",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "telmori_hills_search_day1",
+		"flag_to_set": "flag.telmori_equipped",
+		"combat_enemy_ids": [],
+		"grant_item_id": "enchanted_spear",
+		"grant_item_quantity": 1,
+		"grant_item_target": "player"
+	  }
+	}
+  ]
+}

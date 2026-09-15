@@ -126,7 +126,8 @@ func _ready():
 		# tocar exploration_controller.gd. configure_active_encounter() lo
 		# adjunta a posteriori, sobre el combate que ya está en marcha.
 		# Quitar esta llamada (o comentarla) cuando termine la validación.
-		_inject_test_encounter()
+		#_inject_test_encounter()
+		_inject_surprise_test_encounter()
 	
 	print("\n[CombatTest] Scene ready - Press F5 to start combat")
 
@@ -445,9 +446,9 @@ func _start_combat() -> void:
 		push_error("[CombatTest] GameLoop not found!")
 		return
 	print("\n[CombatTest] Starting combat (standalone)...")
-
+ 
 	var standalone_ids: Array[String] = ["enemy_1", "enemy_2", "enemy_3"]
-
+ 
 	# Registrar entidades manualmente — ExplorationController no actuó en standalone
 	var chars: CharacterSystem = get_node_or_null("/root/Characters")
 	var resources: ResourceSystem = get_node_or_null("/root/Resources")
@@ -456,15 +457,23 @@ func _start_combat() -> void:
 			chars.register_entity(enemy_id, "enemy_base")
 		resources.register_entity(enemy_id)
 		resources.set_resource(enemy_id, "health", 50.0)
-
+ 
 	# Limpiar nodos de combate anteriores.
 	# queue_free() es diferido — los nodos viejos coexistirán con los nuevos
 	# durante este frame y desaparecerán al final. Aceptable para spike.
 	for child in $EnemyContainer.get_children():
 		child.queue_free()
-
-	game_loop.start_combat(standalone_ids)
-
+ 
+	# Spike 3, Grupo B — TEST TEMPORAL de sorpresa. Editar a mano para cada
+	# caso: "" (sin sorpresa, regresión), "enemies", "party". 0.0 en
+	# surprise_vulnerable_pct = solo staggered, sin debuff de daño extra.
+	# Quitar (o volver a "") cuando termine la validación.
+	var test_encounter := CombatEncounterDefinition.new()
+	test_encounter.surprise_favors = "enemies"
+	test_encounter.surprise_vulnerable_pct = 100.0
+ 
+	game_loop.start_combat(standalone_ids, test_encounter)
+ 
 	# Re-spawnear nodos visuales — _ready() no vuelve a correr en restart
 	_initialize_enemies_from_gameloop()
 
@@ -528,6 +537,20 @@ func _inject_test_encounter() -> void:
 	encounter.reinforcement_enemy_ids = ["enemy_6"]
 	encounter.reinforcement_definition_id = "enemy_base"
 
+	game_loop.configure_active_encounter(encounter)
+
+## Spike 3, Grupo B — TEST TEMPORAL de sorpresa (sustituye al de moral/
+## refuerzos de Spike 2, ya validado y cerrado). Ruta CON companion: se
+## llega aquí ya con combate arrancado por ExplorationController (ver
+## _ready()), así que el encounter se adjunta a posteriori con
+## configure_active_encounter() en vez de pasarlo a start_combat().
+## Editar surprise_favors/surprise_vulnerable_pct a mano para cada caso.
+## Quitar esta llamada (o comentarla) cuando termine la validación.
+func _inject_surprise_test_encounter() -> void:
+	var encounter := CombatEncounterDefinition.new()
+	encounter.surprise_favors = ""
+	encounter.surprise_vulnerable_pct = 100.0
+ 
 	game_loop.configure_active_encounter(encounter)
 
 ## Reacciona a un refuerzo añadido por GameLoopSystem. Reutiliza el mismo

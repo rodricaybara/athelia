@@ -172,6 +172,10 @@ func _on_interaction_requested(interaction_type: String, target_id: String) -> v
 			# No hay cambio de GameState — la interacción se resuelve como overlay.
 			EventBus.world_object_interaction_requested.emit("player", target_id)
 			print("[ExplorationController] WorldObject interaction: %s" % target_id)
+			
+		"narrative_scene":
+			# target_id es el scene_id de una NarrativeSceneDefinition.
+			game_loop.enter_narrative_scene(target_id)
 		
 		_:
 			push_warning("[ExplorationController] Unknown interaction_type: %s" % interaction_type)

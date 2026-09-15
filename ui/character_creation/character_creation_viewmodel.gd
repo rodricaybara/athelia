@@ -39,12 +39,6 @@ const ALL_ATTRIBUTES: Array[String] = [
 const PLAYER_DEFINITION_ID: String = "player_new"
 const MAX_NAME_LENGTH: int = 20
 
-const STARTING_SKILL_VALUES: Dictionary = {
-	"skill.attack.light": 25,
-	"skill.combat.dodge": 20,
-	"skill.exploration.perception": 25,
-}
-
 const STARTING_GOLD: float = 50.0
 
 const STARTING_ITEMS: Dictionary = {
@@ -274,10 +268,16 @@ func _create_player_entity() -> void:
 			resources.restore_resource("player", "stamina")
 
 	if skills and not skills._entity_skills.has("player"):
-		# IMPORTANTE: pasar la lista explícita del kit fijo. register_entity_skills()
-		# con el array vacío por defecto registra TODO el catálogo de skills del
-		# juego (17 en este proyecto) — eso rompe la progresión por uso.
-		skills.register_entity_skills("player", STARTING_SKILL_VALUES.keys())
+		# Kit fijo leído directo de la CharacterDefinition — nunca una copia
+		# hardcodeada aquí. register_entity_skills() con el array vacío por
+		# defecto registra TODO el catálogo (17+ skills) — eso rompe la
+		# progresión por uso, por eso pasamos la lista explícita de la
+		# definición, no un array vacío.
+		var definition := chars.get_definition(PLAYER_DEFINITION_ID)
+		var skill_ids: Array[String] = definition.skills if definition else []
+		if skill_ids.is_empty():
+			push_warning("[CharacterCreationViewModel] '%s' tiene skills vacío en su CharacterDefinition" % PLAYER_DEFINITION_ID)
+		skills.register_entity_skills("player", skill_ids)
 	elif not skills:
 		push_warning("[CharacterCreationViewModel] SkillSystem no encontrado")
 

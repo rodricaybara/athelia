@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
+
+[resource]
+script = ExtResource("1_char_def")
+id = "telmori_warrior_base"
+name_key = "character_telmori_warrior_name"
+description_key = "character_telmori_warrior_desc"
+base_attributes = {
+"charisma": 5,
+"constitution": 12,
+"dexterity": 10,
+"intelligence": 6,
+"strength": 14,
+"wisdom": 6
+}
+starting_resources = {
+"focus": 0,
+"gold": 0,
+"health": 45,
+"stamina": 20
+}
+skills = Array[String](["skill.enemy.basic_attack"])
+starting_skill_values = {
+"skill.enemy.basic_attack": 55
+}
+inventory_slots = 10
+loot_table_id = "enemy_base_drops"
+equipment_slots = Array[String]([])

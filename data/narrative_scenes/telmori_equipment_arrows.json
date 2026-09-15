@@ -1,0 +1,25 @@
+{
+  "scene_id": "telmori_equipment_arrows",
+  "image_path": "",
+  "text_key": "TELMORI_EQUIPMENT_ARROWS",
+  "options": [
+    {
+      "option_id": "take_arrows",
+      "text_key": "TELMORI_EQUIPMENT_ARROWS_OPTION_TAKE",
+      "skill_id": "",
+      "roll_modifier": 0,
+      "challenge_level": 0,
+      "required_successes": 0,
+      "retry_policy": "immediate",
+      "group_aggregate": "",
+      "outcome_default": {
+        "next_scene_id": "telmori_equipment_spear",
+        "flag_to_set": "",
+        "combat_enemy_ids": [],
+        "grant_item_id": "silver_arrow",
+        "grant_item_quantity": 20,
+        "grant_item_target": "player"
+      }
+    }
+  ]
+}

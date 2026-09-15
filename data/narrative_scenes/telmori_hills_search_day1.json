@@ -1,0 +1,37 @@
+{
+  "scene_id": "telmori_hills_search_day1",
+  "image_path": "",
+  "text_key": "TELMORI_HILLS_SEARCH_DAY1",
+  "options": [
+    {
+      "option_id": "search_tracks",
+      "text_key": "TELMORI_HILLS_SEARCH_DAY1_OPTION_SEARCH",
+      "skill_id": "skill.exploration.track",
+      "roll_modifier": 0,
+      "challenge_level": 0,
+      "required_successes": 0,
+      "retry_policy": "immediate",
+      "group_aggregate": "",
+      "outcome_failure": {
+        "next_scene_id": "telmori_hills_search_day1_nothing",
+        "flag_to_set": "",
+        "combat_enemy_ids": []
+      },
+      "outcome_success": {
+        "next_scene_id": "telmori_hills_search_day1_tracks",
+        "flag_to_set": "flag.telmori_found_wolf_tracks",
+        "combat_enemy_ids": []
+      },
+      "outcome_special": {
+        "next_scene_id": "telmori_hills_search_day1_mauled_sheep",
+        "flag_to_set": "flag.telmori_found_mauled_sheep",
+        "combat_enemy_ids": []
+      },
+      "outcome_critical": {
+        "next_scene_id": "telmori_hills_search_day1_mauled_sheep",
+        "flag_to_set": "flag.telmori_found_mauled_sheep",
+        "combat_enemy_ids": []
+      }
+    }
+  ]
+}

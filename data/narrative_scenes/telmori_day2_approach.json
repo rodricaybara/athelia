@@ -1,0 +1,109 @@
+{
+  "scene_id": "telmori_day2_approach",
+  "image_path": "",
+  "text_key": "TELMORI_DAY2_APPROACH",
+  "options": [
+	{
+	  "option_id": "advance_through_clearing",
+	  "text_key": "TELMORI_DAY2_APPROACH_OPTION_ADVANCE",
+	  "skill_id": "skill.exploration.search",
+	  "roll_modifier": -85,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "best",
+	  "outcome_failure": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_ambush_triggered",
+		"combat_enemy_ids": [
+		  "telmori_warrior_1",
+		  "telmori_warrior_2",
+		  "telmori_warrior_3",
+		  "telmori_wolf_1",
+		  "telmori_wolf_2",
+          "telmori_wolf_3"
+		],
+		"combat_encounter": {
+		  "surprise_favors": "enemies"
+		},
+		"combat_enemy_definitions": {
+		  "telmori_warrior_1": "telmori_warrior_base",
+		  "telmori_warrior_2": "telmori_warrior_base",
+		  "telmori_warrior_3": "telmori_warrior_base",
+		  "telmori_wolf_1": "telmori_wolf_base",
+		  "telmori_wolf_2": "telmori_wolf_base",
+		  "telmori_wolf_3": "telmori_wolf_base"
+		}
+	  },
+	  "outcome_success": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_ambush_triggered",
+		"combat_enemy_ids": [
+		  "telmori_warrior_1",
+		  "telmori_warrior_2",
+		  "telmori_warrior_3",
+		  "telmori_wolf_1",
+		  "telmori_wolf_2",
+          "telmori_wolf_3"
+		],
+		"combat_encounter": {
+		  "surprise_favors": ""
+		},
+		"combat_enemy_definitions": {
+		  "telmori_warrior_1": "telmori_warrior_base",
+		  "telmori_warrior_2": "telmori_warrior_base",
+		  "telmori_warrior_3": "telmori_warrior_base",
+		  "telmori_wolf_1": "telmori_wolf_base",
+		  "telmori_wolf_2": "telmori_wolf_base",
+		  "telmori_wolf_3": "telmori_wolf_base"
+		}
+	  },
+	  "outcome_special": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_ambush_triggered",
+		"combat_enemy_ids": [
+		  "telmori_warrior_1",
+		  "telmori_warrior_2",
+		  "telmori_warrior_3",
+		  "telmori_wolf_1",
+		  "telmori_wolf_2",
+          "telmori_wolf_3"
+		],
+		"combat_encounter": {
+		  "surprise_favors": "party"
+		},
+		"combat_enemy_definitions": {
+		  "telmori_warrior_1": "telmori_warrior_base",
+		  "telmori_warrior_2": "telmori_warrior_base",
+		  "telmori_warrior_3": "telmori_warrior_base",
+		  "telmori_wolf_1": "telmori_wolf_base",
+		  "telmori_wolf_2": "telmori_wolf_base",
+		  "telmori_wolf_3": "telmori_wolf_base"
+		}
+	  },
+	  "outcome_critical": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_ambush_triggered",
+		"combat_enemy_ids": [
+		  "telmori_warrior_1",
+		  "telmori_warrior_2",
+		  "telmori_warrior_3",
+		  "telmori_wolf_1",
+		  "telmori_wolf_2",
+          "telmori_wolf_3"
+		],
+		"combat_encounter": {
+		  "surprise_favors": "party"
+		},
+		"combat_enemy_definitions": {
+		  "telmori_warrior_1": "telmori_warrior_base",
+		  "telmori_warrior_2": "telmori_warrior_base",
+		  "telmori_warrior_3": "telmori_warrior_base",
+		  "telmori_wolf_1": "telmori_wolf_base",
+		  "telmori_wolf_2": "telmori_wolf_base",
+		  "telmori_wolf_3": "telmori_wolf_base"
+		}
+	  }
+	}
+  ]
+}
