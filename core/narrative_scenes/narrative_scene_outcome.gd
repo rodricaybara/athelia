@@ -58,6 +58,15 @@ var grant_item_quantity: int = 1
 ## en vez de al jugador).
 var grant_item_target: String = "player"
 
+## Spike 3, Grupo D — "otorgar recurso": entrega puntual de un recurso
+## (oro, etc.) vía ResourceSystem.add_resource(), análogo a "otorgar ítem"
+## pero para recursos en vez de inventario. Mismo espíritu deliberadamente
+## mínimo: un solo recurso, sin condiciones ni tabla de recompensas.
+var grant_resource_id: String = ""
+var grant_resource_amount: float = 0.0
+
+## entity_id destino, mismo default y misma razón que grant_item_target.
+var grant_resource_target: String = "player"
 
 static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 	var outcome := new()
@@ -79,4 +88,8 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 	outcome.grant_item_quantity = data.get("grant_item_quantity", 1)
 	outcome.grant_item_target = data.get("grant_item_target", "player")
 
+	outcome.grant_resource_id = data.get("grant_resource_id", "")
+	outcome.grant_resource_amount = data.get("grant_resource_amount", 0.0)
+	outcome.grant_resource_target = data.get("grant_resource_target", "player")
+	
 	return outcome

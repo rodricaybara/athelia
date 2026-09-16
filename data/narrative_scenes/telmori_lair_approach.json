@@ -1,0 +1,41 @@
+{
+  "scene_id": "telmori_lair_approach",
+  "image_path": "",
+  "text_key": "TELMORI_LAIR_APPROACH",
+  "options": [
+    {
+      "option_id": "sneak_in",
+      "text_key": "TELMORI_LAIR_APPROACH_OPTION_SNEAK",
+      "skill_id": "skill.exploration.stealth",
+      "roll_modifier": -20,
+      "challenge_level": 0,
+      "required_successes": 0,
+      "retry_policy": "immediate",
+      "group_aggregate": "worst",
+      "outcome_failure": {
+        "next_scene_id": "telmori_lair_alerted",
+        "flag_to_set": "flag.telmori_lair_alerted",
+        "combat_enemy_ids": [],
+        "combat_enemy_definitions": {}
+      },
+      "outcome_success": {
+        "next_scene_id": "telmori_lair_stealth",
+        "flag_to_set": "",
+        "combat_enemy_ids": [],
+        "combat_enemy_definitions": {}
+      },
+      "outcome_special": {
+        "next_scene_id": "telmori_lair_stealth",
+        "flag_to_set": "",
+        "combat_enemy_ids": [],
+        "combat_enemy_definitions": {}
+      },
+      "outcome_critical": {
+        "next_scene_id": "telmori_lair_stealth",
+        "flag_to_set": "",
+        "combat_enemy_ids": [],
+        "combat_enemy_definitions": {}
+      }
+    }
+  ]
+}

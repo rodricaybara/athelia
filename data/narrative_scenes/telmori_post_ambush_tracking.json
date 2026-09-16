@@ -3,25 +3,25 @@
   "image_path": "",
   "text_key": "TELMORI_POST_AMBUSH_TRACKING",
   "options": [
-    {
-      "option_id": "track_to_lair",
-      "text_key": "TELMORI_POST_AMBUSH_TRACKING_OPTION_TRACK",
-      "skill_id": "skill.exploration.track",
-      "roll_modifier": 0,
-      "challenge_level": 0,
-      "required_successes": 3,
-      "retry_policy": "blocked",
-      "group_aggregate": "best",
-      "outcome_failure": {
-        "next_scene_id": "",
-        "flag_to_set": "",
-        "combat_enemy_ids": []
-      },
-      "outcome_success": {
-        "next_scene_id": "telmori_guarida_door",
-        "flag_to_set": "flag.telmori_tracked_to_lair",
-        "combat_enemy_ids": []
-      }
-    }
+	{
+	  "option_id": "track_to_lair",
+	  "text_key": "TELMORI_POST_AMBUSH_TRACKING_OPTION_TRACK",
+	  "skill_id": "skill.exploration.track",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 3,
+	  "retry_policy": "blocked",
+	  "group_aggregate": "best",
+	  "outcome_failure": {
+		"next_scene_id": "",
+		"flag_to_set": "",
+		"combat_enemy_ids": []
+	  },
+	  "outcome_success": {
+		"next_scene_id": "telmori_guarida_door",
+		"flag_to_set": "flag.telmori_tracked_to_lair",
+		"combat_enemy_ids": []
+	  }
+	}
   ]
 }

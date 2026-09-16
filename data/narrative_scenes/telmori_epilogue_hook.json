@@ -1,0 +1,23 @@
+{
+  "scene_id": "telmori_epilogue_hook",
+  "image_path": "",
+  "text_key": "TELMORI_EPILOGUE_HOOK",
+  "options": [
+	{
+	  "option_id": "close",
+	  "text_key": "TELMORI_EPILOGUE_HOOK_OPTION_CLOSE",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_adventure_completed",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  }
+	}
+  ]
+}

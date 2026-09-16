@@ -21,12 +21,13 @@ starting_resources = {
 "health": 28,
 "stamina": 22
 }
-skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception", "skill.exploration.track", "skill.exploration.search"])
+skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception", "skill.exploration.track", "skill.exploration.search", "skill.exploration.stealth"])
 starting_skill_values = {
-"skill.attack.light": 40,
+"skill.attack.light": 75,
 "skill.combat.dodge": 35,
 "skill.exploration.perception": 60,
 "skill.exploration.search": 75,
+"skill.exploration.stealth": 50,
 "skill.exploration.track": 60
 }
 inventory_slots = 15

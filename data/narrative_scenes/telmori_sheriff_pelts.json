@@ -1,0 +1,53 @@
+{
+  "scene_id": "telmori_sheriff_pelts",
+  "image_path": "",
+  "text_key": "TELMORI_SHERIFF_PELTS",
+  "options": [
+	{
+	  "option_id": "sell_pelts",
+	  "text_key": "TELMORI_SHERIFF_PELTS_OPTION_SELL",
+	  "skill_id": "skill.exploration.tanning",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_failure": {
+		"next_scene_id": "telmori_epilogue_hook",
+		"flag_to_set": "",
+		"grant_resource_id": "gold",
+		"grant_resource_amount": 20.0,
+		"grant_resource_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  },
+	  "outcome_success": {
+		"next_scene_id": "telmori_epilogue_hook",
+		"flag_to_set": "",
+		"grant_resource_id": "gold",
+		"grant_resource_amount": 60.0,
+		"grant_resource_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  },
+	  "outcome_special": {
+		"next_scene_id": "telmori_epilogue_hook",
+		"flag_to_set": "",
+		"grant_resource_id": "gold",
+		"grant_resource_amount": 80.0,
+		"grant_resource_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  },
+	  "outcome_critical": {
+		"next_scene_id": "telmori_epilogue_hook",
+		"flag_to_set": "",
+		"grant_resource_id": "gold",
+		"grant_resource_amount": 100.0,
+		"grant_resource_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  }
+	}
+  ]
+}

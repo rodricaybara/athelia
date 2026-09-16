@@ -25,3 +25,5 @@ ITEM_RING_STAMINA_NAME,Ring of Endurance,Anillo de resistencia
 ITEM_RING_STAMINA_DESC,An enchanted ring that increases maximum stamina by 10.,Un anillo encantado que aumenta la stamina máxima en 10.
 ITEM_RING_HEALTH_NAME,Ring of Vitality,Anillo de vitalidad
 ITEM_RING_HEALTH_DESC,An enchanted ring that increases maximum health by 10%.,Un anillo encantado que aumenta la salud máxima en un 10%.
+ITEM_BOOK_TANNING_NAME,Tanning Basics,Nociones de curtido
+ITEM_BOOK_TANNING_DESC,Old Ansel's notes on treating hides. Learning from it grants the Tanning skill.,Las notas del viejo Ansel sobre el tratamiento de pieles. Aprender de él concede la habilidad de Curtido.

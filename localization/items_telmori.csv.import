@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://d8pu6lbx8gxb"
+
+[deps]
+
+files=["res://localization/items_telmori.en.translation", "res://localization/items_telmori.es.translation"]
+
+source_file="res://localization/items_telmori.csv"
+dest_files=["res://localization/items_telmori.en.translation", "res://localization/items_telmori.es.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

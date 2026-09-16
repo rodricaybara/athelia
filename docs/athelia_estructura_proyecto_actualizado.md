@@ -180,12 +180,14 @@ athelia/
 │   │   ├── player_new.tres         # ← Plantilla real para Character Creation (atributos placeholder, kit fijo de skills — Spike 3/B: kit leído directo de aquí, ya no de una constante duplicada en el ViewModel)
 │   │   ├── enemy_base.tres
 │   │   ├── wolf_test.tres
-│   │   ├── telmori/                # Spike 3, Grupo B — personajes específicos de "Los Telmori"
+│   │   ├── telmori/                # Spike 3, Grupo B/C — personajes específicos de "Los Telmori"
 │   │   │   ├── telmori_warrior_base.tres
-│   │   │   └── telmori_wolf_base.tres
+│   │   │   ├── telmori_wolf_base.tres
+│   │   │   ├── telmori_warrior_weak.tres   # ← NUEVO (Spike 3, Grupo C): Habitación Elevada — stats reducidos de la transcripción, único tipo usado como reinforcement_definition_id en telmori_lair_stealth (ver más abajo, no admite mezclar tipos en una misma oleada)
+│   │   │   └── telmori_wolf_weak.tres      # ← NUEVO (Spike 3, Grupo C): Habitación Elevada — solo se usa en el roster inicial de telmori_lair_alerted, no en refuerzo (misma razón)
 │   │   ├── companions/
 │   │   │   ├── companion_base.tres
-│   │   │   └── companion_mira.tres # Spike 3/B: kit de skills ampliado (+ track/search)
+│   │   │   └── companion_mira.tres # Spike 3/B: kit de skills ampliado (+ track/search); Spike 3/C: + skill.exploration.stealth
 │   │   └── portrait/               # Retratos de personajes (PNG)
 │   │       ├── guard.png
 │   │       ├── merchant.png
@@ -239,6 +241,12 @@ athelia/
 │   │   # hills_search_day1 + 3 intermedias por grado — nothing/tracks/mauled_sheep,
 │   │   # day2_approach, post_ambush_tracking, guarida_door). Ver
 │   │   # docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md para el detalle completo.
+│   │   # Spike 3, Grupo C — 4 escenas más: telmori_lair_approach (sigilo de
+│   │   # grupo), telmori_lair_alerted / telmori_lair_stealth (las dos
+│   │   # versiones de la guarida, fusionando las dos salas de la aventura
+│   │   # original en un combate por rama), telmori_lair_victory (cierre,
+│   │   # flag.telmori_lair_cleared para Grupo D). Ver
+│   │   # docs/spike_3_grupoC_guarida_informe_cierre.md para el detalle completo.
 │   │   # (Los JSON de prueba de Spike 1, más los de Spike 2, se eliminaron en Spike 3, Grupo A.)
 │   │
 │   ├── resources/                  # Definiciones de recursos
@@ -273,6 +281,7 @@ athelia/
 │   │       ├── perception.tres
 │   │       ├── search.tres         # Spike 3, Grupo B — skill.exploration.search (Buscar)
 │   │       ├── sprint.tres
+│   │       ├── stealth.tres        # ← NUEVO (Spike 3, Grupo C) — skill.exploration.stealth (Deslizarse en Silencio), calcada de track.tres
 │   │       └── track.tres          # Spike 3, Grupo B — skill.exploration.track (Rastrear)
 │   │
 │   └── world_objects/              # Definiciones de objetos y loot tables
@@ -301,7 +310,8 @@ athelia/
 │   ├── spike_1_motor_narrativo_informe_cierre.md  # pivote hacia RPG narrativo, motor base
 │   ├── spike_2_reglas_runequest_informe_cierre.md  # reglas de RuneQuest sobre el motor narrativo (seis puntos), moral/refuerzos en combate
 │   ├── spike_3_grupoA_motor_limpieza_informe_cierre.md  # moral dinámica, EnemyWorldLink, retirada de andamiaje Spike 1
-│   └── spike_3_grupoB_pueblo_guarida_informe_cierre.md  # ← NUEVO: primer contenido real, "Los Telmori" hasta la puerta de la guarida
+│   ├── spike_3_grupoB_pueblo_guarida_informe_cierre.md  # primer contenido real, "Los Telmori" hasta la puerta de la guarida
+│   └── spike_3_grupoC_guarida_informe_cierre.md  # ← NUEVO: la guarida jugable de principio a fin, fusión de las dos salas, reconexión narrativa tras combate generalizada
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales
@@ -325,7 +335,7 @@ athelia/
 │   ├── narrative_scenes.csv        # Textos de escenas narrativas (solo cabecera hasta Spike 3/B — claves de test de Spike 1/2 retiradas en Grupo A)
 │   ├── narrative_scenes.en.translation
 │   ├── narrative_scenes.es.translation
-│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B — CSV propio por aventura (22 claves)
+│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B (22 claves) + Grupo C (7 más, 29 en total) — CSV propio por aventura
 │   ├── narrative_scenes_telmori.en.translation
 │   ├── narrative_scenes_telmori.es.translation
 │   ├── characters_telmori.csv          # Spike 3, Grupo B — nombre/desc de telmori_warrior/wolf
@@ -655,7 +665,7 @@ Pensada originalmente para enseñar mecánicas de un mundo 2D más amplio que de
 
 Ver `docs/spike_produccion_post_character_creation_informe_cierre.md` para el detalle completo (bugs corregidos, hallazgos aparcados).
 
-### Telmori Village — Arquitectura (Spike 3, Grupo B — escena de producción real)
+### Telmori Village — Arquitectura (Spike 3, Grupo B — escena de producción real; ampliada en Grupo C)
 
 ```
 TelmoriVillage (Node2D)                   ← script: exploration_telmori_village.gd
@@ -668,7 +678,7 @@ TelmoriVillage (Node2D)                   ← script: exploration_telmori_villag
 │   ├── Personaje (Sprite2D)
 │   └── Camera2D
 └── WorldObjects (Node2D)
-    └── TrailSpawnPoint (Marker2D)        ← posición del rastro de continuación tras la emboscada
+    └── TrailSpawnPoint (Marker2D)        ← posición base de los interactuables de reconexión (rastro de Grupo B + aftermath de Grupo C, offset +120px en X entre ellos)
 ```
 
 Igual que `ExplorationTutorial`, no registra al jugador (ya lo hace Character Creation). Sin `WorldObjectBridge`/panel — no hay ningún `WorldObject` real todavía en esta escena.
@@ -677,13 +687,17 @@ Dos cosas propias, al entrar (`_ready()`):
 1. Dispara `telmori_village_arrival` automáticamente, guardado por `flag.telmori_village_visited` (para no repetirse en visitas posteriores).
 2. Añade a `companion_mira` al grupo (`Party.join_party()`) y equipa a jugador+companion (`Equipment.equip_item()` directo, sin pasar por `ItemCharacterBridge` — ese camino es para cuando el jugador usa un ítem desde la UI, no para setup por código).
 
-Escucha `EventBus.combat_ended` para la reconexión narrativa tras la emboscada (ver más abajo).
+Escucha `EventBus.combat_ended` dos veces (emboscada de Grupo B, combate final de la guarida de Grupo C) para la reconexión narrativa tras combate, y `EventBus.narrative_flag_set` dos veces para la limpieza de cada interactuable de reconexión una vez su arco queda resuelto (ver ambas secciones más abajo).
 
-### Reconexión narrativa tras combate (Spike 3, Grupo B)
+### Reconexión narrativa tras combate (Spike 3, Grupo B; generalizada en Grupo C)
 
-Un combate disparado desde una escena narrativa (`NarrativeSceneOutcome.combat_encounter`) cierra el panel y, al terminar, vuelve a `EXPLORATION` como cualquier otro combate — pero no hay ningún camino directo de vuelta a la escena narrativa. Resuelto sin extender `VALID_STATE_TRANSITIONS` ni tocar el contrato de victoria: al ganar, se spawnea dinámicamente un `Node2D` con un `Interactable` (`interaction_type = "narrative_scene"`) en la escena de exploración — mismo patrón que ya usa `_on_combat_loot_bag_spawned()` para la bolsa de loot, sin pasar por `WorldObjectSystem` (no hace falta tirada de habilidad ni loot table para esto).
+Un combate disparado desde una escena narrativa (`NarrativeSceneOutcome.combat_encounter`) cierra el panel y, al terminar, vuelve a `EXPLORATION` como cualquier otro combate — pero no hay ningún camino directo de vuelta a la escena narrativa. Resuelto sin extender `VALID_STATE_TRANSITIONS` ni tocar el contrato de victoria: al ganar, se spawnea dinámicamente un `Node2D` con un `Interactable` (`interaction_type = "narrative_scene"`) en la escena de exploración — mismo patrón que ya usa `_on_combat_loot_bag_spawned()` para la bolsa de loot, sin pasar por `WorldObjectSystem` (no hace falta tirada de habilidad ni loot table para esto). Grupo C reutilizó el patrón tal cual para el combate final de la guarida (`flag.telmori_lair_combat_won` → spawn de `telmori_lair_aftermath`) — es ahora el único mecanismo validado del proyecto para esto, y cualquier combate futuro disparado desde narrativa (Grupo D incluido) debería seguir el mismo camino en vez de inventar uno nuevo.
 
 `InteractionOutcome.narrative_event_id` no sirve para esto — dispara `NarrativeSystem.apply_event()` (el sistema de eventos/checkpoints), no `GameLoop.enter_narrative_scene()` (el motor de escenas narrativas). Dos sistemas narrativos distintos en el proyecto, fácil de confundir.
+
+**Lección de Grupo C — el listener de `combat_ended` debe desconectarse al completar su arco, no vivir para siempre.** El primer bug real que salió al jugar la cadena completa de Grupo C: el listener de la emboscada de Grupo B (`_on_combat_ended_telmori_ambush`) nunca se desconectaba, y su guardia contra duplicados solo comprobaba "¿existe ya el nodo?" — una vez que el nodo se retira (al completar el arco), *cualquier* combate posterior que termine en victoria, sin relación alguna con la emboscada, reactiva el listener y **resucita** el interactuable obsoleto apuntando a una escena ya completada. El flag que lo guardaba (`flag.telmori_ambush_triggered`) nunca se desactiva, así que por sí solo no protege nada una vez el nodo desaparece. Arreglado desconectando cada listener de reconexión (`EventBus.combat_ended.disconnect(...)`) en el mismo punto donde se retira su interactuable — aplicado preventivamente también al listener nuevo de Grupo C, para que Grupo D no herede el mismo patrón de bug con su propio contenido de combate.
+
+**Lección de Grupo C — limpiar un interactuable de reconexión debe engancharse a `EventBus.narrative_flag_set`, no a `EventBus.narrative_scene_closed`.** Un intento inicial de retirar el rastro obsoleto escuchaba `narrative_scene_closed`, pero cuando una escena resuelve su rama de éxito **encadenando internamente** a otra vía `next_scene_id` (sin pasar por `EXPLORATION` de por medio), el `ViewModel` no cierra el panel — solo cambia de contenido — así que esa señal nunca llega a emitirse con el `scene_id` de la escena origen en ese camino (solo en una rama que sí cierra de verdad, p. ej. un fallo con `next_scene_id` vacío). El flag que la propia rama de éxito pone (`flag.set_to` del outcome) sí es fiable independientemente de cómo encadene el panel por dentro — es la señal correcta para detectar "este arco narrativo se completó", no el cierre del panel.
 
 ### Narrative Scene — Arquitectura (motor base del pivote hacia RPG narrativo)
 
@@ -707,6 +721,10 @@ Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `Na
 - `combat_encounter: CombatEncounterDefinition` (opcional, null por defecto) — se pasa directo a `start_combat()`, sustituye la necesidad de `configure_active_encounter()` para este caso.
 - `combat_enemy_definitions: Dictionary` (enemy_id → definition_id, mismo formato que `Interactable.enemy_definitions`) — necesario porque un combate disparado desde narrativa no tiene ningún `Interactable` del que leer este mapeo. Sin él, los enemigos nunca se registrarían en `CharacterSystem`/`ResourceSystem` antes de `start_combat()`.
 - `grant_item_id` / `grant_item_quantity` / `grant_item_target` — entrega puntual de un ítem, resuelto vía `Inventory.add_item()`. `grant_item_target` es configurable en el JSON (por defecto `"player"`), pensado para poder entregar a un companion.
+
+**Esquema JSON real, confirmado en Grupo C contra ejemplos reales de Grupo B** (útil documentarlo aquí porque no coincidía con lo que se había inferido solo de la descripción de arriba): raíz `scene_id`/`image_path`/`text_key`/`options[]`; opción `option_id`/`text_key`/`skill_id`/`roll_modifier`/`challenge_level`/`required_successes`/`retry_policy`/`group_aggregate`. Sin `skill_id` resuelve por `outcome_default`; con `skill_id`, ramas **planas** en la propia opción — `outcome_failure`/`outcome_success`/`outcome_special`/`outcome_critical` (sin `outcome_fumble` explícito — cae a `outcome_failure`, fallback ya documentado arriba). Cada outcome lleva `next_scene_id`, `flag_to_set` (string único con prefijo `flag.`, solo activa un flag, nunca lo desactiva), `combat_enemy_ids` (array de strings — quiénes están presentes al *empezar* el combate) y `combat_enemy_definitions` (diccionario `entity_id → definition_id` de *todo* lo que hay que registrar, inicial o de refuerzo). `combat_encounter`, cuando aparece, es un **diccionario inline dentro del propio outcome** — nunca una ruta a un `.tres` — con las claves de `CombatEncounterDefinition` (`morale_threshold_pct`, `reinforcement_trigger`, `reinforcement_delay_rounds`, `reinforcement_enemy_ids`, `reinforcement_definition_id`, `surprise_favors`, `surprise_vulnerable_pct`). No hace falta crear ningún recurso `CombatEncounterDefinition` aparte para contenido disparado desde una escena narrativa.
+
+**Restricción real de `reinforcement_definition_id` (Grupo C):** es un único string, no un diccionario por entidad — todo un refuerzo sale de la misma `CharacterDefinition`, no admite mezclar tipos de enemigo en la misma oleada (a diferencia del roster *inicial*, que sí admite tipos mixtos vía `combat_enemy_definitions` normal). Si un contenido necesita refuerzo de tipos mixtos, hay que elegir entre extender el recurso a un diccionario (cambio de motor, no hecho todavía) o simplificar el contenido a un refuerzo homogéneo (la opción que tomó Grupo C).
 
 `_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
 
@@ -752,6 +770,17 @@ Primer contenido real del pivote narrativo: 11 escenas de "Los Telmori", desde e
 - Corregidos dos bugs de cuelgue de turno (`STAGGERED`/`DISARMED` en `CombatSystem._on_execute_combat_action()` no emitían `player_action_completed`), uno de registro de enemigos en combate disparado desde narrativa, uno de reinicio tras Game Over, uno de dimensionado del panel narrativo, y uno de doble sistema de valores de skill desincronizado entre `CharacterState` y `SkillSystem` (`STARTING_SKILL_VALUES` hardcodeado en `CharacterCreationViewModel`, ahora lee de la propia `CharacterDefinition`).
 - `SCENE_EXPLORATION` apunta a la nueva `exploration_telmori_village.tscn`, primera zona de producción real.
 - Convención nueva: carpeta por aventura para personajes/ítems específicos (`data/characters/telmori/`, `data/items/telmori/`) y para localización (`_telmori.csv`), salvo ítems de arma con ranura, que siguen agrupándose por tipo de arma.
+
+### Spike 3, Grupo C — La guarida
+
+Segundo tramo de contenido real del pivote narrativo: la aproximación sigilosa a la guarida y su combate final, jugable de principio a fin desde `telmori_guarida_door` (cierre de Grupo B) hasta `flag.telmori_lair_cleared` (gancho de entrada para Grupo D). Ver `docs/spike_3_grupoC_guarida_informe_cierre.md` para el detalle completo. Resumen de lo más relevante a nivel de motor:
+
+- **Fusión de las dos salas de la aventura original en un combate por rama**, en vez de dejar al jugador elegir entre dos salas separadas: `telmori_lair_alerted` junta ambas fuerzas desde el inicio (sin sorpresa, sin refuerzo — la transcripción ya las describe convergiendo juntas al sonar la alarma); `telmori_lair_stealth` usa los supervivientes de la emboscada como roster inicial (`surprise_favors: "party"`) y la Habitación Elevada como refuerzo a la ronda 4 (`reinforcement_delay_rounds: 4`, `reinforcement_trigger: ""` — el contador arranca con el propio combate, no espera un evento externo).
+- **Tirada opuesta de grupo con `group_aggregate: "worst"` confirmado por la fuente**, no por preferencia de diseño: la transcripción original reduce la Escucha de los lobos según el Deslizarse en Silencio del aventurero *más torpe* del grupo — el eslabón más débil decide, al contrario que el `"best"` usado para el rastreo de Grupo B.
+- **Nueva skill `skill.exploration.stealth`** ("Deslizarse en Silencio"), calcada de `track.tres`.
+- **Modificador multiplicativo de combate, decidido explícitamente NO implementarlo** — las dos salas tácticas de la aventura original (techo bajo, ventaja de tirar rocas desde una elevación) se resuelven sin tocar `CombatSystem`: el combate del proyecto es de acciones fijas por tecla, no hay "opciones de escena" contra las que restringir un arma concreta dentro de un combate en marcha. Sigue diferido desde Spike 2, ahora sin ningún caso de uso real pendiente.
+- **`EnemyWorldLink` confirmado innecesario** — igual que la emboscada de Grupo B, el combate final se dispara directo desde narrativa, sin capa de exploración 2D dentro de la guarida de la que limpiar una representación de un Telmori huido. Termina la aventura piloto completa sin ningún caso de uso real, resultado aceptado como válido, no señal de sobre-ingeniería.
+- Cuatro bugs de motor preexistentes encontrados y corregidos al jugar la cadena completa por primera vez: un encadenado suelto en `telmori_guarida_door` (escrito antes de que existiera Grupo C, sin `next_scene_id` hacia la guarida); ausencia total de reconexión narrativa tras el combate final (nadie había replicado el patrón de Grupo B para el segundo combate del proyecto); un listener de reconexión que nunca se desconectaba y resucitaba un interactuable ya retirado ante cualquier combate posterior; y una limpieza enganchada a la señal equivocada (`narrative_scene_closed` en vez de `narrative_flag_set`) que nunca se disparaba en el camino de encadenado interno de una escena a otra. Detalle completo de los cuatro en la sección "Reconexión narrativa tras combate" más arriba y en el informe de cierre.
 
 ### Persistencia de personaje — CharacterSystem ↔ SaveSystem
 
@@ -847,10 +876,15 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Nombres de enum reservados:** nunca nombrar un enum propio `SceneState` — colisiona con una clase nativa del motor.
 - **Datos específicos de una aventura (Spike 3, Grupo B):** personajes e ítems propios de una aventura concreta van en su propia subcarpeta por aventura (`data/characters/telmori/`, `data/items/telmori/`), no planos en la raíz de su categoría — salvo ítems de tipo arma con ranura, que se agrupan por tipo de arma por encima de la aventura (`data/items/weapons/<slot>/`). Skills se quedan sin carpeta de aventura al ser categorías generales. Mismo criterio para localización: un CSV propio por aventura (`_telmori.csv`) en vez de añadir al fichero general de la categoría.
 - **Kit fijo de skills, siempre desde la `CharacterDefinition`:** nunca duplicar la lista de skills iniciales de una entidad en el código que la registra (ViewModel, PartyManager...) — leer siempre `definition.skills` en el momento de registrar. Una copia paralela se desincroniza en cuanto se edita el `.tres` sin acordarse de la copia.
+- **Un listener de reconexión narrativa tras combate debe desconectarse al completar su arco (Spike 3, Grupo C):** `EventBus.combat_ended` es global — un listener que solo comprueba un flag permanente + "¿existe ya el nodo?" no protege contra combates futuros no relacionados una vez el nodo se retira. Desconectar el listener en el mismo punto donde se limpia el interactuable que gestiona.
+- **Limpiar un interactuable de reconexión se engancha a `EventBus.narrative_flag_set`, no a `narrative_scene_closed` (Spike 3, Grupo C):** una escena que encadena internamente a otra vía `next_scene_id` no cierra el panel ni emite `narrative_scene_closed` con su propio `scene_id` — el flag que la rama de éxito pone es la señal fiable, independiente de cómo encadene el panel por dentro.
+- **`reinforcement_definition_id` no admite tipos mixtos (Spike 3, Grupo C):** un refuerzo entero sale de una única `CharacterDefinition` — si el contenido necesita mezclar tipos de enemigo en la misma oleada, hay que elegir entre extender el recurso a un diccionario o simplificar el contenido a un refuerzo homogéneo.
 
 ---
 
-*Última actualización: Spike 3, Grupo B — Del pueblo a la puerta de la guarida (los cinco puntos de alcance cerrados y validados en partida completa) — otorgar-ítem y combate opcional en `NarrativeSceneOutcome`; sorpresa de combate vía buffs existentes sin tocar turn_order; investigación por capas y rastreo acumulativo sobre contenido real; nuevo `interaction_type` "narrative_scene"; primera escena de exploración de producción real (`exploration_telmori_village`); varios bugs de motor preexistentes encontrados y corregidos (cuelgues de turno en STAGGERED/DISARMED, registro de enemigos en combate narrativo, reinicio tras Game Over, panel narrativo sin tamaño fijo, doble sistema de skills desincronizado). Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+*Última actualización: Spike 3, Grupo C — La guarida (los cinco puntos de alcance cerrados y validados en partida completa, ambas ramas) — fusión de las dos salas de la aventura original en un combate por rama en vez de rutas separadas; `group_aggregate="worst"` para la tirada de sigilo, confirmado por la propia transcripción; nueva skill `skill.exploration.stealth`; modificador multiplicativo de combate decidido explícitamente no implementarlo; `EnemyWorldLink` confirmado innecesario en esta aventura. Cuatro bugs de motor preexistentes encontrados y corregidos, todos en la reconexión narrativa tras combate: encadenado suelto en el cierre de Grupo B, ausencia de reconexión tras el segundo combate del proyecto, listener de `combat_ended` que nunca se desconectaba y resucitaba interactuables retirados, y limpieza enganchada a una señal que no se emite cuando una escena encadena internamente a otra. Ver `docs/spike_3_grupoC_guarida_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 3, Grupo B — Del pueblo a la puerta de la guarida (los cinco puntos de alcance cerrados y validados en partida completa) — otorgar-ítem y combate opcional en `NarrativeSceneOutcome`; sorpresa de combate vía buffs existentes sin tocar turn_order; investigación por capas y rastreo acumulativo sobre contenido real; nuevo `interaction_type` "narrative_scene"; primera escena de exploración de producción real (`exploration_telmori_village`); varios bugs de motor preexistentes encontrados y corregidos (cuelgues de turno en STAGGERED/DISARMED, registro de enemigos en combate narrativo, reinicio tras Game Over, panel narrativo sin tamaño fijo, doble sistema de skills desincronizado). Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 
 *Última actualización anterior: Spike 3, Grupo A — Motor y limpieza (los tres puntos del alcance cerrados y validados) — moral de grupo con base dinámica (`_group_morale_base_hp`, recalculada al llegar un refuerzo, nunca golpe a golpe, validada contra los dos ejemplos numéricos de la spec en `test/test_group_morale.gd`); nuevo autoload `EnemyWorldLink` como hueco genérico de limpieza para enemigos que huyen; retirada completa del andamiaje de Spike 1 (tecla F1, JSON de prueba, claves de localización de test) con su hueco de test cubierto en `test/test_narrative_scene_viewmodel.gd` (fixtures en código, sin JSON ni registry). Un hallazgo de GDScript nuevo: un enum anidado en otra clase no se puede anotar como tipo explícito de forma fiable, y un fallo de compilación (o una sobrescritura accidental) en el script dueño de un `class_name` se manifiesta como "Identifier not declared" en cualquier fichero que lo consuma, no en el fichero real con el problema. Ver `docs/spike_3_grupoA_motor_limpieza_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 

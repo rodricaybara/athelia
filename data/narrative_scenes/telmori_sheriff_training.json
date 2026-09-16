@@ -1,0 +1,26 @@
+{
+  "scene_id": "telmori_sheriff_training",
+  "image_path": "",
+  "text_key": "TELMORI_SHERIFF_TRAINING",
+  "options": [
+	{
+	  "option_id": "continue",
+	  "text_key": "TELMORI_SHERIFF_TRAINING_OPTION_CONTINUE",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "telmori_sheriff_pelts",
+		"flag_to_set": "",
+		"grant_item_id": "book_tanning_basics",
+		"grant_item_quantity": 1,
+		"grant_item_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  }
+	}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "scene_id": "telmori_sheriff_reward_intro",
+  "image_path": "",
+  "text_key": "TELMORI_SHERIFF_REWARD_INTRO",
+  "options": [
+	{
+	  "option_id": "continue",
+	  "text_key": "TELMORI_SHERIFF_REWARD_INTRO_OPTION_CONTINUE",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "telmori_sheriff_training",
+		"flag_to_set": "",
+		"grant_resource_id": "gold",
+		"grant_resource_amount": 100.0,
+		"grant_resource_target": "player",
+		"grant_item_id": "wolf_tail_trophy",
+		"grant_item_quantity": 1,
+		"grant_item_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  }
+	}
+  ]
+}

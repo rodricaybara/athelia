@@ -1,0 +1,50 @@
+{
+  "scene_id": "telmori_lair_stealth",
+  "image_path": "",
+  "text_key": "TELMORI_LAIR_STEALTH",
+  "options": [
+	{
+	  "option_id": "ambush",
+	  "text_key": "TELMORI_LAIR_STEALTH_OPTION_AMBUSH",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_lair_combat_won",
+		"combat_enemy_ids": [
+		  "telmori_1",
+		  "telmori_2",
+		  "wolf_1",
+          "wolf_2"
+		],
+		"combat_encounter": {
+		  "surprise_favors": "party",
+		  "surprise_vulnerable_pct": 25,
+		  "reinforcement_trigger": "",
+		  "reinforcement_delay_rounds": 4,
+		  "reinforcement_enemy_ids": [
+			"telmori_5",
+			"telmori_6",
+			"telmori_7",
+            "telmori_8"
+		  ],
+		  "reinforcement_definition_id": "telmori_warrior_weak"
+		},
+		"combat_enemy_definitions": {
+		  "telmori_1": "telmori_warrior_base",
+		  "telmori_2": "telmori_warrior_base",
+		  "wolf_1": "telmori_wolf_base",
+		  "wolf_2": "telmori_wolf_base",
+		  "telmori_5": "telmori_warrior_weak",
+		  "telmori_6": "telmori_warrior_weak",
+		  "telmori_7": "telmori_warrior_weak",
+		  "telmori_8": "telmori_warrior_weak"
+		}
+	  }
+	}
+  ]
+}

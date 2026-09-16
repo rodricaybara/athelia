@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3 uid="uid://dhn5pwpqyw30l"]
+
+[ext_resource type="Script" uid="uid://brpajd07w4urf" path="res://core/items/modifier_definition.gd" id="1_02xvm"]
+[ext_resource type="Script" uid="uid://b1aa4t2pb83xl" path="res://core/items/item_definition.gd" id="2_nbbfd"]
+
+[resource]
+script = ExtResource("2_nbbfd")
+id = "wolf_tail_trophy"
+name_key = "ITEM_WOLF_TAIL_TROPHY_NAME"
+description_key = "ITEM_WOLF_TAIL_TROPHY_DESC"
+weight = 0.2
+durability_max = 1
+base_value = 10
+item_type = "CONSUMABLE"
+stackable = false
+max_stack = 1
+tags = Array[String](["trophy", "quest"])
+metadata/_custom_type_script = "uid://b1aa4t2pb83xl"

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3 uid="uid://7cp4xy8unk0v"]
+
+[ext_resource type="Script" uid="uid://brpajd07w4urf" path="res://core/items/modifier_definition.gd" id="1_kxx2g"]
+[ext_resource type="Script" uid="uid://b1aa4t2pb83xl" path="res://core/items/item_definition.gd" id="2_nxj7i"]
+
+[resource]
+script = ExtResource("2_nxj7i")
+id = "obsidian_spearhead"
+name_key = "ITEM_OBSIDIAN_SPEARHEAD_NAME"
+description_key = "ITEM_OBSIDIAN_SPEARHEAD_DESC"
+weight = 0.5
+durability_max = 1
+base_value = 150
+stackable = false
+max_stack = 1
+tags = Array[String](["treasure", "magic", "quest"])
+metadata/_custom_type_script = "uid://b1aa4t2pb83xl"

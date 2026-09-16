@@ -145,3 +145,5 @@ MENU_GOLD,Gold,Oro
 MENU_LOADOUT,Loadout,Loadout
 MENU_INVENTORY,Inventory,Inventario
 MENU_SKILL_TREE,Skills,Habilidades
+SKILL_TANNING_NAME,Tanning,Curtido
+SKILL_TANNING_DESC,The craft of treating hides into usable leather.,El oficio de tratar pieles para convertirlas en cuero utilizable.

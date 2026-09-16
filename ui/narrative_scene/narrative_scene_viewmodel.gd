@@ -269,6 +269,11 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 	# el outcome además dispara combate o encadena a otra escena.
 	if not outcome.grant_item_id.is_empty():
 		Inventory.add_item(outcome.grant_item_target, outcome.grant_item_id, outcome.grant_item_quantity)
+
+	# Spike 3, Grupo D — otorgar recurso: mismo criterio que otorgar ítem,
+	# vía ResourceSystem.add_resource() en vez de Inventory.add_item().
+	if not outcome.grant_resource_id.is_empty():
+		Resources.add_resource(outcome.grant_resource_target, outcome.grant_resource_id, outcome.grant_resource_amount)
  
 	if not outcome.combat_enemy_ids.is_empty():
 		# GameLoop.start_combat() ya acepta NARRATIVE_SCENE como estado de

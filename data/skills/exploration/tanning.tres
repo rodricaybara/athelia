@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://kvh78jlfwwqf"]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_c0lak"]
+
+[resource]
+script = ExtResource("1_c0lak")
+id = "skill.exploration.tanning"
+name_key = "SKILL_TANNING_NAME"
+description_key = "SKILL_TANNING_DESC"
+subcategory = "EXPLORATION"
+costs = {
+"stamina": 0
+}
+tags = Array[String](["exploration", "craft", "tanning"])
+base_success_rate = 15
+attribute_weights = {
+"dexterity": 1
+}
+metadata/_custom_type_script = "uid://jr1m7twgsql0"

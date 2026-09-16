@@ -1,0 +1,26 @@
+{
+  "scene_id": "telmori_lair_victory",
+  "image_path": "",
+  "text_key": "TELMORI_LAIR_VICTORY",
+  "options": [
+	{
+	  "option_id": "continue",
+	  "text_key": "TELMORI_LAIR_VICTORY_OPTION_CONTINUE",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "telmori_lair_loot_obsidian",
+		"flag_to_set": "",
+		"grant_item_id": "telmori_magic_bag",
+		"grant_item_quantity": 1,
+		"grant_item_target": "player",
+		"combat_enemy_ids": [],
+		"combat_enemy_definitions": {}
+	  }
+	}
+  ]
+}
