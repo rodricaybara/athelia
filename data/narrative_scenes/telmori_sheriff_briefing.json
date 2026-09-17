@@ -3,20 +3,21 @@
   "image_path": "",
   "text_key": "TELMORI_SHERIFF_BRIEFING",
   "options": [
-    {
-      "option_id": "accept_mission",
-      "text_key": "TELMORI_SHERIFF_BRIEFING_OPTION_ACCEPT",
-      "skill_id": "",
-      "roll_modifier": 0,
-      "challenge_level": 0,
-      "required_successes": 0,
-      "retry_policy": "immediate",
-      "group_aggregate": "",
-      "outcome_default": {
-        "next_scene_id": "telmori_equipment_arrows",
-        "flag_to_set": "flag.telmori_mission_accepted",
-        "combat_enemy_ids": []
-      }
-    }
+	{
+	  "option_id": "accept_mission",
+	  "text_key": "TELMORI_SHERIFF_BRIEFING_OPTION_ACCEPT",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"dialogue_id": "DLG_TELMORI_SHERIFF_BRIEFING",
+		"next_scene_id": "telmori_equipment_arrows",
+		"flag_to_set": "flag.telmori_mission_accepted",
+		"combat_enemy_ids": []
+	  }
+	}
   ]
 }

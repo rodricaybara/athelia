@@ -168,6 +168,15 @@
 		  "definition_id": "companion_mira"
 		}
 	  ]
+	},
+	{
+	  "id": "EVT_TELMORI_SHERIFF_BRIEFED",
+	  "description": "El jugador acepta el encargo del sheriff sobre los Telmori",
+	  "trigger_type": "DIALOGUE_END",
+	  "trigger_ref_id": "DLG_TELMORI_SHERIFF_BRIEFING",
+	  "add_flags": ["flag.telmori_sheriff_briefed"],
+	  "remove_flags": [],
+	  "set_variables": {}
 	}	
   ]
 }

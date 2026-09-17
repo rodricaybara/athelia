@@ -442,6 +442,8 @@ Godot genera los `.translation` automáticamente al recargar el proyecto cuando 
 | ViewModel de una Main Scene persistente escucha `EventBus.game_state_changed` | Puede volver a su estado por un camino externo — no solo por su propio código |
 | Un contenedor raíz con texto largo real lleva un tamaño/anclaje explícito | Sin él, el `Control` se dimensiona al contenido y `autowrap_mode` nunca tiene ancho contra el que envolver (Spike 3/B) |
 | Toda razón nueva de `changed()` en el ViewModel gana su caso en la View en el mismo cambio | Un ViewModel validado con fixtures aisladas no garantiza que la View lo consuma (Spike 3/B) |
+| Un overlay/subpantalla anidable expone su propia señal `closed`, nunca depende de `tree_exiting` | Ninguna pantalla del proyecto se auto-libera al cerrarse (solo `visible = false`) — sin `closed`, quien la instancia nunca se entera de que cerró (mejoras post-Spike 3, Grupo 3) |
+| Un `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()`, igual que `ExplorationController` | Un segundo punto de entrada sin el mismo guard procesa el evento aunque el `GameState` no sea `EXPLORATION` (mejoras post-Spike 3, Grupo 3) |
 
 ---
 
@@ -672,6 +674,61 @@ solo porque el ViewModel pasa sus propios tests.
 
 ---
 
+### ❌ Overlay/subpantalla anidable sin señal `closed` propia
+
+```gdscript
+# MAL — asume que la subpantalla se auto-libera al cerrarse, y por
+# tanto que tree_exiting es suficiente para saber cuándo restaurar
+# la pantalla contenedora.
+func _open_subscreen(scene_path: String, init_callback: Callable) -> void:
+    _subscreen = load(scene_path).instantiate()
+    add_child(_subscreen)
+    init_callback.call(_subscreen)
+    visible = false
+    _subscreen.tree_exiting.connect(_on_subscreen_closed)
+```
+
+```gdscript
+# BIEN — prioriza una señal closed explícita; tree_exiting solo
+# como fallback defensivo, con aviso si tampoco existe.
+func _open_subscreen(scene_path: String, init_callback: Callable) -> void:
+    _subscreen = load(scene_path).instantiate()
+    add_child(_subscreen)
+    init_callback.call(_subscreen)
+    visible = false
+    if _subscreen.has_signal("closed"):
+        _subscreen.closed.connect(_on_subscreen_closed)
+    else:
+        push_warning("%s no expone 'closed' — cayendo a tree_exiting" % scene_path.get_file())
+        _subscreen.tree_exiting.connect(_on_subscreen_closed)
+
+func _on_subscreen_closed() -> void:
+    _subscreen.queue_free()   # nadie más lo hace por ella
+    _subscreen = null
+    visible = true
+```
+
+Encontrado en mejoras post-Spike 3, Grupo 3 (overlays de inventario/party/stats
+durante narrativa), pero es un bug de motor preexistente, no introducido por
+ese grupo: ninguna pantalla del proyecto (`InventoryUI`, `PlayerMenuScreen`,
+`LoadoutScreen`, `SkillTreeScreen`) hace `queue_free()` sobre sí misma en su
+propio camino de cierre — todas solo ponen `visible = false`. `tree_exiting`
+por tanto nunca se disparaba, y `PlayerMenuScreen._open_subscreen()` llevaba
+así desde que existe. No se había detectado porque hasta este grupo nadie
+había necesitado *cerrar* una subpantalla y comprobar que el contenedor
+volvía a aparecer — reproducido en playtest real al anidar un segundo nivel
+(`NarrativeScenePanel → PlayerMenuScreen (sub-overlay) → InventoryUI
+(subpantalla propia de PlayerMenu)`): cerrar la capa más profunda dejaba las
+tres colgadas invisibles, sin ninguna forma de volver atrás — indistinguible
+de un crash desde fuera, sin ninguna excepción real del motor.
+
+**Regla derivada:** toda pantalla pensada para anidarse (como subpantalla o
+como sub-overlay de otra) expone su propia señal `closed`, emitida junto al
+`visible = false` de su cierre. Quien la instancia se conecta a esa señal y
+hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
@@ -684,7 +741,7 @@ solo porque el ViewModel pasa sus propios tests.
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. |
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
 | PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
-| NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). Spike 3, Grupo C reutilizó el contrato tal cual para el contenido de la guarida (4 escenas más, `combat_encounter` inline con refuerzos por primera vez) sin necesitar ningún cambio en el ViewModel ni en la View. |
+| NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). Spike 3, Grupo C reutilizó el contrato tal cual para el contenido de la guarida (4 escenas más, `combat_encounter` inline con refuerzos por primera vez) sin necesitar ningún cambio en el ViewModel ni en la View. **Spike 3, Grupo D** extendió `_apply_outcome()` con `grant_resource_*` ("otorgar recurso", análogo a `grant_item_*` vía `Resources.add_resource()`) — cambio interno del ViewModel, resuelto en el mismo bloque silencioso que `grant_item_*`, sin ninguna razón `changed()` nueva ni cambio en `narrative_scene_panel.gd` (a diferencia de `"streak_progress"` en Grupo B, esto no necesita renderizarse — es una entrega puntual, no un estado que la View deba mostrar). **Mejoras post-Spike 3, Grupo 3** añadió tres razones más de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`), emitidas por tres intenciones nuevas (`request_open_inventory/party/player_menu`) con el mismo guard que `request_option()` — no tocan `current_node` ni la racha, así que el estado del ViewModel no se entera de que hay un sub-overlay abierto encima. `narrative_scene_panel.gd` gana `_unhandled_input()` (antes no tenía ninguno) y gestión propia de sub-overlay (`_open_sub_overlay`/`_close_sub_overlay`, ver antipatrón "Overlay/subpantalla anidable sin señal `closed` propia" más arriba) para Inventory/Party/PlayerMenu, instanciados como hijos directos del panel — nunca vía `SceneOrchestrator`, precisamente para no pisar su `_current_overlay` de slot único (que en `NARRATIVE_SCENE` apunta al propio panel narrativo). **Mejoras post-Spike 3, Grupo 2** extendió el mismo mecanismo de sub-overlay a Diálogo: `NarrativeSceneOutcome.dialogue_id` (nuevo campo) abre `DialoguePanel` igual que Inventory/Party/PlayerMenu, pero con una diferencia deliberada — al cerrarse, si el outcome traía `next_scene_id`, la escena avanza (`resume_after_dialogue()`) en vez de quedarse en el mismo nodo como hacen los otros tres. La View distingue cuál de los cuatro sub-overlays se cerró (`_sub_overlay_is_dialogue`) para decidir si llama a ese método o no. `DialoguePanel` ganó su propia `signal closed` en este grupo (no la tenía, a diferencia de las cuatro pantallas ya arregladas en Grupo 3). |
 
 ### Pantallas sin ViewModel (casos especiales)
 
@@ -695,7 +752,13 @@ solo porque el ViewModel pasa sus propios tests.
 
 ---
 
-*Última actualización: Spike 3, Grupo C — La guarida — ningún cambio al contrato MVVM ni a ningún patrón de arquitectura UI: el grupo fue contenido narrativo (4 escenas JSON), una skill nueva y el motor de reconexión narrativa tras combate (`exploration_telmori_village.gd`, fuera de la capa de pantallas MVVM). `NarrativeSceneViewModel`/`narrative_scene_panel.gd` no cambiaron — el `combat_encounter` inline y `combat_enemy_definitions` que usa Grupo C ya los resolvió Grupo B en `_apply_outcome()`. Ver `docs/spike_3_grupoC_guarida_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (fusión de salas, reconexión tras combate generalizada, restricción de `reinforcement_definition_id`).
+*Última actualización: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa — ningún cambio al contrato MVVM en sí: el sub-overlay de Diálogo reutiliza exactamente el mecanismo (`_open_sub_overlay`/`_close_sub_overlay`, señal `closed`) que Grupo 3 ya dejó construido, solo con una rama de reenganche nueva (`resume_after_dialogue()`) para los casos donde el diálogo es contenido narrativo real, no una charla lateral. `NarrativeSceneViewModel` gana `request_open_dialogue()`/`resume_after_dialogue()` sin tocar `current_node` ni la racha, mismo criterio que las intenciones de Grupo 3. Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (comprobaciones de código previas, hallazgo del guard de `_on_dialogue_ended()`, escaneo recursivo de `DialogueRegistry`).
+
+*Última actualización anterior: Mejoras post-Spike 3, Grupo 3 — Overlays de inventario/party/stats durante narrativa — un antipatrón nuevo ("Overlay/subpantalla anidable sin señal `closed` propia") y dos reglas nuevas en "Reglas que no se rompen", encontrados en playtest real al anidar un segundo nivel de subpantallas, no en un spike de motor aislado. `NarrativeSceneViewModel` gana tres razones de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`) sin tocar el contrato MVVM en sí — mismo patrón que las razones añadidas en Spike 2/Grupo B, ninguna cambia `current_node` ni la racha. `narrative_scene_panel.gd` gana su primer `_unhandled_input()` y gestión de sub-overlay, deliberadamente sin pasar por `SceneOrchestrator` (hallazgo no anticipado por el spec: su `_current_overlay` es un slot único, no una pila — ver `athelia_estructura_proyecto_actualizado.md`). Ver `docs/mejoras_grupo3_overlays_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 3, Grupo D — Cierre — ningún cambio al contrato MVVM ni a ningún antipatrón nuevo de arquitectura UI: el grupo fue contenido narrativo (6 escenas JSON), una skill nueva, cuatro ítems nuevos y motor de reconexión narrativa (`exploration_telmori_village.gd`, fuera de la capa de pantallas MVVM). `NarrativeSceneViewModel._apply_outcome()` sí cambió (nuevo bloque `grant_resource_*`), pero es una extensión de datos resuelta internamente, del mismo tipo que `grant_item_*` en Grupo B — no genera ninguna razón `changed()` nueva ni toca `narrative_scene_panel.gd`. Único hallazgo de motor relevante para esta capa: un campo nuevo en una data class (`NarrativeSceneOutcome.grant_resource_target`) necesita su declaración como propiedad y su asignación en `from_dict()` en el mismo cambio — perder una de las dos no falla en compilación, falla en runtime al cargar el primer JSON que la use ("Invalid assignment of property or key"). Con este grupo, "Los Telmori" es jugable de principio a fin. Ver `docs/spike_3_grupoD_cierre_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (recompensa multicapa, botín mágico, reconexión narrativa sin combate).
+
+*Última actualización anterior: Spike 3, Grupo C — La guarida — ningún cambio al contrato MVVM ni a ningún patrón de arquitectura UI: el grupo fue contenido narrativo (4 escenas JSON), una skill nueva y el motor de reconexión narrativa tras combate (`exploration_telmori_village.gd`, fuera de la capa de pantallas MVVM). `NarrativeSceneViewModel`/`narrative_scene_panel.gd` no cambiaron — el `combat_encounter` inline y `combat_enemy_definitions` que usa Grupo C ya los resolvió Grupo B en `_apply_outcome()`. Ver `docs/spike_3_grupoC_guarida_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (fusión de salas, reconexión tras combate generalizada, restricción de `reinforcement_definition_id`).
 
 *Última actualización anterior: Spike 3, Grupo B — Del pueblo a la puerta de la guarida — dos antipatrones nuevos (panel sin tamaño fijo con texto largo; razón de `changed()` sin consumidor en la View, ambos encontrados en la primera partida real de contenido, no en spikes de motor aislados) y cierre de los dos huecos que dejó abiertos Spike 2 en `NarrativeSceneViewModel`/`narrative_scene_panel.gd`. Ningún cambio al contrato MVVM en sí. Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo (motor, no patrón de UI).
 

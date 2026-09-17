@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://diu4bcxspkl5c"
+
+[deps]
+
+files=["res://localization/dialogues_scenes_telmori.en.translation", "res://localization/dialogues_scenes_telmori.es.translation"]
+
+source_file="res://localization/dialogues_scenes_telmori.csv"
+dest_files=["res://localization/dialogues_scenes_telmori.en.translation", "res://localization/dialogues_scenes_telmori.es.translation"]
+
+[params]
+
+compress=true
+delimiter=0
+unescape_keys=false
+unescape_translations=true

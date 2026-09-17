@@ -43,6 +43,22 @@ extends CanvasLayer
 
 
 # ============================================
+# SEÑALES
+# ============================================
+
+## Grupo 3 (mejoras post-Spike 3) — emitida en _on_vm_changed("closed"),
+## junto a visible = false. LoadoutScreen NUNCA se autolibera (no hace
+## queue_free() sobre sí mismo en ningún camino de cierre) — quien lo
+## instancia como subpantalla (PlayerMenuScreen) es responsable de hacer
+## queue_free() al recibir esta señal. Mismo patrón que
+## InventoryUI.closed / PlayerMenuScreen.closed. Bug confirmado en
+## playtest real: sin esta señal, PlayerMenuScreen._open_subscreen()
+## caía a tree_exiting, que nunca se disparaba, y el flujo se quedaba
+## colgado sin volver a la pantalla anterior.
+signal closed
+
+
+# ============================================
 # NODOS
 # ============================================
 
@@ -116,6 +132,7 @@ func _on_vm_changed(reason: String) -> void:
 			_show_feedback(tr(_vm.error_message), true)
 		"closed":
 			visible = false
+			closed.emit()
 		_:
 			push_warning("[LoadoutScreen] Razón desconocida: %s" % reason)
 

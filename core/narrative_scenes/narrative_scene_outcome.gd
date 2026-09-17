@@ -68,6 +68,17 @@ var grant_resource_amount: float = 0.0
 ## entity_id destino, mismo default y misma razón que grant_item_target.
 var grant_resource_target: String = "player"
 
+## Spike 4 Grupo 2 (mejoras post-Spike 3) — "abrir diálogo": en vez de cerrar la
+## escena o encadenar a next_scene_id, abre Diálogo como sub-overlay encima
+## del panel narrativo (ver NarrativeSceneViewModel.request_open_dialogue()).
+## Vacío = no abre ningún diálogo, comportamiento idéntico a antes de este
+## campo. Al cerrarse el diálogo, la escena narrativa vuelve exactamente al
+## mismo nodo — este outcome NO encadena a next_scene_id ni cierra el panel;
+## si la escena necesita avanzar tras la conversación, la propia opción del
+## diálogo que la cierra debe marcar el flag que gatee el siguiente paso
+## (igual que cualquier otro flag_to_set del proyecto).
+var dialogue_id: String = ""
+
 static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 	var outcome := new()
 	outcome.next_scene_id = data.get("next_scene_id", "")
@@ -91,5 +102,5 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 	outcome.grant_resource_id = data.get("grant_resource_id", "")
 	outcome.grant_resource_amount = data.get("grant_resource_amount", 0.0)
 	outcome.grant_resource_target = data.get("grant_resource_target", "player")
-	
+	outcome.dialogue_id = data.get("dialogue_id", "")
 	return outcome

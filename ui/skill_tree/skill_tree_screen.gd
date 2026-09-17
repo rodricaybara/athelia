@@ -12,6 +12,22 @@ extends CanvasLayer
 
 
 # ============================================
+# SEÑALES
+# ============================================
+
+## Grupo 3 (mejoras post-Spike 3) — emitida en _on_vm_changed("closed"),
+## junto a visible = false. SkillTreeScreen NUNCA se autolibera (no hace
+## queue_free() sobre sí mismo en ningún camino de cierre — ni el botón
+## de cierre, que no tiene, ni ui_cancel) — quien lo instancia como
+## subpantalla (PlayerMenuScreen) es responsable de hacer queue_free()
+## al recibir esta señal. Mismo patrón que InventoryUI.closed /
+## LoadoutScreen.closed. Sin esta señal, PlayerMenuScreen._open_subscreen()
+## caía a tree_exiting, que nunca se disparaba (SkillTreeScreen tampoco
+## se autolibera), y el flujo se quedaba colgado tras cerrar con ESC.
+signal closed
+
+
+# ============================================
 # PRELOADS
 # ============================================
 
@@ -116,6 +132,7 @@ func _on_vm_changed(reason: String) -> void:
 			_render_detail()
 		"closed":
 			visible = false
+			closed.emit()
 		_:
 			push_warning("[SkillTreeScreen] Razón desconocida: %s" % reason)
 

@@ -1,0 +1,10 @@
+id,en,es
+DLG_SHERIFF_01_GREET,"Ah, you're the one they sent about the wolf trouble. Good — we need every hand we can get. What do you want to know before you head out?","Ah, tú eres quien enviaron por el asunto de los lobos. Bien — necesitamos toda la ayuda posible. ¿Qué quieres saber antes de partir?"
+DLG_SHERIFF_OPT_ASK_PROBLEM,"Tell me about the problem.","Cuéntame el problema."
+DLG_SHERIFF_OPT_ASK_REWARD,"What's the reward?","¿Cuál es la recompensa?"
+DLG_SHERIFF_OPT_ASK_WEAPONS,"What about weapons?","¿Qué hay de las armas?"
+DLG_SHERIFF_OPT_ACCEPT,"I'll take the job.","Acepto el encargo."
+DLG_SHERIFF_02_PROBLEM,"Wolves have been raiding the hills north of the village — bigger and bolder than any pack we've seen. Sheep gone, and now a shepherd's gone missing too. Whatever's out there, it's not acting like an ordinary wolf.","Los lobos llevan semanas saqueando las colinas al norte del pueblo — más grandes y descarados que cualquier manada que hayamos visto. Ovejas desaparecidas, y ahora también falta un pastor. Sea lo que sea, no se comporta como un lobo cualquiera."
+DLG_SHERIFF_03_REWARD,"Clear out whatever's denned up in those hills and there's good coin in it for you, plus first pick of anything worth keeping from the den. Do it well, and the village won't forget it.","Limpia lo que sea que anide en esas colinas y habrá buena paga para ti, además de primera elección de lo que valga la pena de la guarida. Hazlo bien y el pueblo no lo olvidará."
+DLG_SHERIFF_04_WEAPONS,"Ordinary steel might not be enough if what I suspect is true. I can lend you a few silver arrows, and there's a spear in the armory you're welcome to borrow — return it in one piece.","El acero corriente podría no bastar si lo que sospecho es cierto. Puedo prestarte algunas flechas de plata, y hay una lanza en el armero que puedes tomar prestada — devuélvemela de una pieza."
+DLG_OPT_BACK,"Ask something else.","Preguntar otra cosa."

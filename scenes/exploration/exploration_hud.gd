@@ -35,7 +35,22 @@ func show_interact_prompt(_localization_key: String) -> void:
 		interact_prompt.text = "[E] Interactuar"
 		interact_prompt.visible = true
 
+## Fix (mejoras post-Spike 3, Grupo 3): a diferencia de
+## ExplorationController._unhandled_input(), este método no comprobaba
+## GameLoop.is_input_blocked() — disparaba open_skill_tree/open_player_menu
+## sin importar el GameState. Inofensivo mientras solo existía EXPLORATION
+## como origen legítimo (SceneOrchestrator ya bloqueaba la llamada por su
+## cuenta), pero confirmado en playtest real: durante NARRATIVE_SCENE, la
+## misma pulsación de tecla disparaba a la vez
+## NarrativeScenePanel._unhandled_input() (correcto) y este método (bloqueado
+## con warning en SceneOrchestrator, pero ruido evitable). Mismo guard que
+## ExplorationController, para que ninguno de los dos procese input fuera
+## de EXPLORATION.
 func _unhandled_input(event: InputEvent) -> void:
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if game_loop and game_loop.is_input_blocked():
+		return
+
 	if event.is_action_pressed("open_skill_tree"):
 		var orchestrator := get_node_or_null("/root/SceneOrchestrator")
 		if orchestrator:

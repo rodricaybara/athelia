@@ -41,6 +41,22 @@ const OVERLAY_PLAYER_MENU := "res://ui/player_menu/player_menu_screen.tscn"
 const OVERLAY_LOADOUT    := "res://ui/loadout/loadout_screen.tscn"
 const OVERLAY_COMBAT_HUD := "res://ui/combat/combat_hud.tscn"
 
+## Grupo 3 (mejoras post-Spike 3) — estados desde los que puede abrirse un
+## overlay "ligero" (Inventory/Party/PlayerMenu). NARRATIVE_SCENE se añade
+## aquí solo como parte del chequeo de estado — la apertura real durante
+## narrativa NUNCA pasa por open_inventory()/open_party()/open_player_menu():
+## la gestiona NarrativeScenePanel como sub-overlay propio, precisamente
+## para no tocar _current_overlay (que en NARRATIVE_SCENE apunta al propio
+## panel narrativo — ver narrative_scene_panel.gd). El guard explícito
+## dentro de cada open_X() de más abajo es una red de seguridad: si algo
+## llegara a invocar estos métodos durante NARRATIVE_SCENE, se bloquea con
+## un aviso en vez de destruir el panel narrativo por el toggle de
+## _current_overlay.
+const LIGHT_OVERLAY_ALLOWED_STATES: Array = [
+	GameLoopSystem.GameState.EXPLORATION,
+	GameLoopSystem.GameState.NARRATIVE_SCENE,
+]
+
 # ============================================
 # ESTADO INTERNO
 # ============================================
@@ -273,15 +289,26 @@ func _handle_combat() -> void:
 # ============================================
 
 ## Abre el inventario como overlay dentro de EXPLORATION.
-## Solo válido en estado EXPLORATION — se bloquea en cualquier otro.
+## Grupo 3 (mejoras post-Spike 3): el chequeo de estado acepta también
+## NARRATIVE_SCENE, pero la apertura real durante narrativa NUNCA pasa por
+## aquí — la gestiona NarrativeScenePanel como sub-overlay propio (ver
+## narrative_scene_panel.gd). El guard explícito de NARRATIVE_SCENE de
+## abajo es una red de seguridad: evita que, si algo llamara a este método
+## por error durante narrativa, el toggle de _current_overlay termine
+## destruyendo el panel narrativo (que es quien ocupa ese slot en ese
+## estado).
 func open_inventory() -> void:
 	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 	if not game_loop:
 		push_error("[SceneOrchestrator] GameLoop not found")
 		return
 
-	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
-		push_warning("[SceneOrchestrator] Inventory blocked: state is %s, expected EXPLORATION" % GameLoopSystem.GameState.keys()[game_loop.current_game_state])
+	if not LIGHT_OVERLAY_ALLOWED_STATES.has(game_loop.current_game_state):
+		push_warning("[SceneOrchestrator] Inventory blocked: state is %s" % GameLoopSystem.GameState.keys()[game_loop.current_game_state])
+		return
+
+	if game_loop.current_game_state == GameLoopSystem.GameState.NARRATIVE_SCENE:
+		push_warning("[SceneOrchestrator] open_inventory() ignorado en NARRATIVE_SCENE — lo gestiona NarrativeScenePanel internamente")
 		return
 
 	if _current_overlay and is_instance_valid(_current_overlay):
@@ -302,11 +329,17 @@ func close_inventory() -> void:
 	if _current_overlay and _current_overlay.name == "InventoryUI":
 		_hide_current_overlay()
 
+## Grupo 3: mismo criterio que open_inventory() — ver comentario de ese
+## método para el porqué del guard de NARRATIVE_SCENE.
 func open_party() -> void:
 	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 	if not game_loop:
 		return
-	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+	if not LIGHT_OVERLAY_ALLOWED_STATES.has(game_loop.current_game_state):
+		return
+
+	if game_loop.current_game_state == GameLoopSystem.GameState.NARRATIVE_SCENE:
+		push_warning("[SceneOrchestrator] open_party() ignorado en NARRATIVE_SCENE — lo gestiona NarrativeScenePanel internamente")
 		return
 
 	if _current_overlay and is_instance_valid(_current_overlay):
@@ -357,16 +390,21 @@ func close_skill_tree() -> void:
 		_hide_current_overlay()
 
 ## Abre el menú de personaje del jugador.
-## Solo válido en EXPLORATION.
+## Grupo 3: mismo criterio que open_inventory() — ver comentario de ese
+## método para el porqué del guard de NARRATIVE_SCENE.
 func open_player_menu() -> void:
 	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 	if not game_loop:
 		push_error("[SceneOrchestrator] GameLoop not found")
 		return
 
-	if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+	if not LIGHT_OVERLAY_ALLOWED_STATES.has(game_loop.current_game_state):
 		push_warning("[SceneOrchestrator] PlayerMenu blocked: state is %s" % \
 			GameLoopSystem.GameState.keys()[game_loop.current_game_state])
+		return
+
+	if game_loop.current_game_state == GameLoopSystem.GameState.NARRATIVE_SCENE:
+		push_warning("[SceneOrchestrator] open_player_menu() ignorado en NARRATIVE_SCENE — lo gestiona NarrativeScenePanel internamente")
 		return
 
 	if _current_overlay and is_instance_valid(_current_overlay):
@@ -442,9 +480,21 @@ func _hide_current_overlay() -> void:
 # ============================================
 
 func _on_dialogue_ended(_dialogue_id: String) -> void:
-	_hide_current_overlay()
 	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
-	if game_loop:
+	if not game_loop:
+		return
+ 
+	# Spike 4 Grupo 2 (mejoras post-Spike 3): dialogue_ended es una señal GLOBAL de
+	# EventBus. Si el diálogo se abrió como sub-overlay de NarrativeScenePanel
+	# (GameState se queda en NARRATIVE_SCENE, _current_overlay sigue apuntando
+	# al panel narrativo — nunca a este diálogo), forzar enter_exploration()
+	# aquí destruiría la escena narrativa en curso al cerrar el diálogo.
+	# Solo tocamos GameState/_current_overlay si el diálogo se abrió por el
+	# camino normal de GameState.DIALOGUE (Interactable "dialogue" desde
+	# EXPLORATION). Si estamos en NARRATIVE_SCENE, el cierre lo gestiona
+	# NarrativeScenePanel internamente vía su propia señal `closed`.
+	if game_loop.current_game_state == GameLoopSystem.GameState.DIALOGUE:
+		_hide_current_overlay()
 		game_loop.enter_exploration()
 
 func _on_narrative_scene_closed(_scene_id: String) -> void:

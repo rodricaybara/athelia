@@ -16,6 +16,15 @@ extends CanvasLayer
 ## - EquipSlot acepta drop y emite drop_accepted(slot_id, item_id)
 ## - InventoryUI escucha drop_accepted y solicita equipar
 
+## Grupo 3 (mejoras post-Spike 3) — emitida en close_inventory(), junto a
+## visible = false. InventoryUI NUNCA se autolibera (no hace queue_free
+## sobre sí misma en ningún camino de cierre) — quien la instancia como
+## overlay/subpantalla (SceneOrchestrator, PlayerMenuScreen o, desde este
+## grupo, NarrativeScenePanel) es responsable de hacer queue_free() al
+## recibir esta señal. Sin ella, tree_exiting nunca se dispara y el
+## contenedor externo no tiene forma de saber que se cerró.
+signal closed
+
 @export var entity_id: String = "player"
 
 # ---- Inventario (mochila) ----
@@ -110,6 +119,7 @@ func open_inventory() -> void:
 func close_inventory() -> void:
 	visible = false
 	_deselect_slot()
+	closed.emit()
 	print("[InventoryUI] Closed")
 
 

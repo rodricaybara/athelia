@@ -43,6 +43,16 @@ extends Node
 ## coste-beneficio. Si la opción también da progresión (challenge_level > 0),
 ## CADA miembro del grupo intenta su propia mejora de forma independiente —
 ## nunca un resultado de progresión compartido.
+##
+## Overlays de inventario/party/stats durante narrativa (Grupo 3, mejoras
+## post-Spike 3): request_open_inventory()/request_open_party()/
+## request_open_player_menu() solo emiten la intención — NUNCA tocan
+## current_node, _success_streaks ni state. La apertura real del sub-overlay
+## (instanciar la escena, ocultar/restaurar el panel) es responsabilidad
+## exclusiva de NarrativeScenePanel (la View); este ViewModel no sabe que
+## existe ningún sub-overlay, igual que no sabe que existe SceneOrchestrator.
+## Por eso cerrar el sub-overlay nunca dispara un re-render ni un re-open()
+## de esta escena — el estado de la racha en curso sobrevive intacto.
 
 ## NOTA: el enum de estados se llama PanelState, no SceneState — "SceneState"
 ## es una clase nativa del motor (usada por PackedScene) y el nombre colisiona
@@ -62,6 +72,17 @@ enum PanelState { HIDDEN, SHOWING, WAITING_ROLL, TRANSITIONING }
 ##                        View debe quedarse en el mismo render y, si quiere,
 ##                        mostrar streak_current/streak_required. No se aplica
 ##                        ningún NarrativeSceneOutcome en este caso.
+##   "open_inventory"   → Grupo 3: abrir Inventory como sub-overlay encima del
+##                        panel narrativo, sin tocar current_node ni el estado
+##                        de la escena en curso
+##   "open_party"       → Spike 4 Grupo 3: idéntico a "open_inventory" pero para Party
+##   "open_player_menu" → Spike 4 Grupo 3: idéntico a "open_inventory" pero para PlayerMenu
+##   "open_dialogue"    → Spike 4 Grupo 2: abrir Diálogo como sub-overlay encima del
+##                        panel narrativo, sin tocar current_node ni el estado
+##                        de la escena en curso. El dialogue_id a abrir viaja
+##                        en pending_dialogue_id — mismo criterio que
+##                        streak_current/streak_required: solo válido leerlo
+##                        justo después de recibir esta razón.
 ##   "closed"           → ocultar panel (el nodo se destruye aparte, vía
 ##                        SceneOrchestrator, al volver a EXPLORATION o entrar
 ##                        en COMBAT_ACTIVE)
@@ -80,6 +101,18 @@ var current_node: NarrativeSceneDefinition = null
 var streak_option_id: String = ""
 var streak_current: int = 0
 var streak_required: int = 0
+
+## Spike 4 Grupo 2 — dialogue_id pendiente de abrir como sub-overlay. Solo válido
+## leerlo justo después de recibir changed("open_dialogue").
+var pending_dialogue_id: String = ""
+
+## Spike 4 Grupo 2 — a qué escena avanzar cuando se cierre el sub-overlay de
+## diálogo. Vacío (default) = no avanzar, la escena vuelve exactamente al
+## mismo nodo — comportamiento válido para un diálogo que es charla lateral
+## pura. Relleno = el diálogo era el contenido real de este paso narrativo;
+## al cerrarse, la historia avanza como si hubiera sido un next_scene_id
+## normal. Solo se lee una vez, desde resume_after_dialogue().
+var _pending_next_scene_after_dialogue: String = ""
 
 ## Spike 2, punto 3 — contador de éxitos seguidos por opción. option_id → int.
 var _success_streaks: Dictionary = {}
@@ -113,6 +146,59 @@ func request_option(option_id: String) -> void:
 		_try_narrative_progression(option, roll)
 		_apply_outcome(option.get_outcome_for_grade(roll.result))
 
+
+# ============================================
+# GRUPO 3 — OVERLAYS DURANTE NARRATIVA
+# Solo emiten la intención. Nunca tocan current_node/_success_streaks/state
+# (salvo el guard de lectura) — el sub-overlay es responsabilidad íntegra
+# de NarrativeScenePanel (la View).
+# ============================================
+
+func request_open_inventory() -> void:
+	if state != PanelState.SHOWING:
+		push_warning("[NarrativeSceneViewModel] request_open_inventory ignorado: estado %s" % state)
+		return
+	changed.emit("open_inventory")
+
+
+func request_open_party() -> void:
+	if state != PanelState.SHOWING:
+		push_warning("[NarrativeSceneViewModel] request_open_party ignorado: estado %s" % state)
+		return
+	changed.emit("open_party")
+
+
+func request_open_player_menu() -> void:
+	if state != PanelState.SHOWING:
+		push_warning("[NarrativeSceneViewModel] request_open_player_menu ignorado: estado %s" % state)
+		return
+	changed.emit("open_player_menu")
+
+## Spike 4 Grupo 2 — abrir Diálogo como sub-overlay. dialogue_id lo decide quien
+## dispara la intención: hoy, _apply_outcome() cuando un NarrativeSceneOutcome
+## trae dialogue_id relleno (ver parche de _apply_outcome más abajo). Mismo
+## guard y mismo criterio de "solo emitir la intención" que sus hermanos.
+func request_open_dialogue(dialogue_id: String) -> void:
+	if state != PanelState.SHOWING:
+		push_warning("[NarrativeSceneViewModel] request_open_dialogue ignorado: estado %s" % state)
+		return
+	if dialogue_id.is_empty():
+		push_warning("[NarrativeSceneViewModel] request_open_dialogue con dialogue_id vacío")
+		return
+	pending_dialogue_id = dialogue_id
+	changed.emit("open_dialogue")
+
+## Spike 4 Grupo 2 — llamado por la View cuando el sub-overlay de diálogo se cierra
+## (nunca por el cierre de Inventory/Party/PlayerMenu, que no tocan esto).
+## Si el outcome que abrió el diálogo traía next_scene_id, avanza ahora;
+## si no, no hace nada — current_node se queda como estaba y la View ya lo
+## está mostrando sin más acción por su parte.
+func resume_after_dialogue() -> void:
+	if _pending_next_scene_after_dialogue.is_empty():
+		return
+	var next_id := _pending_next_scene_after_dialogue
+	_pending_next_scene_after_dialogue = ""
+	_load_scene(next_id, "node_changed")
 
 # ============================================
 # INTERNO
@@ -248,13 +334,6 @@ func _find_option(option_id: String) -> NarrativeSceneOption:
 			return option
 	return null
 
-# PATCH — narrative_scene_viewmodel.gd
-#
-# Reemplaza el método _apply_outcome() completo por esta versión. Dos
-# cambios: (1) otorgar ítem, independiente de si el outcome también
-# encadena escena o dispara combate; (2) combat_encounter se pasa a
-# start_combat() en vez de omitirse — null por defecto, mismo
-# comportamiento que antes si el outcome no lo usa.
 
 func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 	if not outcome:
@@ -267,13 +346,23 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
  
 	# Spike 3, Grupo B — otorgar ítem: entrega puntual, independiente de si
 	# el outcome además dispara combate o encadena a otra escena.
-	if not outcome.grant_item_id.is_empty():
-		Inventory.add_item(outcome.grant_item_target, outcome.grant_item_id, outcome.grant_item_quantity)
-
-	# Spike 3, Grupo D — otorgar recurso: mismo criterio que otorgar ítem,
-	# vía ResourceSystem.add_resource() en vez de Inventory.add_item().
 	if not outcome.grant_resource_id.is_empty():
 		Resources.add_resource(outcome.grant_resource_target, outcome.grant_resource_id, outcome.grant_resource_amount)
+ 
+	# Spike 4 Grupo 2 — "abrir diálogo": retorno temprano deliberado. A diferencia de
+	# combat_enemy_ids (que SÍ cierra el panel, porque GameState cambia a
+	# COMBAT_ACTIVE), aquí el panel narrativo se queda abierto debajo del
+	# sub-overlay de diálogo — state/current_node no cambian, así que al
+	# cerrar el diálogo la escena está exactamente donde estaba. No se
+	# combina con next_scene_id ni con combate en el mismo outcome: si una
+	# escena necesita ambos, son dos opciones distintas, no un solo outcome
+	# haciendo dos cosas (mismo criterio "deliberadamente mínimo" que ya
+	# aplican grant_item_*/grant_resource_*).
+	if not outcome.dialogue_id.is_empty():
+		pending_dialogue_id = outcome.dialogue_id
+		_pending_next_scene_after_dialogue = outcome.next_scene_id
+		changed.emit("open_dialogue")
+		return
  
 	if not outcome.combat_enemy_ids.is_empty():
 		# GameLoop.start_combat() ya acepta NARRATIVE_SCENE como estado de

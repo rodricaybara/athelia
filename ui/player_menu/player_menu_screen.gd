@@ -17,6 +17,19 @@ extends CanvasLayer
 
 
 # ============================================
+# SEÑALES
+# ============================================
+
+## Grupo 3 (mejoras post-Spike 3) — emitida en _close_all(), junto a
+## visible = false. PlayerMenuScreen NUNCA se autolibera (no hace
+## queue_free() sobre sí mismo en ningún camino de cierre) — quien lo
+## instancia como overlay/subpantalla (SceneOrchestrator o, desde este
+## grupo, NarrativeScenePanel) es responsable de hacer queue_free() al
+## recibir esta señal. Mismo patrón que PartyUI.closed.
+signal closed
+
+
+# ============================================
 # RUTAS DE SUBPANTALLAS
 # ============================================
 
@@ -163,6 +176,21 @@ func _render_navigation() -> void:
 
 # ============================================
 # GESTIÓN DE SUBPANTALLAS
+#
+# Fix (mejoras post-Spike 3, Grupo 3): antes se escuchaba tree_exiting,
+# asumiendo que la subpantalla se autolibera al cerrarse. Falso para las
+# tres — InventoryUI/LoadoutScreen/SkillTreeScreen solo hacen
+# visible = false en su cierre, nunca queue_free() sobre sí mismas — así
+# que tree_exiting no se disparaba nunca. Bug confirmado en playtest
+# real: abrir Inventory desde dentro de PlayerMenu (mientras PlayerMenu
+# era a su vez el sub-overlay de NarrativeScenePanel) y cerrarlo dejaba
+# las tres pantallas (Inventory, PlayerMenu, NarrativeScenePanel)
+# colgadas invisibles, sin ninguna forma de volver atrás.
+#
+# InventoryUI ya expone señal `closed` (Grupo 3). LoadoutScreen y
+# SkillTreeScreen todavía no se han verificado — de ahí el fallback
+# defensivo a tree_exiting con aviso, en vez de asumir que también la
+# tienen.
 # ============================================
 
 func _open_subscreen(scene_path: String, init_callback: Callable) -> void:
@@ -178,20 +206,27 @@ func _open_subscreen(scene_path: String, init_callback: Callable) -> void:
 	init_callback.call(_subscreen)
 
 	visible = false
-	_subscreen.tree_exiting.connect(_on_subscreen_closed)
+
+	if _subscreen.has_signal("closed"):
+		_subscreen.closed.connect(_on_subscreen_closed)
+	else:
+		push_warning("[PlayerMenuScreen] %s no expone señal 'closed' — cayendo a tree_exiting (sin confirmar que se autolibera)" % scene_path.get_file())
+		_subscreen.tree_exiting.connect(_on_subscreen_closed)
 
 	print("[PlayerMenuScreen] Subpantalla abierta: %s" % scene_path.get_file())
 
 
 func _on_subscreen_closed() -> void:
-	_subscreen = null
+	_close_subscreen()
 	visible = true
 	_vm.open(_character_id)
 
 
 func _close_subscreen() -> void:
 	if _subscreen and is_instance_valid(_subscreen):
-		if _subscreen.tree_exiting.is_connected(_on_subscreen_closed):
+		if _subscreen.has_signal("closed") and _subscreen.closed.is_connected(_on_subscreen_closed):
+			_subscreen.closed.disconnect(_on_subscreen_closed)
+		elif _subscreen.tree_exiting.is_connected(_on_subscreen_closed):
 			_subscreen.tree_exiting.disconnect(_on_subscreen_closed)
 		_subscreen.queue_free()
 	_subscreen = null
@@ -200,6 +235,7 @@ func _close_subscreen() -> void:
 func _close_all() -> void:
 	_close_subscreen()
 	visible = false
+	closed.emit()
 
 
 # ============================================

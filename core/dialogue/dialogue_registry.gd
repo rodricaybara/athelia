@@ -18,23 +18,31 @@ func _ready():
 
 ## Carga todos los diálogos desde res://data/dialogue/
 func _load_dialogues_from_json():
-	var dialogue_dir = "res://data/dialogue/"
+	_scan_directory_recursive("res://data/dialogue/")
+ 
+ 
+## Recorre dialogue_dir y todas sus subcarpetas, cargando cada .json que
+## encuentra. Mismo criterio que la convención por-aventura ya usada en
+## data/characters/<aventura>/ y data/items/<aventura>/ (Spike 3, Grupo B).
+func _scan_directory_recursive(dialogue_dir: String) -> void:
 	var dir = DirAccess.open(dialogue_dir)
-	
+ 
 	if not dir:
 		push_warning("[DialogueDB] Directory not found: %s" % dialogue_dir)
 		return
-	
+ 
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
-	
+ 
 	while file_name != "":
-		if file_name.ends_with(".json"):
+		if dir.current_is_dir():
+			_scan_directory_recursive(dialogue_dir + file_name + "/")
+		elif file_name.ends_with(".json"):
 			var file_path = dialogue_dir + file_name
 			_load_dialogue_from_file(file_path)
-		
+ 
 		file_name = dir.get_next()
-	
+ 
 	dir.list_dir_end()
 
 

@@ -1,0 +1,95 @@
+{
+  "dialogue": {
+	"id": "DLG_TELMORI_SHERIFF_BRIEFING",
+	"nodes": [
+	  {
+		"id": "N1",
+		"speaker_id": "sheriff",
+		"text_key": "DLG_SHERIFF_01_GREET",
+		"portrait_id": "guard",
+		"options": [
+		  {
+			"id": "O1",
+			"text_key": "DLG_SHERIFF_OPT_ASK_PROBLEM",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N2"
+		  },
+		  {
+			"id": "O2",
+			"text_key": "DLG_SHERIFF_OPT_ASK_REWARD",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N3"
+		  },
+		  {
+			"id": "O3",
+			"text_key": "DLG_SHERIFF_OPT_ASK_WEAPONS",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N4"
+		  },
+		  {
+			"id": "O4",
+			"text_key": "DLG_SHERIFF_OPT_ACCEPT",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": ["EVT_TELMORI_SHERIFF_BRIEFED"],
+			"next_node_id": ""
+		  }
+		]
+	  },
+	  {
+		"id": "N2",
+		"speaker_id": "sheriff",
+		"text_key": "DLG_SHERIFF_02_PROBLEM",
+		"portrait_id": "guard",
+		"options": [
+		  {
+			"id": "O5",
+			"text_key": "DLG_OPT_BACK",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N1"
+		  }
+		]
+	  },
+	  {
+		"id": "N3",
+		"speaker_id": "sheriff",
+		"text_key": "DLG_SHERIFF_03_REWARD",
+		"portrait_id": "guard",
+		"options": [
+		  {
+			"id": "O6",
+			"text_key": "DLG_OPT_BACK",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N1"
+		  }
+		]
+	  },
+	  {
+		"id": "N4",
+		"speaker_id": "sheriff",
+		"text_key": "DLG_SHERIFF_04_WEAPONS",
+		"portrait_id": "guard",
+		"options": [
+		  {
+			"id": "O7",
+			"text_key": "DLG_OPT_BACK",
+			"required_flags": [],
+			"blocked_flags": [],
+			"narrative_events": [],
+			"next_node_id": "N1"
+		  }
+		]
+	  }
+	]
+  }
+}

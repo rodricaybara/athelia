@@ -1,5 +1,5 @@
 extends CanvasLayer
-
+signal closed
 ## DialoguePanel — View
 ##
 ## Renderiza el estado expuesto por DialogueViewModel.
@@ -71,6 +71,7 @@ func _on_vm_changed(reason: String) -> void:
 			_clear_options()
 			_clear_portraits()
 			visible = false
+			closed.emit()
 		_:
 			push_warning("[DialoguePanel] Razón desconocida: %s" % reason)
 
