@@ -261,6 +261,29 @@ const RADIUS_CARD  : int = 4   ## Tarjetas de skill, badges
 const RADIUS_PANEL : int = 6   ## Paneles y overlays
 ## Sin border-radius > 8px — piedra y madera no son suaves.
 
+# ============================================
+# UIRadialGauge (instancias de PV/EN en fichas de combate)
+# ============================================
+const COLOR_GAUGE_HP_PARTY: Color = Color("#639922")
+const COLOR_GAUGE_EN_PARTY: Color = Color("#378ADD")
+const COLOR_GAUGE_HP_ENEMY: Color = Color("#A34747")
+
+## Relleno de UICombatToken.CenterFill cuando CharacterDefinition.token_color
+## no está asignado (Color.BLACK centinela — ver character_definition.gd).
+const COLOR_TOKEN_FILL_DEFAULT: Color = Color("#5A544A")
+
+# ============================================
+# triángulo de turno y retícula de objetivo en fichas de combate
+# ============================================
+const COLOR_TURN_INDICATOR: Color = Color("#EF9F27")
+
+# ============================================
+# log de combate — grados de resultado de SkillRoller
+# ============================================
+const COLOR_LOG_FUMBLE: Color = Color("#C23B3B")
+const COLOR_LOG_FAILURE: Color = Color("#8A8478")
+const COLOR_LOG_CRITICAL: Color = Color("#FFD34D")
+
 # ============================================================
 # UTILIDADES
 # ============================================================

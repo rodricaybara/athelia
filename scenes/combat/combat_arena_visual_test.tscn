@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c6icmuvye7hf8"]
+
+[ext_resource type="Script" uid="uid://ccx5lc5c2m2yd" path="res://scenes/combat/combat_arena_viasual_test.gd" id="1_7v0c4"]
+
+[node name="CombatArenaVisualTest" type="Node" unique_id=117067072]
+script = ExtResource("1_7v0c4")

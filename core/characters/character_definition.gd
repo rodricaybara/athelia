@@ -19,6 +19,13 @@ extends Resource
 ## Clave de localizaciÃ³n para la descripciÃ³n
 @export var description_key: String = ""
 
+## Color de relleno de la ficha en la arena de combate (Design System,
+## Grupo 5). Color.BLACK como centinela de sin-asignar -- si de verdad
+## quieres una ficha negra, avisa para usar otro centinela (ej. alpha 0).
+## CombatArenaViewModel cae a UITokens.COLOR_TOKEN_FILL_DEFAULT si esto
+## se queda en el valor por defecto.
+@export var token_color: Color = Color.BLACK
+
 
 # ============================================
 # ATRIBUTOS BASE

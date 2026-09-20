@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://cq48g0ywg5l76"]
 
-[ext_resource type="Script" uid="uid://bmbobbojfd8u7" path="res://scenes/combat/combat_test_scene.gd" id="1_scene_script"]
+[ext_resource type="Script" uid="uid://cocbmf8ekyubv" path="res://scenes/combat/combat_test.gd" id="1_n7rfm"]
 [ext_resource type="Script" uid="uid://bkb3vs4mdsq5l" path="res://scenes/player/player_combat_controller.gd" id="2_controller"]
 [ext_resource type="Script" uid="uid://bru0fnpkmq7wy" path="res://ui/entity_animation_controller.gd" id="3_00qyv"]
 [ext_resource type="Texture2D" uid="uid://bjveekbrwrf51" path="res://data/characters/portrait/guard_neutral.png" id="4_qkusl"]
 [ext_resource type="PackedScene" path="res://ui/damage_number.tscn" id="6_00qyv"]
 
 [node name="CombatTest" type="Node2D" unique_id=864875039]
-script = ExtResource("1_scene_script")
+script = ExtResource("1_n7rfm")
 
 [node name="Player" type="Node2D" parent="." unique_id=1057909425 groups=["player"]]
 position = Vector2(300, 300)

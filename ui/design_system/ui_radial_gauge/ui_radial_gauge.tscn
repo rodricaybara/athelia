@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://daefcdjk7m0qd"]
+
+[ext_resource type="Script" uid="uid://dprdkiije1484" path="res://ui/design_system/ui_radial_gauge/ui_radial_gauge.gd" id="1_gj521"]
+
+[node name="UiRadialGauge" type="Control" unique_id=342763391]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_gj521")
+ring_color = Color(0.5963037, 0.68149847, 0.19310519, 1)

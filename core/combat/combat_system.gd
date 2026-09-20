@@ -272,8 +272,8 @@ func _on_skill_used(entity_id: String, skill_id: String):
 	if skill_id == "skill.combat.dodge":
 		_process_dodge(entity_id, skill_def)
 		_pending_skill_context.clear()
-		EventBus.emit_signal("combat_action_completed", {"success": true, "action": "dodge"})
-		EventBus.emit_signal("player_action_completed", {"success": true, "action": "dodge"})
+		EventBus.emit_signal("combat_action_completed", {"success": true, "action": "dodge", "actor": entity_id})
+		EventBus.emit_signal("player_action_completed", {"success": true, "action": "dodge", "actor": entity_id})
 		return
 	
 	# --- HABILIDADES DE ATAQUE: requieren target ---

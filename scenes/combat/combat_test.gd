@@ -1,4 +1,4 @@
-extends Node2D
+extends Node
 
 ## CombatTestScene - Escena de prueba para el sistema de combate
 ## 

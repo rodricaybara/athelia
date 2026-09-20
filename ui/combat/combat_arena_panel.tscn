@@ -1,0 +1,127 @@
+[gd_scene format=3 uid="uid://cwhcbrdyuhos4"]
+
+[ext_resource type="Script" uid="uid://ctymsi8xer5ol" path="res://ui/combat/combat_arena_panel.gd" id="1_yl7tq"]
+[ext_resource type="Script" uid="uid://r6fm3adwn5yg" path="res://ui/design_system/components/ui_button/ui_button.gd" id="2_v781d"]
+[ext_resource type="Script" uid="uid://8woviswr1y68" path="res://ui/combat/combat_arena_divider_line.gd" id="2_y4h68"]
+
+[node name="CombatArenaPanel" type="CanvasLayer" unique_id=1766341086]
+script = ExtResource("1_yl7tq")
+
+[node name="Root" type="Control" parent="." unique_id=659031134]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainVBox" type="VBoxContainer" parent="Root" unique_id=1000000001]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ArenaSection" type="Control" parent="Root/MainVBox" unique_id=266217281]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+
+[node name="PartyColumn" type="VBoxContainer" parent="Root/MainVBox/ArenaSection" unique_id=992635132]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.45
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="DividerLine" type="Control" parent="Root/MainVBox/ArenaSection" unique_id=1051599365]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 0.48
+anchor_right = 0.52
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_y4h68")
+
+[node name="EnemyColumn" type="VBoxContainer" parent="Root/MainVBox/ArenaSection" unique_id=489408403]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.55
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="LogScroll" type="ScrollContainer" parent="Root/MainVBox" unique_id=440894144]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LogList" type="VBoxContainer" parent="Root/MainVBox/LogScroll" unique_id=677208761]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActionGrid" type="HBoxContainer" parent="Root/MainVBox" unique_id=1021969585]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_vertical = 0
+alignment = 1
+
+[node name="attack_1" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=857619471]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="attack_2" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=1101720362]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="attack_3" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=2126857678]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="dodge" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=212386762]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="defense" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=17686936]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="escape" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=959245770]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="consumable_1" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=659595705]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+
+[node name="consumable_2" type="Button" parent="Root/MainVBox/ActionGrid" unique_id=683554468]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("2_v781d")
+metadata/_custom_type_script = "uid://r6fm3adwn5yg"

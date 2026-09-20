@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://uhthv47ma6uw"]
+
+[ext_resource type="PackedScene" uid="uid://daefcdjk7m0qd" path="res://ui/design_system/ui_radial_gauge/ui_radial_gauge.tscn" id="1_h6cnm"]
+
+[node name="TestGauge" type="Control" unique_id=1830768006]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="UiRadialGauge" parent="." unique_id=342763391 instance=ExtResource("1_h6cnm")]
+layout_mode = 0
+progress = 0.61
+
+[node name="UiRadialGauge2" parent="." unique_id=1686186124 instance=ExtResource("1_h6cnm")]
+layout_mode = 0
+offset_left = 64.0
+offset_right = 128.0
+offset_bottom = 64.0
+progress = 0.43
+thickness = 3.0
+
+[node name="UiRadialGauge3" parent="." unique_id=607308516 instance=ExtResource("1_h6cnm")]
+layout_mode = 0
+offset_left = 128.0
+offset_right = 192.0
+offset_bottom = 64.0
+
+[node name="UiRadialGauge4" parent="." unique_id=915500350 instance=ExtResource("1_h6cnm")]
+layout_mode = 0
+offset_left = 196.0
+offset_right = 260.0
+offset_bottom = 64.0

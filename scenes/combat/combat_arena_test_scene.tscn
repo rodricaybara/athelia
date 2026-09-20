@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://eds2iech5r8t"]
+
+[ext_resource type="Script" uid="uid://jhu2ruqxlh4h" path="res://scenes/combat/combat_arena_test_scene.gd" id="1_wj0jl"]
+[ext_resource type="Script" uid="uid://bkb3vs4mdsq5l" path="res://scenes/player/player_combat_controller.gd" id="2_nsuu5"]
+[ext_resource type="PackedScene" uid="uid://cwhcbrdyuhos4" path="res://ui/combat/combat_arena_panel.tscn" id="3_nsuu5"]
+
+[node name="CombatArenaTestScene" type="Node2D" unique_id=357231974]
+script = ExtResource("1_wj0jl")
+
+[node name="PlayerCombatController" type="Node" parent="." unique_id=928355572]
+unique_name_in_owner = true
+script = ExtResource("2_nsuu5")
+
+[node name="CombatArenaPanel" parent="." unique_id=1766341086 instance=ExtResource("3_nsuu5")]
+unique_name_in_owner = true

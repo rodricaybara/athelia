@@ -1,0 +1,14 @@
+id,en,es
+LOG_ATTACK_FUMBLE,%s botches the attack against %s — the weapon slips from their hands.,%s falla estrepitosamente contra %s — el arma se le resbala de las manos.
+LOG_ATTACK_FAILURE,%s attacks %s but fails to connect.,%s ataca a %s pero no consigue conectar.
+LOG_ATTACK_SUCCESS,%s strikes %s for %d damage.,%s golpea a %s causando %d de daño.
+LOG_ATTACK_SPECIAL,%s finds a gap in %s's guard — a solid hit for %d damage.,%s encuentra un hueco en la guardia de %s — golpe certero por %d de daño.
+LOG_ATTACK_CRITICAL,Critical hit! %s shatters %s's defense for %d damage.,¡Golpe crítico! %s destroza la defensa de %s por %d de daño.
+LOG_DODGE_ACTIVATED,%s braces to dodge the next attack.,%s se prepara para esquivar el próximo ataque.
+LOG_DEFEND_ACTIVATED,%s raises their guard.,%s levanta la guardia.
+LOG_DEFEND_EXPIRED,%s's guard drops.,La guardia de %s baja.
+LOG_FLEE_ATTEMPTED,%s looks for a way out (needs %d stamina).,%s busca una salida (necesita %d de estamina).
+LOG_FLEE_SUCCEEDED,%s breaks away from the fight!,¡%s consigue escapar del combate!
+LOG_FLEE_FAILED,%s can't find an opening to escape (%d/%d stamina).,%s no encuentra hueco para escapar (%d/%d de estamina).
+LOG_STAGGERED,%s is reeling and loses their turn.,%s está tambaleándose y pierde el turno.
+LOG_DISARMED,%s can't act — their weapon is useless right now.,%s no puede actuar — su arma no sirve ahora mismo.

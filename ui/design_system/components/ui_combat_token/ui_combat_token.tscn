@@ -1,0 +1,124 @@
+[gd_scene format=3 uid="uid://dafe5cvxrgfke"]
+
+[ext_resource type="Script" uid="uid://5fmcdws8lm8v" path="res://ui/design_system/components/ui_combat_token/ui_combat_token.gd" id="1_7llda"]
+[ext_resource type="PackedScene" uid="uid://daefcdjk7m0qd" path="res://ui/design_system/ui_radial_gauge/ui_radial_gauge.tscn" id="1_cvnu4"]
+[ext_resource type="Script" uid="uid://bx3cljdtbrnsd" path="res://ui/design_system/components/ui_combat_token/ui_combat_token_center_fill.gd" id="2_cfill"]
+[ext_resource type="Script" uid="uid://dmca01uppfoqa" path="res://ui/design_system/components/ui_combat_token/ui_combat_token_turn_triangle.gd" id="3_ttri"]
+[ext_resource type="Script" uid="uid://c0858rros5rvb" path="res://ui/design_system/components/ui_combat_token/ui_combat_token_target_reticle.gd" id="4_treti"]
+
+[node name="UiCombatToken" type="Control" unique_id=200844015]
+custom_minimum_size = Vector2(96, 144)
+custom_maximum_size = Vector2(96, 144)
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_7llda")
+
+[node name="TokenVisual" type="Control" parent="." unique_id=803486161]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 16.0
+offset_bottom = 112.0
+grow_horizontal = 2
+
+[node name="HpGauge" parent="TokenVisual" unique_id=342763391 instance=ExtResource("1_cvnu4")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="EnGauge" parent="TokenVisual" unique_id=3233822 instance=ExtResource("1_cvnu4")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CenterFill" type="Control" parent="TokenVisual" unique_id=497231064]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_cfill")
+
+[node name="InitialsLabel" type="Label" parent="TokenVisual/CenterFill" unique_id=1732683886]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TypeIcon" type="TextureRect" parent="TokenVisual/CenterFill" unique_id=677482422]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 3
+stretch_mode = 5
+
+[node name="TurnTriangle" type="Control" parent="." unique_id=1294560296]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 16.0
+grow_horizontal = 2
+script = ExtResource("3_ttri")
+
+[node name="TargetReticle" type="Control" parent="." unique_id=820273380]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = -4.0
+offset_top = 12.0
+offset_right = 4.0
+offset_bottom = 116.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_treti")
+
+[node name="HpValueLabel" type="Label" parent="." unique_id=1981075304]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 112.0
+offset_bottom = 128.0
+grow_horizontal = 2
+horizontal_alignment = 1
+
+[node name="EnValueLabel" type="Label" parent="." unique_id=405571467]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 128.0
+offset_bottom = 144.0
+grow_horizontal = 2
+horizontal_alignment = 1
