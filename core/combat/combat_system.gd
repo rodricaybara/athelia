@@ -900,14 +900,21 @@ func _spawn_damage_number(entity_id: String, damage: float, is_critical: bool, i
 
 ## Obtiene la posición para mostrar damage number
 func _get_entity_damage_number_position(entity_id: String) -> Vector2:
-	# Intentar leer posición del nodo real en la escena
 	var entity_node: Node = get_tree().get_first_node_in_group(entity_id)
-	if entity_node and entity_node is Node2D:
-		# Convertir posición del mundo a posición de pantalla
+
+	# Ficha de la arena nueva (UICombatToken, Control) — ya está en
+	# espacio de pantalla, sin conversión de canvas.
+	if entity_node is Control:
+		var control: Control = entity_node as Control
+		return control.get_global_rect().position + Vector2(control.size.x / 2.0, -10.0)
+
+	# Nodo visual antiguo (Node2D, combat_test.tscn) — conversión de
+	# posición de mundo a pantalla, como siempre.
+	if entity_node is Node2D:
 		var canvas: CanvasItem = entity_node as CanvasItem
 		if canvas:
 			return entity_node.get_global_transform_with_canvas().origin + Vector2(0, -40)
-	
+
 	# Fallback hardcodeado para entidades sin nodo visual
 	match entity_id:
 		"player":  return Vector2(300, 450)

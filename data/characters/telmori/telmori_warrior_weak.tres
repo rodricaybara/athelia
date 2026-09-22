@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://rnd7r66wadtk"]
+
+[ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
+
+[resource]
+script = ExtResource("1_char_def")
+id = "telmori_warrior_weak"
+name_key = "character_telmori_warrior_weak_name"
+description_key = "character_telmori_warrior_weak_desc"
+base_attributes = {
+"charisma": 5,
+"constitution": 12,
+"dexterity": 9,
+"intelligence": 6,
+"strength": 11,
+"wisdom": 6
+}
+starting_resources = {
+"focus": 0,
+"gold": 0,
+"health": 40,
+"stamina": 15
+}
+skills = Array[String](["skill.enemy.basic_attack"])
+starting_skill_values = {
+"skill.enemy.basic_attack": 45
+}
+inventory_slots = 10
+loot_table_id = "enemy_base_drops"
+equipment_slots = Array[String]([])

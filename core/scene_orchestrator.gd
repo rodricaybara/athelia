@@ -26,7 +26,7 @@ extends Node
 
 const SCENE_MAIN_MENU          := "res://ui/main_menu/main_menu_screen.tscn"
 const SCENE_CHARACTER_CREATION := "res://ui/character_creation/character_creation_screen.tscn"
-const SCENE_COMBAT             := "res://scenes/combat/combat_test.tscn"
+const SCENE_COMBAT             := "res://scenes/combat/combat_production_scene.tscn"
 #const SCENE_EXPLORATION        := "res://scenes/exploration/tutorial/exploration_tutorial.tscn"
 const SCENE_EXPLORATION        := "res://scenes/exploration/telmori_village/exploration_telmori_village.tscn"
 
@@ -39,7 +39,7 @@ const OVERLAY_GAME_OVER  := "res://ui/gameover/game_over_ui.tscn"
 const OVERLAY_SKILL_TREE := "res://ui/skill_tree/skill_tree_screen.tscn"
 const OVERLAY_PLAYER_MENU := "res://ui/player_menu/player_menu_screen.tscn"
 const OVERLAY_LOADOUT    := "res://ui/loadout/loadout_screen.tscn"
-const OVERLAY_COMBAT_HUD := "res://ui/combat/combat_hud.tscn"
+const OVERLAY_COMBAT_HUD := "res://ui/combat/combat_arena_panel.tscn"
 
 ## Grupo 3 (mejoras post-Spike 3) — estados desde los que puede abrirse un
 ## overlay "ligero" (Inventory/Party/PlayerMenu). NARRATIVE_SCENE se añade

@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://dq4txtfumoukh"]
 
 [ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
+[ext_resource type="Texture2D" uid="uid://dnldoq0akh685" path="res://icon.svg" id="2_n61k1"]
 
 [resource]
 script = ExtResource("1_char_def")
 id = "enemy_base"
 name_key = "character_enemy_base_name"
 description_key = "character_enemy_base_desc"
+type_icon = ExtResource("2_n61k1")
 base_attributes = {
 "charisma": 5,
 "constitution": 8,

@@ -18,10 +18,11 @@ const SLOT_ORDER: Array[String] = [
 ]
 
 @onready var party_column: VBoxContainer = %PartyColumn
-@onready var enemy_column: VBoxContainer = %EnemyColumn
+@onready var enemy_column: Container = %EnemyColumn
 @onready var log_scroll: ScrollContainer = %LogScroll
 @onready var log_list: VBoxContainer = %LogList
 @onready var action_grid: HBoxContainer = %ActionGrid
+@onready var damage_numbers: Control = %DamageNumbers
 
 var _vm: CombatArenaViewModel = null
 
@@ -58,9 +59,21 @@ func _ready() -> void:
 		_slot_buttons[slot_id] = btn
 		btn.pressed.connect(_on_slot_action_pressed.bind(slot_id))
 
+	# SceneOrchestrator instancia OVERLAY_COMBAT_HUD sin llamar a ningún
+	# método de apertura (igual que hace hoy con combat_hud.gd, puramente
+	# reactivo) — se abre solo al entrar en el árbol. open() se queda
+	# público e idempotente para los arneses de prueba que sí lo llaman
+	# explícitos.
+	open()
+
 
 func open() -> void:
 	visible = true
+	# combat_system.gd necesita esto para _spawn_damage_number() — sin
+	# asignar, nunca sabe dónde instanciar el número flotante.
+	var combat: Node = get_node_or_null("/root/Combat")
+	if combat:
+		combat.damage_numbers_parent = damage_numbers
 
 
 # ============================================
@@ -75,7 +88,7 @@ func _on_vm_changed(reason: String) -> void:
 			_render_new_log_entry()
 		"combat_ended":
 			_render_combat_ended()
-		"slots":
+		"slots", "opened":
 			_render_action_slots()
 		"resources":
 			pass  # el menú de acciones no muestra PV/EN aparte, solo cooldowns/disponibilidad
@@ -102,6 +115,10 @@ func _instantiate_token(data: CombatTokenData) -> UICombatToken:
 		party_column.add_child(token)
 	else:
 		enemy_column.add_child(token)
+	# combat_system.gd localiza el nodo visual de una entidad por grupo
+	# (_get_entity_damage_number_position, VFX de buffs) — sin esto, los
+	# números de daño nunca encuentran dónde aparecer sobre la ficha.
+	token.add_to_group(data.entity_id)
 	return token
 
 

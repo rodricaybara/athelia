@@ -81,22 +81,22 @@ athelia/
 │   │
 │   ├── characters/                 # Sistema de personajes
 │   │   ├── character_system.gd     # [Autoload: Characters]
-│   │   ├── character_definition.gd # Resource: definición estática del personaje
+│   │   ├── character_definition.gd # Resource: definición estática del personaje — Grupo 5: + token_color (Color, centinela Color.BLACK) y type_icon (Texture2D), color de relleno e icono de tipo de la ficha en la arena de combate
 │   │   ├── character_state.gd      # Resource: estado en tiempo de ejecución
 │   │   ├── loadout_state.gd        # Resource: estado de loadout del personaje
 │   │   ├── attribute_resolver.gd   # Resolución de atributos derivados
 │   │   └── modifier_applicator.gd  # [Autoload: Modifiers]
 │   │
 │   ├── combat/                     # Sistema de combate por turnos
-│   │   ├── combat_system.gd        # [Autoload: Combat]
-│   │   ├── combat_resolver.gd      # Resolución de acciones de combate
+│   │   ├── combat_system.gd        # [Autoload: Combat]. Grupo 5: parche en _on_skill_used() (rama dodge) para incluir "actor" en el payload de combat_action_completed/player_action_completed; _get_entity_damage_number_position() gana rama para Control (fichas UICombatToken, ya en espacio de pantalla) junto a la rama Node2D existente
+│   │   ├── combat_resolver.gd      # Resolución de acciones de combate — SOSPECHA DE CÓDIGO MUERTO (Grupo 5): duplica lógica de daño con nomenclatura de fases antiguas ("FASE A/B/C", pre-Spike), no lo referencia ningún fichero activo revisado; combat_system.gd tiene su propia implementación inline
 │   │   ├── combat_loot_spawner.gd  # [Autoload: CombatLootSpawner]
 │   │   ├── defense_module.gd       # Módulo de defensa
 │   │   ├── escape_module.gd        # Módulo de huida
 │   │   ├── skill_roller.gd         # Tiradas de habilidad (RollResult: FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL desde Spike 2 — CRITICAL/SPECIAL dinámicos skill/20 y skill/5, FUMBLE absoluto)
 │   │   ├── combat_encounter_definition.gd  # Resource opcional para start_combat() — moral de grupo (morale_threshold_pct, base dinámica desde Spike 3 Grupo A), refuerzos cronometrados, y sorpresa (Spike 3/B: surprise_favors "party"/"enemies", surprise_vulnerable_pct — vía buff staggered/vulnerable en GameLoopSystem._apply_surprise(), sin tocar turn_order)
 │   │   ├── enemy_world_link.gd     # [Autoload: EnemyWorldLink] ← NUEVO (Spike 3, Grupo A): hueco genérico de limpieza para enemigos que huyen
-│   │   └── enemy_ai.gd             # IA de enemigos
+│   │   └── enemy_ai.gd             # IA de enemigos — extends Node, sin dependencia de nodo padre (confirmado Grupo 5); antes colgaba de EnemyCombatNode (visual, retirado), ahora lo instancia combat_production_scene.gd directamente
 │   │
 │   ├── companions/                 # Sistema de companions y party
 │   │   ├── party_manager.gd        # [Autoload: Party]
@@ -326,7 +326,10 @@ athelia/
 │   ├── spike_3_grupoA_motor_limpieza_informe_cierre.md  # moral dinámica, EnemyWorldLink, retirada de andamiaje Spike 1
 │   ├── spike_3_grupoB_pueblo_guarida_informe_cierre.md  # primer contenido real, "Los Telmori" hasta la puerta de la guarida
 │   ├── spike_3_grupoC_guarida_informe_cierre.md  # la guarida jugable de principio a fin, fusión de las dos salas, reconexión narrativa tras combate generalizada
-│   └── spike_3_grupoD_cierre_informe_cierre.md  # ← NUEVO: cierre completo — recompensa multicapa, botín mágico, otorgar recurso, "Los Telmori" jugable de principio a fin
+│   ├── spike_3_grupoD_cierre_informe_cierre.md  # cierre completo — recompensa multicapa, botín mágico, otorgar recurso, "Los Telmori" jugable de principio a fin
+│   ├── mejoras_grupo2_dialogo_narrativa_informe_cierre.md
+│   ├── mejoras_grupo3_overlays_narrativa_informe_cierre.md
+│   └── mejoras_grupo5_combate_produccion_informe_cierre.md  # ← NUEVO: pantalla de combate de producción completa — UIRadialGauge/UICombatToken, CombatArenaViewModel/Panel, combat_production_scene.gd, integración real en SceneOrchestrator, jugado de principio a fin en "Los Telmori"
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales
@@ -358,13 +361,18 @@ athelia/
 │   ├── characters_telmori.es.translation
 │   ├── items_telmori.csv               # ← NUEVO (Spike 3, Grupo D) — nombre/desc de telmori_magic_bag, obsidian_spearhead, wolf_tail_trophy (botín/trofeo, sin ranura). Requiere alta manual en Project Settings → Localization → Translations, igual que narrative_scenes_telmori.csv en su momento
 │   ├── items_telmori.en.translation
-│   └── items_telmori.es.translation
+│   ├── items_telmori.es.translation
+│   ├── combat.csv                      # ← NUEVO (Grupo 5) — 13 claves del log de combate: ATTACK graduado por SkillRoller (5 claves: FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL), DODGE/DEFEND(x2)/FLEE(x3)/STAGGERED/DISARMED sin grado. Requiere alta manual en Project Settings → Localization → Translations
+│   ├── combat.en.translation
+│   └── combat.es.translation
 │
 ├── scenes/                         # Escenas del juego
 │   ├── combat/
-│   │   ├── combat_test.tscn        # Escena de test de combate
+│   │   ├── combat_production_scene.gd   # ← NUEVO (Grupo 5): pieza de PRODUCCIÓN real — sustituye a combat_test_scene.gd como SceneOrchestrator.SCENE_COMBAT. Sin UI: solo instancia PlayerCombatController + EnemyAI/CompanionAI (roster inicial y refuerzos vía reinforcement_spawned) y registra Skills para enemigos (NarrativeSceneViewModel/ExplorationController pre-registran Characters/Resources pero nunca Skills). Se auto-libera en combat_ended (SceneOrchestrator no guarda referencia a SCENE_COMBAT ni la libera — fuga preexistente, no arreglada ahí)
+│   │   ├── combat_production_scene.tscn # Un único nodo, sin hijos, sin UI
+│   │   ├── combat_test.tscn        # Escena de TEST de combate — ya NO es la de producción desde Grupo 5, sigue existiendo tal cual (propia UI de barras ProgressBar) para depurar sin la maquinaria nueva encima
 │   │   ├── combat_test_scene.gd
-│   │   ├── enemy_combat_node.gd
+│   │   ├── enemy_combat_node.gd    # Nodo visual 2D de enemigo (sprite + AnimationController) — YA NO se usa en producción desde Grupo 5 (UICombatToken cubre su único rol funcional real); sigue vivo para combat_test.tscn
 │   │   └── enemy_combat_node.tscn
 │   │
 │   ├── companions/
@@ -414,9 +422,14 @@ athelia/
     ├── entity_animation_controller.gd
     │
     ├── combat/                     # UI de combate
-    │   ├── combat_hub_viewmodel.gd
-    │   ├── combat_hud.gd
+    │   ├── combat_hub_viewmodel.gd     # Menú de 8 acciones del jugador (3 ataque configurables + 3 defensivas fijas + 2 ítems) — sin cambios de contrato, Grupo 5 lo compone como action_menu dentro de CombatArenaViewModel
+    │   ├── combat_hud.gd               # YA NO es la pantalla de producción desde Grupo 5 (ver combat_arena_panel.gd) — sigue vivo solo para combat_test.tscn
     │   ├── combat_hud.tscn
+    │   ├── combat_arena_viewmodel.gd   # ← NUEVO (Grupo 5): ViewModel de la arena — fichas de party/enemigos (dinámicas: companions/refuerzos a mitad de combate) + log narrado. Compone a combat_hub_viewmodel.gd como action_menu, sin tocarlo. Se conecta a Resources.resource_changed directamente (la señal de ResourceSystem, NO EventBus.resource_changed — ver hallazgo de motor abajo)
+    │   ├── combat_token_data.gd        # ← NUEVO (Grupo 5): data class — snapshot de una ficha (entity_id, is_party, HP/EN actual+máximo, turno, objetivo, color/icono)
+    │   ├── log_entry_data.gd           # ← NUEVO (Grupo 5): data class — una línea del log (text_key + format_args + grade)
+    │   ├── combat_arena_panel.gd       # ← NUEVO (Grupo 5): View de producción, sustituye a combat_hud.tscn como SceneOrchestrator.OVERLAY_COMBAT_HUD. Fichas dinámicas en PartyColumn(VBoxContainer)/EnemyColumn(GridContainer 2 columnas — VBoxContainer no cabía con 6 enemigos reales), log con autoscroll, menú de 8 UIButton fijos, fondo opaco (tapa la escena de exploración, que sigue viva debajo por diseño de SceneOrchestrator)
+    │   ├── combat_arena_panel.tscn
     │   └── damage_number.tscn
     │
     ├── character_creation/         # Creación de personaje (patrón MVVM)
@@ -435,13 +448,22 @@ athelia/
     │   │   ├── ui_slot/
     │   │   │   ├── ui_slot.gd
     │   │   │   └── ui_slot.tscn
-    │   │   └── ui_resource_bar/
-    │   │       ├── ui_resource_bar.gd
-    │   │       └── ui_resource_bar.tscn
+    │   │   ├── ui_resource_bar/
+    │   │   │   ├── ui_resource_bar.gd
+    │   │   │   └── ui_resource_bar.tscn
+    │   │   ├── ui_radial_gauge/    # ← NUEVO (Grupo 5): anillo de progreso radial parametrizable (progress/ring_color/track_color/thickness), sin precedente previo de _draw()/arcos en el Design System (todo lo demás usa StyleBoxFlat). Un único anillo por instancia — una ficha de party lo instancia dos veces (PV+EN), una de enemigo una vez (solo PV)
+    │   │   │   ├── ui_radial_gauge.gd
+    │   │   │   └── ui_radial_gauge.tscn
+    │   │   └── ui_combat_token/    # ← NUEVO (Grupo 5): ficha de combate (party o enemigo), compone dos UIRadialGauge + relleno central (iniciales o icono de tipo) + triángulo de turno + retícula de objetivo. 3 scripts helper internos sin class_name (no reutilizables fuera de este componente): ui_combat_token_center_fill.gd, ui_combat_token_turn_triangle.gd, ui_combat_token_target_reticle.gd
+    │   │       ├── ui_combat_token.gd
+    │   │       ├── ui_combat_token_center_fill.gd
+    │   │       ├── ui_combat_token_turn_triangle.gd
+    │   │       ├── ui_combat_token_target_reticle.gd
+    │   │       └── ui_combat_token.tscn
     │   ├── theme/
     │   │   └── main_theme.tres     # Tema global de UI
     │   └── tokens/
-    │       └── ui_tokens.gd        # [Autoload: UITokens] Tokens de diseño
+    │       └── ui_tokens.gd        # [Autoload: UITokens] Tokens de diseño — Grupo 5: + COLOR_GAUGE_HP_PARTY/EN_PARTY/HP_ENEMY, COLOR_TURN_INDICATOR, COLOR_TOKEN_FILL_DEFAULT, COLOR_LOG_FUMBLE/FAILURE/CRITICAL (SPECIAL reutiliza COLOR_TURN_INDICATOR, SUCCESS reutiliza el font_color normal del tema)
     │
     ├── dialogue/                   # Panel de diálogo (patrón MVVM)
     │   ├── dialogue_viewmodel.gd
@@ -580,7 +602,7 @@ Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes
 
 - Escucha `game_state_changed` vía EventBus y **nunca modifica GameState**.
 - Los overlays (diálogo, tienda, inventario, escena narrativa) se instancian y destruyen en cada apertura/cierre (`queue_free`).
-- La escena de combate se carga de forma **aditiva** (la escena de exploración permanece en memoria debajo).
+- La escena de combate se carga de forma **aditiva** (la escena de exploración permanece en memoria debajo) — `SCENE_COMBAT` y `OVERLAY_COMBAT_HUD` son dos piezas separadas, instanciadas ambas en `_handle_combat()`. **Desde Grupo 5**: `SCENE_COMBAT` apunta a `combat_production_scene.tscn` (sin UI, solo IA de enemigos/companions + `PlayerCombatController`) y `OVERLAY_COMBAT_HUD` a `combat_arena_panel.tscn` (la pantalla real, fichas+log+menú). `combat_test.tscn`/`combat_hud.tscn` dejan de ser producción pero no se retiran, siguen como escena de test independiente. **Fuga preexistente encontrada en Grupo 5, no arreglada**: `_handle_combat()` guarda referencia a la instancia de `OVERLAY_COMBAT_HUD` (`_combat_hud`, liberada en `_on_combat_ended()`) pero nunca a la de `SCENE_COMBAT` — esa instancia no se libera nunca desde `SceneOrchestrator`. `combat_production_scene.gd` se libera a sí misma escuchando `combat_ended` directamente, como mitigación local; el fondo del problema (mismo patrón ya existía con `combat_test_scene.gd`) sigue sin resolver a nivel de `SceneOrchestrator`.
 - El inventario es especial: se abre como overlay dentro de `EXPLORATION` sin cambiar `GameState`. Se accede vía `SceneOrchestrator.open_inventory()`.
 - Hay un problema de timing conocido con la tienda (el evento `shop_opened` se emite antes de que el overlay exista); se resuelve llamando directamente a `show_shop_direct()` con un snapshot del `EconomySystem`. **NarrativeScene no tiene este problema** — `NarrativeSceneDB.get_scene()` es una consulta local síncrona, así que `_handle_narrative_scene()` no necesita ningún `show_X_direct()` especial, el `scene_id` llega vía `_pending_context` igual que `dialogue_id`/`shop_id`.
 - El menú principal es la **Main Scene** del proyecto. `_handle_main_menu()` solo limpia overlays residuales; no instancia nada.
@@ -844,7 +866,23 @@ Primer grupo del ciclo de mejoras posterior al cierre de Spike 3. Objetivo: pode
 - **Segundo bug de motor preexistente encontrado de paso:** `ExplorationHUD._unhandled_input()` (a diferencia de `ExplorationController`) no comprobaba `GameLoop.is_input_blocked()` — disparaba `open_skill_tree`/`open_player_menu` sin importar el `GameState`. Inofensivo mientras `EXPLORATION` era el único origen legítimo (el guard de `SceneOrchestrator` ya bloqueaba la llamada), pero generaba ruido real (warning) al pulsar la tecla de PlayerMenu durante `NARRATIVE_SCENE`, porque el evento lo procesaban a la vez `NarrativeScenePanel` (correcto) y `ExplorationHUD` (bloqueado). Mismo guard añadido que ya tenía `ExplorationController`.
 - Validado en partida real: apertura de Inventory/Party/PlayerMenu desde narrativa sin recargar el nodo ni perder racha; navegación completa Loadout→Inventory→SkillTree dentro de PlayerMenu (siendo este a su vez sub-overlay de narrativa) sin colgarse en ningún punto de cierre; regresión confirmada del camino normal desde `EXPLORATION`, sin cambios de comportamiento.
 
-### Persistencia de personaje — CharacterSystem ↔ SaveSystem
+### Mejoras post-Spike 3, Grupo 5 — Pantalla de combate de producción
+
+Sustituye la pantalla de combate de test (`combat_test_scene`/`combat_hud.tscn`) por una de producción real, sin cambiar ninguna regla de combate. El más grande de los cinco grupos de mejoras — diseño visual cerrado de antemano en conversación (arena de fichas circulares, party izquierda/enemigos derecha, log narrado, menú de 8 acciones). Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md` para el detalle completo. Resumen de lo más relevante a nivel de motor:
+
+- **Fase 5A — Design System**: `UIRadialGauge` (anillo de progreso radial, primer componente `_draw()`/arcos del Design System) y `UICombatToken` (ficha de party/enemigo, compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo). `CharacterDefinition` gana `token_color`/`type_icon` para personalizar cada ficha desde el `.tres`, mismo criterio que retratos/nombres.
+- **Fase 5B — MVVM**: `CombatArenaViewModel` (nuevo) **compone** a `CombatHudViewModel` (existente, sin tocar) como `action_menu`, en vez de sustituirlo — primer caso de composición de ViewModels del proyecto. Fichas dinámicas (`combat_tokens: Array[CombatTokenData]`) porque companions/enemigos pueden unirse a mitad de combate (rescate narrativo, refuerzos cronometrados vía `reinforcement_spawned`). Log narrado (`log_entries: Array[LogEntryData]`) con 4 categorías reales: `ATTACK` graduado por `SkillRoller` (5 claves), `DODGE`/`DEFEND`/`FLEE` sin grado (caminos de motor completamente distintos entre sí — dodge no tira, defend/flee no pasan por `combat_action_completed` en absoluto, van por señales propias de `DefenseModule`/`EscapeModule`).
+- **El menú de acciones real son 8 slots, no 6** (spec original se olvidó los 2 de ítem) — ya modelado tal cual por `ActionSlotData`/`LoadoutState` existente, sin cambio de arquitectura.
+- **Punto 8 — integración real en `SceneOrchestrator`**: `SCENE_COMBAT` → `combat_production_scene.tscn` (nueva pieza sin UI, solo IA + `PlayerCombatController`); `OVERLAY_COMBAT_HUD` → `combat_arena_panel.tscn`. `combat_test.tscn`/`combat_hud.tscn` no se retiran, quedan como escena de test independiente.
+- **Hallazgo real en combate de producción, no anticipado**: `NarrativeSceneViewModel`/`ExplorationController` pre-registran `Characters`/`Resources` para enemigos pero **nunca `Skills`** — falso supuesto inicial de "ya está todo registrado" al diseñar `combat_production_scene.gd`. Corregido registrando Skills ahí mismo, con guard idempotente, para roster inicial y refuerzos por igual.
+- **`EnemyCombatNode` (visual 2D, sprite+`AnimationController`) confirmado prescindible en producción**: ni `EnemyAI` ni `CompanionAI` dependen de él (ambos `extends Node`, sin `get_parent()`/dependencia de nodo padre) — `UICombatToken` cubre su único rol funcional real. `_get_entity_damage_number_position()` en `combat_system.gd` gana rama para `Control` junto a la `Node2D` existente.
+- **Bug de motor preexistente confirmado, no arreglado en este grupo**: `ResourceSystem.resource_changed` (señal propia del autoload `Resources`) nunca se reenvía a `EventBus.resource_changed` — `combat_hub_viewmodel.gd` se conecta a la señal equivocada, así que el HP/EN del jugador probablemente no se actualiza en vivo en la pantalla de test. `CombatArenaViewModel` se conecta directamente a `Resources.resource_changed`, evitando el mismo bug.
+- **Otro bug de motor preexistente confirmado**: `combat_hud.gd` mapea el slot `"escape"` a la action `"combat_escape"`, pero el InputMap real usa `"combat_scape"` (typo/mismatch) — el botón de huir por teclado probablemente no respondía en la pantalla de test.
+- **Fuga de memoria preexistente confirmada**: `SceneOrchestrator._handle_combat()` nunca guarda referencia a la instancia de `SCENE_COMBAT` ni la libera en `_on_combat_ended()` (a diferencia de `OVERLAY_COMBAT_HUD`, sí liberada) — se acumula una copia por combate. `combat_production_scene.gd` se libera a sí misma como mitigación local, el problema de fondo en `SceneOrchestrator` sigue sin arreglar.
+- **`AttributeResolver` (máximo derivado real del personaje) y `ResourceState.max_effective` (máximo genérico de `ResourceDefinition.max_base`, típicamente 100) confirmados como dos números desconectados** — nada llama a `Resources.set_max_effective()` para sincronizarlos, al menos en el camino de `combat_test_scene.gd`. Sin resolver, origen histórico desconocido.
+- Validado jugando la aventura completa de "Los Telmori" de principio a fin, incluidos refuerzos reales a mitad de combate en la guarida (ronda 4).
+
+
 
 `CharacterState` serializa `definition_id`, `character_name` y `attributes` vía `get_save_state()`/`load_save_state()`. Conectado a `SaveSystem` desde `SAVE_VERSION = 5` — `_restore_state()` restaura el snapshot de `CharacterSystem` **primero**, antes de recursos/skills, porque `load_save_state()` puede bootstrapear el registro de la entidad vía `definition_id` si no existe todavía.
 
@@ -876,6 +914,8 @@ Todos los componentes de UI deben usar el Design System centralizado:
 - **UIButton**: Button con variants (PRIMARY, SECONDARY, etc.) y tamaños
 - **UISlot**: Slot de inventario/equipo con drag & drop
 - **UIResourceBar**: Barra de recurso (vida, stamina) con valores actuales/máximos
+- **UIRadialGauge** (Grupo 5): Anillo de progreso radial parametrizable, un único anillo por instancia — primer componente con `_draw()`/arcos, sin precedente previo en el Design System
+- **UICombatToken** (Grupo 5): Ficha de combate (party o enemigo) — compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo
 
 Ver `docs/athelia_ui_architecture.md` y `README.md` para documentación completa del Design System.
 
@@ -949,10 +989,15 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Un `_unhandled_input()` que dispara overlays fuera del propio `ExplorationController` necesita el mismo guard de `GameLoop.is_input_blocked()` (mejoras post-Spike 3, Grupo 3):** cualquier segundo punto de entrada de input (como `ExplorationHUD`) que llame directamente a `SceneOrchestrator` sin ese guard procesará el evento aunque el `GameState` no sea `EXPLORATION` — inofensivo si el propio método de destino ya bloquea la llamada, pero genera ruido y es una inconsistencia real frente al resto de handlers de input del proyecto.
 - **Una señal global de cierre puede forzar una transición de estado que destruya un contexto anidado activo (mejoras post-Spike 3, Grupo 2):** `SceneOrchestrator._on_dialogue_ended()` escuchaba `EventBus.dialogue_ended` de forma incondicional y forzaba `enter_exploration()` — si el diálogo se abre como sub-overlay desde otro contexto (aquí, `NARRATIVE_SCENE`), esa misma señal global habría destruido el contexto anidado. Cualquier señal de cierre "global" necesita guard explícito por el `GameState` de origen si algo puede abrir esa misma pantalla como sub-overlay desde otro sitio.
 - **No asumir que un catálogo de datos nuevo escanea subcarpetas recursivamente solo porque otros catálogos del proyecto lo hacen (mejoras post-Spike 3, Grupo 2):** `SkillSystem`/`ItemRegistry` recursan de verdad (Spike 3, Grupo D); `ResourceSystem` no (lista hardcodeada, también Grupo D); y `DialogueRegistry` tampoco lo hacía hasta este grupo — listaba `data/dialogue/` con `DirAccess`/`list_dir_begin()` sin bajar a subcarpetas, rompiendo en silencio la convención por-aventura al adoptarla por primera vez para diálogo. Comprobar el `_load_*_from_json()` real de cada registry, caso por caso, antes de asumirlo.
+- **No asumir que "la entidad ya está registrada" cubre Skills solo porque cubre Characters/Resources (Grupo 5):** `NarrativeSceneViewModel`/`ExplorationController` pre-registran Characters/Resources para enemigos de combate, pero nunca Skills — cualquier pieza nueva que asuma "ya está todo listo" antes de `start_combat()` debe comprobar los tres registros por separado, no dar por hecho que van juntos.
+- **Una escena de prueba nueva necesita un nombre de fichero (`.gd` Y `.tscn`) que no coincida con ninguno usado por una escena de producción real (Grupo 5):** sobrescribir por error el script o la estructura de nodos de una escena de producción real (`combat_test.tscn`, apuntada por `SceneOrchestrator.SCENE_COMBAT`) la deja rota hasta que se restaura desde control de versiones. Nombrar explícitamente distinto desde el principio (`combat_production_scene.gd`, no `combat_test_scene.gd`) evita el problema de raíz.
+- **Un nodo `Control` vacío sin `_draw()` no se ve, aunque su posición/anchors estén bien** (Grupo 5): tanto la primera vez que una sección de layout se quedó con el tamaño por defecto del editor (40×40, esquina superior-izquierda) como la línea divisoria entre columnas de la arena de combate (`Control` sin script) fallaron por el mismo motivo — un `Control` sin contenido ni `_draw()` propio simplemente no pinta nada, por bien colocado que esté.
 
 ---
 
-*Última actualización: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa. `NarrativeSceneOutcome` gana `dialogue_id`, resuelto como sub-overlay de `DialoguePanel` (mismo patrón de Grupo 3, ahora extendido a Diálogo) con reenganche automático vía `resume_after_dialogue()` reutilizando `next_scene_id` con significado condicional. Hallazgo crítico corregido: `SceneOrchestrator._on_dialogue_ended()` forzaba `enter_exploration()` de forma incondicional vía señal global, lo que habría roto cualquier escena narrativa con un diálogo abierto como sub-overlay — ahora gateado a `GameState.DIALOGUE`. Bug de motor preexistente encontrado y corregido: `DialogueRegistry` no escaneaba subcarpetas, a diferencia de `SkillSystem`/`ItemRegistry`. Validado en partida real contra `sheriff_briefing` de "Los Telmori". Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+*Última actualización: Mejoras post-Spike 3, Grupo 5 — Pantalla de combate de producción. Sustituye la pantalla de test (`combat_test_scene`/`combat_hud.tscn`) por una real: `UIRadialGauge`/`UICombatToken` (Design System), `CombatArenaViewModel` (compone a `CombatHudViewModel` existente, primer caso de composición de ViewModels del proyecto) + `CombatTokenData`/`LogEntryData`, `CombatArenaPanel` (fichas dinámicas party/enemigo, log narrado, menú de 8 acciones), `combat_production_scene.gd` (nueva pieza sin UI que sustituye a `combat_test_scene.gd` como `SceneOrchestrator.SCENE_COMBAT`). Varios bugs de motor preexistentes encontrados, algunos corregidos (payload de dodge sin `actor`, posición de damage number para fichas `Control`, Skills nunca registrado para el roster inicial de enemigos) y otros solo documentados (puente roto `ResourceSystem.resource_changed`→`EventBus`, typo `combat_escape`/`combat_scape`, fuga de la instancia de `SCENE_COMBAT` en `SceneOrchestrator`, desconexión `AttributeResolver`/`ResourceState.max_effective`). Validado jugando la aventura completa de "Los Telmori" de principio a fin, refuerzos reales incluidos. Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa. `NarrativeSceneOutcome` gana `dialogue_id`, resuelto como sub-overlay de `DialoguePanel` (mismo patrón de Grupo 3, ahora extendido a Diálogo) con reenganche automático vía `resume_after_dialogue()` reutilizando `next_scene_id` con significado condicional. Hallazgo crítico corregido: `SceneOrchestrator._on_dialogue_ended()` forzaba `enter_exploration()` de forma incondicional vía señal global, lo que habría roto cualquier escena narrativa con un diálogo abierto como sub-overlay — ahora gateado a `GameState.DIALOGUE`. Bug de motor preexistente encontrado y corregido: `DialogueRegistry` no escaneaba subcarpetas, a diferencia de `SkillSystem`/`ItemRegistry`. Validado en partida real contra `sheriff_briefing` de "Los Telmori". Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 
 *Última actualización anterior: Mejoras post-Spike 3, Grupo 3 — Overlays de inventario/party/stats durante narrativa. `NarrativeScenePanel` gestiona Inventory/Party/PlayerMenu como sub-overlay propio (hijo directo, nunca vía `SceneOrchestrator`), evitando así el slot único de `SceneOrchestrator._current_overlay` (hallazgo no anticipado por el spec: abrirlos por el camino normal habría destruido el panel narrativo y su ViewModel). `NarrativeSceneViewModel` gana tres intenciones nuevas sin tocar `current_node` ni la racha en curso. Dos bugs de motor preexistentes encontrados y corregidos en la validación, ninguno introducido por este grupo: cuatro pantallas (`InventoryUI`/`PlayerMenuScreen`/`LoadoutScreen`/`SkillTreeScreen`) no se auto-liberaban al cerrarse, dejando `tree_exiting` sin disparar nunca y la navegación anidada colgada sin vuelta atrás — arreglado con una señal `closed` explícita en las cuatro; y `ExplorationHUD._unhandled_input()` no respetaba `GameLoop.is_input_blocked()`, a diferencia de `ExplorationController`. Ver `docs/mejoras_grupo3_overlays_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 

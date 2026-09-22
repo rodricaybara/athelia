@@ -252,6 +252,49 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 Esto solo aplica a data classes en fichero propio con `class_name`. Las
 clases internas anidadas (como `SlotData` arriba) no tienen este problema.
 
+### Composición de ViewModels (nuevo patrón, Grupo 5)
+
+Cuando una pantalla nueva necesita todo el comportamiento de un ViewModel
+ya existente **más** estado adicional propio, la opción por defecto es
+que el ViewModel nuevo **componga** al existente como hijo — no
+duplicar su lógica, ni sustituirlo, ni fusionar ambos en un único
+fichero cada vez más grande:
+
+```gdscript
+class_name CombatArenaViewModel
+extends Node
+
+signal changed(reason: String)
+
+var combat_tokens: Array[CombatTokenData] = []
+var log_entries: Array[LogEntryData] = []
+
+## Menú de 8 acciones del jugador — ViewModel existente, sin tocar.
+var action_menu: CombatHudViewModel = null
+
+func _ready() -> void:
+    action_menu = CombatHudViewModel.new()
+    action_menu.name = "ActionMenu"
+    add_child(action_menu)
+```
+
+La View se conecta a **las dos** señales `changed` por separado —
+`_vm.changed` y `_vm.action_menu.changed` — enrutándolas al mismo
+callback si las razones no colisionan entre sí:
+
+```gdscript
+_vm.changed.connect(_on_vm_changed)
+_vm.action_menu.changed.connect(_on_vm_changed)   # señal propia, independiente
+```
+
+**Error fácil de cometer:** olvidar esta segunda conexión. El ViewModel
+compuesto sigue funcionando y emitiendo su propia señal con normalidad,
+pero cualquier dato que dependa solo del hijo (aquí, el menú de acciones)
+se queda sin renderizar nunca — sin error, sin warning, solo una parte
+de la pantalla que nunca se actualiza. `CombatArenaViewModel` es el
+primer caso de este patrón en el proyecto — antes de esto, todo
+ViewModel era una jerarquía plana de un solo nivel.
+
 ### Tipado estricto
 
 Nunca usar `:=` con `.get()` de diccionarios ni con nulos potenciales:
@@ -742,6 +785,7 @@ hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
 | PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
 | NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). Spike 3, Grupo C reutilizó el contrato tal cual para el contenido de la guarida (4 escenas más, `combat_encounter` inline con refuerzos por primera vez) sin necesitar ningún cambio en el ViewModel ni en la View. **Spike 3, Grupo D** extendió `_apply_outcome()` con `grant_resource_*` ("otorgar recurso", análogo a `grant_item_*` vía `Resources.add_resource()`) — cambio interno del ViewModel, resuelto en el mismo bloque silencioso que `grant_item_*`, sin ninguna razón `changed()` nueva ni cambio en `narrative_scene_panel.gd` (a diferencia de `"streak_progress"` en Grupo B, esto no necesita renderizarse — es una entrega puntual, no un estado que la View deba mostrar). **Mejoras post-Spike 3, Grupo 3** añadió tres razones más de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`), emitidas por tres intenciones nuevas (`request_open_inventory/party/player_menu`) con el mismo guard que `request_option()` — no tocan `current_node` ni la racha, así que el estado del ViewModel no se entera de que hay un sub-overlay abierto encima. `narrative_scene_panel.gd` gana `_unhandled_input()` (antes no tenía ninguno) y gestión propia de sub-overlay (`_open_sub_overlay`/`_close_sub_overlay`, ver antipatrón "Overlay/subpantalla anidable sin señal `closed` propia" más arriba) para Inventory/Party/PlayerMenu, instanciados como hijos directos del panel — nunca vía `SceneOrchestrator`, precisamente para no pisar su `_current_overlay` de slot único (que en `NARRATIVE_SCENE` apunta al propio panel narrativo). **Mejoras post-Spike 3, Grupo 2** extendió el mismo mecanismo de sub-overlay a Diálogo: `NarrativeSceneOutcome.dialogue_id` (nuevo campo) abre `DialoguePanel` igual que Inventory/Party/PlayerMenu, pero con una diferencia deliberada — al cerrarse, si el outcome traía `next_scene_id`, la escena avanza (`resume_after_dialogue()`) en vez de quedarse en el mismo nodo como hacen los otros tres. La View distingue cuál de los cuatro sub-overlays se cerró (`_sub_overlay_is_dialogue`) para decidir si llama a ese método o no. `DialoguePanel` ganó su propia `signal closed` en este grupo (no la tenía, a diferencia de las cuatro pantallas ya arregladas en Grupo 3). |
+| CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` compuesto como `action_menu`) | `combat_arena_panel.gd` | **Mejoras post-Spike 3, Grupo 5** — sustituye a `combat_hud.tscn` como pantalla de combate de producción real (`SceneOrchestrator.OVERLAY_COMBAT_HUD`). Primer caso de composición de ViewModels del proyecto (ver "Composición de ViewModels" arriba): `CombatArenaViewModel` no sustituye a `combat_hub_viewmodel.gd` (menú de 8 acciones del jugador), lo compone tal cual como `action_menu`. Fichas de party/enemigos dinámicas (`combat_tokens: Array[CombatTokenData]`, instanciadas/actualizadas por `entity_id`, nunca reconstruidas enteras) porque companions/enemigos pueden unirse a mitad de combate — rescate narrativo (`EventBus.companion_joined`), refuerzos cronometrados (`EventBus.reinforcement_spawned`, con un frame de margen porque el registro de la entidad lo hace otro listener fuera de orden garantizado). Log narrado (`log_entries: Array[LogEntryData]`) con 4 categorías de `changed("log_entry")`, cada una con su propia fuente de señal: `ATTACK` vía `combat_action_executed` (siempre trae `roll_result`, graduado por `SkillRoller`), `DODGE`/`STAGGERED`/`DISARMED` vía `combat_action_completed` (sin roll), `DEFEND` vía señales propias de `DefenseModule` (`defense_activated`/`defense_expired`), `FLEE` vía señales propias de `EscapeModule` (`escape_attempted`/`escape_succeeded`/`escape_failed` — el intento y la resolución llegan en turnos distintos, no en el mismo evento). Se conecta a `Resources.resource_changed` directamente (la señal del autoload `ResourceSystem`, no `EventBus.resource_changed` — bug de motor preexistente confirmado: nada reenvía esa señal a `EventBus`, así que `combat_hub_viewmodel.gd` probablemente no actualizaba el HP/EN del jugador en vivo). Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (componentes del Design System, integración real en `SceneOrchestrator`, hallazgos de motor). |
 
 ### Pantallas sin ViewModel (casos especiales)
 
@@ -752,7 +796,9 @@ hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
 
 ---
 
-*Última actualización: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa — ningún cambio al contrato MVVM en sí: el sub-overlay de Diálogo reutiliza exactamente el mecanismo (`_open_sub_overlay`/`_close_sub_overlay`, señal `closed`) que Grupo 3 ya dejó construido, solo con una rama de reenganche nueva (`resume_after_dialogue()`) para los casos donde el diálogo es contenido narrativo real, no una charla lateral. `NarrativeSceneViewModel` gana `request_open_dialogue()`/`resume_after_dialogue()` sin tocar `current_node` ni la racha, mismo criterio que las intenciones de Grupo 3. Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (comprobaciones de código previas, hallazgo del guard de `_on_dialogue_ended()`, escaneo recursivo de `DialogueRegistry`).
+*Última actualización: Mejoras post-Spike 3, Grupo 5 — Pantalla de combate de producción. Nuevo patrón de arquitectura documentado: **composición de ViewModels** (ver sección propia arriba) — `CombatArenaViewModel` compone a `combat_hub_viewmodel.gd` existente como `action_menu` en vez de sustituirlo o fusionarlo, primer caso en el proyecto. La View se conecta a las señales `changed` de ambos por separado; olvidar la segunda conexión es un error fácil de cometer (confirmado en la sesión) — la pantalla sigue funcionando pero la parte compuesta nunca se renderiza, sin error visible. Nueva fila `CombatArena` en la referencia de pantallas, sustituyendo a `combat_hud.tscn` como pantalla de combate real. Ningún antipatrón nuevo de arquitectura UI aparte de la composición — el resto de hallazgos de este grupo son de motor (Design System, `SceneOrchestrator`, registro de entidades), documentados en `athelia_estructura_proyecto_actualizado.md` y `docs/mejoras_grupo5_combate_produccion_informe_cierre.md`. Validado jugando la aventura completa de "Los Telmori" de principio a fin. Godot 4.7.2.
+
+*Última actualización anterior: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa — ningún cambio al contrato MVVM en sí: el sub-overlay de Diálogo reutiliza exactamente el mecanismo (`_open_sub_overlay`/`_close_sub_overlay`, señal `closed`) que Grupo 3 ya dejó construido, solo con una rama de reenganche nueva (`resume_after_dialogue()`) para los casos donde el diálogo es contenido narrativo real, no una charla lateral. `NarrativeSceneViewModel` gana `request_open_dialogue()`/`resume_after_dialogue()` sin tocar `current_node` ni la racha, mismo criterio que las intenciones de Grupo 3. Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (comprobaciones de código previas, hallazgo del guard de `_on_dialogue_ended()`, escaneo recursivo de `DialogueRegistry`).
 
 *Última actualización anterior: Mejoras post-Spike 3, Grupo 3 — Overlays de inventario/party/stats durante narrativa — un antipatrón nuevo ("Overlay/subpantalla anidable sin señal `closed` propia") y dos reglas nuevas en "Reglas que no se rompen", encontrados en playtest real al anidar un segundo nivel de subpantallas, no en un spike de motor aislado. `NarrativeSceneViewModel` gana tres razones de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`) sin tocar el contrato MVVM en sí — mismo patrón que las razones añadidas en Spike 2/Grupo B, ninguna cambia `current_node` ni la racha. `narrative_scene_panel.gd` gana su primer `_unhandled_input()` y gestión de sub-overlay, deliberadamente sin pasar por `SceneOrchestrator` (hallazgo no anticipado por el spec: su `_current_overlay` es un slot único, no una pila — ver `athelia_estructura_proyecto_actualizado.md`). Ver `docs/mejoras_grupo3_overlays_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 

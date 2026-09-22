@@ -180,10 +180,15 @@ func _resolve_fill_color(entity_id: String) -> Color:
 	return UITokens.COLOR_TOKEN_FILL_DEFAULT
 
 
-## TODO — pendiente del mecanismo de icon-lookup por tipo de enemigo
-## (punto 4 del alcance del spec, compartido con los iconos de acción
-## del menú). Devuelve null hasta que se resuelva esa decisión.
-func _resolve_type_icon(_entity_id: String) -> Texture2D:
+## Lee el icono de tipo desde CharacterDefinition.type_icon (Grupo 5,
+## enemigos). null hasta que el .tres del enemigo tenga uno asignado —
+## la ficha se queda sin icono en el centro, no un placeholder genérico.
+func _resolve_type_icon(entity_id: String) -> Texture2D:
+	var state: CharacterState = Characters.get_character_state(entity_id)
+	if state and state.definition:
+		var icon = state.definition.get("type_icon")
+		if icon is Texture2D:
+			return icon
 	return null
 
 # ============================================

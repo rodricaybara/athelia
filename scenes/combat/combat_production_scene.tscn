@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cjvfwmtxsfcse"]
+
+[ext_resource type="Script" uid="uid://dop784stig01m" path="res://scenes/combat/combat_production_scene.gd" id="1_m5do5"]
+
+[node name="CombatProductionScene" type="Node" unique_id=636914733]
+script = ExtResource("1_m5do5")

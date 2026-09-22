@@ -26,6 +26,11 @@ func _ready() -> void:
 	# Mismo motivo que combat_test_scene.gd: dar un frame para que todo
 	# lo de arriba esté asentado antes de arrancar combate.
 	await get_tree().create_timer(0.3).timeout
+
+	var panel: Node = get_node_or_null("CombatArenaPanel")
+	if panel and panel.has_method("open"):
+		panel.open()
+
 	game_loop.start_combat(ENEMY_IDS)
 	print("[CombatArenaTestScene] Combate iniciado: %s" % [ENEMY_IDS])
 

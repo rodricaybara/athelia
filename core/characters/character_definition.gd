@@ -26,6 +26,13 @@ extends Resource
 ## se queda en el valor por defecto.
 @export var token_color: Color = Color.BLACK
 
+## Icono que representa el TIPO de este personaje en la arena de combate
+## (Design System, Grupo 5) -- solo se usa para enemigos, ver
+## UICombatToken.type_icon. Vacio (null) hasta que se asigne un icono
+## real por tipo; CombatArenaViewModel deja el centro de la ficha sin
+## icono en ese caso, no un placeholder generico.
+@export var type_icon: Texture2D = null
+
 
 # ============================================
 # ATRIBUTOS BASE
