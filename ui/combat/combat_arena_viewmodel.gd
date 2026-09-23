@@ -12,6 +12,7 @@ extends Node
 ## Razones de changed():
 ##   "tokens"       → refrescar fichas (HP/EN/turno/objetivo)
 ##   "log_entry"    → una línea nueva en log_entries (la View hace append)
+##   "background"   → fondo del encuentro resuelto (Grupo 4)
 ##   "combat_ended" → limpiar arena
 
 signal changed(reason: String)
@@ -32,6 +33,11 @@ var log_entries: Array[LogEntryData] = []
 
 ## Menú de 8 acciones del jugador — sin cambios respecto a la pantalla actual.
 var action_menu: CombatHudViewModel = null
+
+## Grupo 4 — fondo ilustrado del encuentro activo, o null si el encuentro no
+## define background_path (o no hay encuentro). La View decide qué hacer con
+## null (fondo sólido); el ViewModel solo resuelve el dato.
+var background_texture: Texture2D = null
 
 # ============================================
 # CICLO DE VIDA
@@ -99,6 +105,13 @@ func _on_combat_started(_participants: Array) -> void:
 
 	changed.emit("tokens")
 
+	# Grupo 4 — diferido a propósito. combat_started no se emite desde
+	# game_loop_system.gd y _current_encounter se asigna dentro de
+	# start_combat(): sin garantía de orden entre ambos, leerlo aquí podría
+	# ver null. start_combat() es síncrono, así que al final del frame el
+	# encuentro ya está asignado.
+	_resolve_background.call_deferred()
+
 
 func _build_token(entity_id: String, is_party: bool) -> CombatTokenData:
 	var data := CombatTokenData.new()
@@ -116,9 +129,13 @@ func _build_token(entity_id: String, is_party: bool) -> CombatTokenData:
 		data.stamina_current = int(en_state.current) if en_state else 0
 		data.stamina_max = int(AttributeResolver.resolve(entity_id, "stamina_max"))
 		data.display_initials = _initials_for(entity_id)
-		data.fill_color = _resolve_fill_color(entity_id)
 	else:
-		data.type_icon = _resolve_type_icon(entity_id)  # null hasta que exista el mapeo (punto 4 del alcance)
+		data.type_icon = _resolve_type_icon(entity_id)
+
+	# Grupo 4 — antes solo se resolvía para party: las fichas enemigas se
+	# quedaban con el Color.WHITE por defecto de CombatTokenData, y un icono
+	# de tipo claro sobre un círculo blanco no se ve.
+	data.fill_color = _resolve_fill_color(entity_id)
 
 	return data
 
@@ -168,14 +185,15 @@ func _initials_for(entity_id: String) -> String:
 	return initials.to_upper()
 
 
-## TODO — pendiente de que CharacterDefinition tenga el campo token_color
-## (Decisión 1, aprobada). Hasta entonces, todo el mundo usa el color
-## neutro. .get() no revienta aunque la propiedad todavía no exista.
+## Lee CharacterDefinition.token_color. Color.BLACK es el centinela de
+## "sin asignar" (ver character_definition.gd) y cae al color neutro.
+## Grupo 4: antes no se comprobaba el centinela — cualquier personaje sin
+## token_color asignado salía con ficha negra en vez del color neutro.
 func _resolve_fill_color(entity_id: String) -> Color:
 	var state: CharacterState = Characters.get_character_state(entity_id)
 	if state and state.definition:
 		var custom_color = state.definition.get("token_color")
-		if custom_color is Color:
+		if custom_color is Color and custom_color != Color.BLACK:
 			return custom_color
 	return UITokens.COLOR_TOKEN_FILL_DEFAULT
 
@@ -190,6 +208,26 @@ func _resolve_type_icon(entity_id: String) -> Texture2D:
 		if icon is Texture2D:
 			return icon
 	return null
+
+# ============================================
+# FONDO DE LA ARENA (Grupo 4)
+# ============================================
+
+## Lee background_path del encuentro activo. Solo se resuelve al empezar el
+## combate: configure_active_encounter() puede sustituir el encuentro a
+## mitad de combate sin emitir ninguna señal, así que un fondo definido por
+## esa vía no se mostraría (limitación conocida; ningún contenido lo usa hoy).
+func _resolve_background() -> void:
+	background_texture = null
+
+	var encounter: CombatEncounterDefinition = GameLoop.get_current_encounter()
+	if encounter and not encounter.background_path.is_empty():
+		if ResourceLoader.exists(encounter.background_path):
+			background_texture = load(encounter.background_path) as Texture2D
+		else:
+			push_warning("[CombatArenaViewModel] background_path no existe: %s" % encounter.background_path)
+
+	changed.emit("background")
 
 # ============================================
 # TURNO Y OBJETIVO
@@ -398,4 +436,5 @@ func _grade_key(grade: int) -> String:
 func _on_combat_ended(_result: String) -> void:
 	combat_tokens.clear()
 	log_entries.clear()
+	background_texture = null
 	changed.emit("combat_ended")

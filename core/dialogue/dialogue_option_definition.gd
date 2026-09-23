@@ -24,6 +24,14 @@ extends Resource
 ## ID del siguiente nodo (null = termina el diálogo)
 @export var next_node_id: String = ""
 
+## Mejoras post-Spike 3, Grupo 1 — Guardado de partida.
+## Si es true, seleccionar esta opción guarda la partida (SaveManager.save_game()),
+## después de aplicar narrative_events y antes de navegar a next_node_id/terminar
+## el diálogo. Solo lo llevan a true las opciones de NPC "savepoint" (ej. el
+## sheriff en "Los Telmori") — el resto de opciones del proyecto no cambia.
+## El guardado ya no se dispara por hotkey (F5 retirado) — esta es la única vía.
+@export var triggers_save: bool = false
+
 
 ## Valida que la opción sea coherente
 func validate() -> bool:

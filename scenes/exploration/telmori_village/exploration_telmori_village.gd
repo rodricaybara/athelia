@@ -48,9 +48,22 @@ func _ready() -> void:
 	_equip_starter_gear("player")
 	_equip_starter_gear("companion_mira")
 
+	# Mejoras post-Spike 3, Grupo 1 — antes comprobaba "!= EXPLORATION", lo
+	# que asumía implícitamente que esta escena SOLO podía instanciarse
+	# cuando GameState ya era (o debía pasar a ser) EXPLORATION. Desde que
+	# SceneOrchestrator puede instanciar esta escena como sustrato de
+	# NARRATIVE_SCENE (ver _ensure_exploration_scene_instantiated()), eso ya
+	# no es cierto: si current_game_state es NARRATIVE_SCENE aquí, es
+	# legítimo, no un estado a corregir. Solo hay que auto-inicializar
+	# cuando de verdad no hay nada establecido todavía — MENU, el valor por
+	# defecto de GameLoopSystem cuando esta escena se ejecuta suelta desde
+	# el editor sin pasar por GameLoop/SceneOrchestrator. Con "!= EXPLORATION"
+	# esto disparaba una transición NARRATIVE_SCENE → EXPLORATION reentrante
+	# en mitad de _handle_narrative_scene(), cerrando el panel narrativo que
+	# se estaba abriendo en el mismo instante.
 	var game_loop: GameLoopSystem = get_node_or_null("/root/GameLoop")
 	if game_loop:
-		if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+		if game_loop.current_game_state == GameLoopSystem.GameState.MENU:
 			game_loop.enter_exploration()
 	else:
 		push_error("[TelmoriVillage] GameLoop not found — inventory will be blocked")

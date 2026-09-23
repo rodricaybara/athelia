@@ -3,6 +3,8 @@ extends Resource
 
 ## CombatEncounterDefinition — Spike 2, punto 6: moral y refuerzos cronometrados
 ## Spike 3, Grupo B: campo de sorpresa añadido (ver más abajo).
+## Mejoras post-Spike 3, Grupo 4: campo background_path añadido (fondo de
+## la arena de combate — ver más abajo).
 ##
 ## Datos opcionales de un combate concreto — moral de grupo y refuerzos
 ## cronometrados. Genérico, no específico de ninguna aventura: los números
@@ -81,6 +83,14 @@ var surprise_favors: String = ""
 ## entre sí en vez de sumarse.
 var surprise_vulnerable_pct: float = 0.0
 
+## Mejoras post-Spike 3, Grupo 4 — fondo ilustrado de la arena de combate.
+## "" (default) = sin imagen, la arena usa el fondo sólido de siempre.
+## Ruta res:// a una textura del catálogo de fondos de escena (el mismo
+## fichero que usan las escenas narrativas de ese escenario, nunca una
+## copia). Se carga en CombatArenaViewModel, nunca aquí — mismo criterio que
+## NarrativeSceneDefinition.image_path: este recurso no sabe nada de la UI.
+var background_path: String = ""
+
 
 ## Constructor de conveniencia para pruebas / código — sin loader desde
 ## JSON todavía porque no hay ningún combate en el proyecto que se arme
@@ -97,4 +107,5 @@ static func from_dict(data: Dictionary) -> CombatEncounterDefinition:
 	def.reinforcement_definition_id = data.get("reinforcement_definition_id", "enemy_base")
 	def.surprise_favors = data.get("surprise_favors", "")
 	def.surprise_vulnerable_pct = data.get("surprise_vulnerable_pct", 0.0)
+	def.background_path = data.get("background_path", "")
 	return def

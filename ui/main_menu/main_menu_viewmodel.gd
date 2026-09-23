@@ -120,7 +120,16 @@ func request_load_game() -> void:
 		if ok:
 			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 			if game_loop:
-				game_loop.enter_exploration()
+				# Mejoras post-Spike 3, Grupo 1 — si el save se hizo desde una
+				# escena narrativa (vía NPC savepoint), volvemos ahí en vez de
+				# a EXPLORATION. El diálogo en sí no se reabre — el jugador
+				# vuelve a la escena y puede hablar de nuevo con el NPC si
+				# necesita guardar otra vez.
+				var narrative_scene_id: String = _save_manager.get_pending_narrative_scene_id()
+				if not narrative_scene_id.is_empty():
+					game_loop.enter_narrative_scene(narrative_scene_id)
+				else:
+					game_loop.enter_exploration()
 		else:
 			push_error("[MainMenuViewModel] load_game() failed")
 			state = MenuState.MAIN

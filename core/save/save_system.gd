@@ -31,6 +31,14 @@ var equipment_manager: Node           = null  # ⭐ NUEVO v4
 ## Playtime tracking
 var playtime_seconds: float = 0.0
 
+## Mejoras post-Spike 3, Grupo 1 — scene_id de la escena narrativa activa en
+## el save cargado más recientemente, o "" si no había ninguna. Rellenado por
+## _restore_narrative_state(), consumido por MainMenuViewModel.request_load_game()
+## vía get_pending_narrative_scene_id(). SaveSystem no transiciona GameState —
+## nunca lo ha hecho (ver punto 9, comentado, en _restore_state()) — solo deja
+## el dato disponible para quien orquesta la carga.
+var _pending_narrative_scene_id: String = ""
+
 
 ## Inicialización
 func _ready():
@@ -172,7 +180,7 @@ func _collect_player_state(save_data: SaveData) -> bool:
 	else:
 		save_data.player_state["equipment"] = {}
 
-	# Estado narrativo (flags, variables, eventos, checkpoints)
+	# Estado narrativo (flags, variables, eventos, checkpoints, escena activa)
 	_collect_narrative_state(save_data)
 	
 	# Estado del grupo de compañeros del player
@@ -210,11 +218,26 @@ func _collect_narrative_state(save_data: SaveData):
 	save_data.narrative_state["completed_events"] = Narrative.get_completed_events()
 	save_data.narrative_state["checkpoints"]      = Checkpoints.get_save_state()
 
+	# ⭐ NUEVO v6 (mejoras post-Spike 3, Grupo 1) — escena narrativa activa, si
+	# la hay. SceneOrchestrator es la única fuente de verdad de qué overlay
+	# está activo (_current_overlay ya apunta al panel narrativo durante todo
+	# NARRATIVE_SCENE, incluso con Diálogo abierto encima como sub-overlay).
+	# Duck-typing vía has_method(), mismo estilo que usa el propio
+	# SceneOrchestrator con sus overlays.
+	var current_scene_id := ""
+	var orchestrator := get_node_or_null("/root/SceneOrchestrator")
+	if orchestrator and orchestrator.has_method("get_current_overlay"):
+		var overlay = orchestrator.get_current_overlay()
+		if overlay and overlay.has_method("get_current_scene_id"):
+			current_scene_id = overlay.get_current_scene_id()
+	save_data.narrative_state["current_narrative_scene_id"] = current_scene_id
+
 	print("[SaveSystem] Narrative state collected:")
 	print("  Flags: %d"       % save_data.narrative_state["flags"].size())
 	print("  Variables: %d"   % save_data.narrative_state["variables"].size())
 	print("  Events: %d"      % save_data.narrative_state["completed_events"].size())
 	print("  Checkpoints: %d" % save_data.narrative_state["checkpoints"]["reached_checkpoints"].size())
+	print("  Narrative scene: %s" % (current_scene_id if not current_scene_id.is_empty() else "(none)"))
 
 
 # ============================================
@@ -357,10 +380,11 @@ func _restore_state(save_data: SaveData) -> bool:
 
 	# 8.5 Grupo de compañeros del player
 	_restore_party_state(save_data)
-	# 9. Cambio de escena (futuro — descomenta cuando esté implementado)
-	# var target_scene = save_data.world_state.get("current_scene", "")
-	# if target_scene and target_scene != get_tree().current_scene.scene_file_path:
-	#     get_tree().change_scene_to_file(target_scene)
+	# 9. Cambio de escena: no se hace aquí — SaveSystem nunca ha transicionado
+	# GameState (ver comentario en _pending_narrative_scene_id, arriba).
+	# get_pending_narrative_scene_id() deja el dato listo para que
+	# MainMenuViewModel.request_load_game() decida entre
+	# enter_narrative_scene()/enter_exploration() tras esta llamada.
 
 	return true
 
@@ -392,6 +416,11 @@ func _restore_narrative_state(save_data: SaveData):
 	var checkpoints_data = narrative_data.get("checkpoints", {})
 	if not checkpoints_data.is_empty():
 		Checkpoints.load_save_state(checkpoints_data)
+
+	# ⭐ NUEVO v6 (mejoras post-Spike 3, Grupo 1) — no transiciona GameState
+	# aquí, solo deja el dato disponible (ver get_pending_narrative_scene_id()).
+	_pending_narrative_scene_id = narrative_data.get("current_narrative_scene_id", "")
+	print("  Pending narrative scene: %s" % (_pending_narrative_scene_id if not _pending_narrative_scene_id.is_empty() else "(none)"))
 
 	print("[SaveSystem] Narrative state restored successfully")
 
@@ -480,6 +509,15 @@ func get_save_info(slot_id: String = "quicksave") -> Dictionary:
 		return {}
 	file.close()
 	return json.data.get("metadata", {})
+
+
+## Mejoras post-Spike 3, Grupo 1 — devuelve el scene_id de la escena narrativa
+## activa en el save cargado más recientemente, o "" si no había ninguna.
+## Solo válido leerlo justo después de un load_game() que devolvió true.
+## Lo consume MainMenuViewModel.request_load_game() para decidir entre
+## enter_narrative_scene()/enter_exploration().
+func get_pending_narrative_scene_id() -> String:
+	return _pending_narrative_scene_id
 
 
 ## Debug: imprime información del save

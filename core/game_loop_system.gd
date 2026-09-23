@@ -30,7 +30,13 @@ enum GameState {
 }
 
 const VALID_STATE_TRANSITIONS: Dictionary = {
-	GameState.MENU:               [GameState.EXPLORATION, GameState.CHARACTER_CREATION],
+	# ⭐ Mejoras post-Spike 3, Grupo 1 — NARRATIVE_SCENE añadido aquí: "Cargar
+	# Partida" desde el menú puede resumir directamente dentro de una escena
+	# narrativa si el save se hizo vía NPC savepoint (MainMenuViewModel.
+	# request_load_game() → GameLoop.enter_narrative_scene()). Antes de este
+	# grupo, MENU → NARRATIVE_SCENE nunca había sido un camino real: la única
+	# entrada a NARRATIVE_SCENE era desde EXPLORATION.
+	GameState.MENU:               [GameState.EXPLORATION, GameState.CHARACTER_CREATION, GameState.NARRATIVE_SCENE],
 	GameState.CHARACTER_CREATION: [GameState.EXPLORATION, GameState.MENU],
 	GameState.EXPLORATION:        [GameState.DIALOGUE, GameState.SHOP, GameState.NARRATIVE_SCENE, GameState.COMBAT_ACTIVE, GameState.PAUSE, GameState.SAVE_TRANSITION],
 	GameState.DIALOGUE:           [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
@@ -312,6 +318,12 @@ func get_active_enemies() -> Array[String]:
 		result.append(id)
 	return result
 
+## Grupo 4 — expone el encuentro activo (o null) para que la arena de
+## combate lea background_path. Solo lectura: nadie fuera de GameLoopSystem
+## debe modificar el recurso devuelto — moral y refuerzos lo consultan
+## durante todo el combate.
+func get_current_encounter() -> CombatEncounterDefinition:
+	return _current_encounter
 
 func get_current_phase() -> TurnPhase:
 	return current_phase

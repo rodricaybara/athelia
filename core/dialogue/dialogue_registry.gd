@@ -129,6 +129,8 @@ func _load_option_from_dict(data: Dictionary) -> DialogueOptionDefinition:
 	option.id = data.get("id", "")
 	option.text_key = data.get("text_key", "")
 	option.next_node_id = data.get("next_node_id", "")
+	# Mejoras post-Spike 3, Grupo 1 — guardado vía NPC savepoint.
+	option.triggers_save = data.get("triggers_save", false)
 	
 	# Arrays tipados
 	var required_flags_data = data.get("required_flags", [])

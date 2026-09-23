@@ -5,7 +5,7 @@ extends RefCounted
 ## Estructura del archivo .save en formato JSON
 
 ## Versión del formato de guardado (para migraciones futuras)
-const SAVE_VERSION: int = 5  # ⭐ Incrementado de 4 a 5 — añadido snapshot de CharacterSystem (atributos + nombre)
+const SAVE_VERSION: int = 6  # ⭐ Incrementado de 5 a 6 — añadido current_narrative_scene_id (mejoras post-Spike 3, Grupo 1: guardado desde escena narrativa)
 
 ## Identificador del slot
 var save_id: String = "quicksave"
@@ -53,13 +53,14 @@ func _init():
 	}
 
 	narrative_state = {
-		"flags":            {},
-		"variables":        {},
-		"completed_events": [],
+		"flags":                      {},
+		"variables":                  {},
+		"completed_events":           [],
 		"checkpoints": {
 			"reached_checkpoints": [],
 			"current_checkpoint":  ""
-		}
+		},
+		"current_narrative_scene_id": "",  # ⭐ NUEVO v6: scene_id de la escena narrativa activa al guardar (Grupo 1). Vacío = no había ninguna.
 	}
 
 
@@ -126,13 +127,25 @@ static func _migrate_from_version(data: Dictionary, from_version: int) -> Dictio
 	# v4 → v5: añadir snapshot de CharacterSystem (definition_id, nombre, atributos)
 	# Saves anteriores a v5 no tienen esto — al cargar, CharacterSystem.load_save_state()
 	# no podrá bootstrapear la entidad si no existe ya registrada (ver pendiente:
-	# "Cargar Partida desde menú" depende de la escena de exploración de producción).
+	# "Cargar Partida" desde menú depende de la escena de exploración de producción).
 	if from_version < 5:
 		var ps5: Dictionary = data.get("player_state", {})
 		if not ps5.has("character"):
 			ps5["character"] = {}
 			print("[SaveData] Migration: added empty character snapshot")
 		data["player_state"] = ps5
+
+	# v5 → v6: añadir current_narrative_scene_id en narrative_state (mejoras
+	# post-Spike 3, Grupo 1 — guardado desde escena narrativa). Saves
+	# anteriores no lo tienen — vacío es el valor correcto: antes de este
+	# grupo el único origen de guardado era EXPLORATION, así que nunca había
+	# una escena narrativa activa en el momento de guardar.
+	if from_version < 6:
+		var ns6: Dictionary = data.get("narrative_state", {})
+		if not ns6.has("current_narrative_scene_id"):
+			ns6["current_narrative_scene_id"] = ""
+			print("[SaveData] Migration: added empty current_narrative_scene_id")
+		data["narrative_state"] = ns6
 
 	data["version"] = SAVE_VERSION
 	return data

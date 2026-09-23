@@ -1,6 +1,6 @@
 {
   "scene_id": "telmori_epilogue_hook",
-  "image_path": "",
+  "image_path": "res://data/narrative_scenes/images/telmori/telmori_bg_village.jpg",
   "text_key": "TELMORI_EPILOGUE_HOOK",
   "options": [
 	{

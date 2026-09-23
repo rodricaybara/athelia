@@ -23,6 +23,8 @@ const SLOT_ORDER: Array[String] = [
 @onready var log_list: VBoxContainer = %LogList
 @onready var action_grid: HBoxContainer = %ActionGrid
 @onready var damage_numbers: Control = %DamageNumbers
+@onready var background_image: TextureRect = %BackgroundImage  # Grupo 4
+@onready var background_scrim: ColorRect = %Background         # Grupo 4 — fondo sólido sin imagen, velo con imagen
 
 var _vm: CombatArenaViewModel = null
 
@@ -41,6 +43,7 @@ func _ready() -> void:
 	_vm.name = "ViewModel"
 	add_child(_vm)
 	_vm.changed.connect(_on_vm_changed)
+	_render_background()  # estado inicial: sin imagen, fondo sólido desde UITokens
 	# action_menu es un ViewModel hijo con su PROPIA señal changed,
 	# independiente de _vm.changed — sin esto, "slots"/"resources"
 	# nunca llegan y los botones se quedan vacíos.
@@ -86,6 +89,8 @@ func _on_vm_changed(reason: String) -> void:
 			_render_tokens()
 		"log_entry":
 			_render_new_log_entry()
+		"background":
+			_render_background()
 		"combat_ended":
 			_render_combat_ended()
 		"slots", "opened":
@@ -95,6 +100,21 @@ func _on_vm_changed(reason: String) -> void:
 		_:
 			push_warning("[CombatArenaPanel] Razón desconocida: %s" % reason)
 
+
+# ============================================
+# FONDO (Grupo 4)
+# ============================================
+
+## Sin imagen: Background es el fondo opaco de siempre (tapa la exploración,
+## que sigue viva debajo). Con imagen: Background pasa a ser un velo
+## semitransparente ENCIMA de la ilustración, para que fichas y log se lean.
+func _render_background() -> void:
+	var texture: Texture2D = _vm.background_texture
+	background_image.texture = texture
+
+	var scrim_color: Color = UITokens.COLOR_PANEL
+	scrim_color.a = 1.0 if texture == null else UITokens.COMBAT_BACKGROUND_SCRIM_ALPHA
+	background_scrim.color = scrim_color
 
 # ============================================
 # FICHAS — party/enemigos
@@ -235,4 +255,5 @@ func _render_combat_ended() -> void:
 	_tokens.clear()
 	for child in log_list.get_children():
 		child.queue_free()
+	_render_background()  # _vm.background_texture ya es null en este punto
 	visible = false

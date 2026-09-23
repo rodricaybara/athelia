@@ -56,6 +56,12 @@ func validate() -> bool:
 		push_error("[NarrativeSceneDefinition] '%s': sin opciones" % scene_id)
 		return false
 
+	# Grupo 4 — una ruta de imagen mal escrita solo fallaría al llegar a
+	# esta escena en partida. Warning, no error: la escena sigue siendo
+	# jugable sin imagen (la View pone texture = null).
+	if not image_path.is_empty() and not ResourceLoader.exists(image_path):
+		push_warning("[NarrativeSceneDefinition] '%s': image_path no existe: %s" % [scene_id, image_path])
+
 	for option in options:
 		if not option.validate(scene_id):
 			return false

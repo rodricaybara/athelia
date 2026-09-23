@@ -8,6 +8,15 @@
 		"text_key": "DLG_SHERIFF_01_GREET",
 		"portrait_id": "guard",
 		"options": [
+			{
+			  "id": "O_SAVE",
+			  "text_key": "DLG_SHERIFF_OPT_SAVE",
+			  "required_flags": [],
+			  "blocked_flags": [],
+			  "narrative_events": [],
+			  "next_node_id": "N1",
+			  "triggers_save": true
+			},
 		  {
 			"id": "O1",
 			"text_key": "DLG_SHERIFF_OPT_ASK_PROBLEM",

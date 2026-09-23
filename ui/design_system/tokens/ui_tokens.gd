@@ -284,6 +284,15 @@ const COLOR_LOG_FUMBLE: Color = Color("#C23B3B")
 const COLOR_LOG_FAILURE: Color = Color("#8A8478")
 const COLOR_LOG_CRITICAL: Color = Color("#FFD34D")
 
+# ============================================
+# arena de combate — fondo ilustrado (Grupo 4)
+# ============================================
+## Alfa del velo (COLOR_PANEL) que CombatArenaPanel pone ENCIMA de la
+## ilustración de fondo cuando el encuentro tiene background_path. Valor
+## inicial, a ajustar en playtest: más alto = fichas/log más legibles,
+## más bajo = se ve más la imagen. Sin imagen, el velo es opaco (1.0).
+const COMBAT_BACKGROUND_SCRIM_ALPHA: float = 0.6
+
 # ============================================================
 # UTILIDADES
 # ============================================================

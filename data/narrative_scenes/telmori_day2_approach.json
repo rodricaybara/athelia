@@ -24,7 +24,8 @@
           "telmori_wolf_3"
 		],
 		"combat_encounter": {
-		  "surprise_favors": "enemies"
+		  "surprise_favors": "enemies",
+		  "background_path": "res://icon.svg"
 		},
 		"combat_enemy_definitions": {
 		  "telmori_warrior_1": "telmori_warrior_base",

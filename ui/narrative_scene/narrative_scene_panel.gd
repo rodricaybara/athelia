@@ -62,6 +62,17 @@ func open(scene_id: String) -> void:
 	_vm.open(scene_id)
 
 
+## Mejoras post-Spike 3, Grupo 1 — expone el scene_id de la escena narrativa
+## actualmente mostrada, o "" si no hay ninguna (_vm.current_node null).
+## Consumido por SaveSystem._collect_narrative_state() vía
+## SceneOrchestrator.get_current_overlay() + has_method() duck-typing, para
+## saber a qué escena volver al cargar. Sigue siendo válido mientras el
+## panel está detrás de un sub-overlay (ej. Diálogo) — visible pasa a false
+## en ese caso, pero _vm.current_node no se toca (ver _open_sub_overlay()).
+func get_current_scene_id() -> String:
+	return _vm.current_node.scene_id if _vm.current_node else ""
+
+
 # ============================================
 # INPUT
 # Grupo 3 — mismas acciones que ExplorationController (open_inventory/

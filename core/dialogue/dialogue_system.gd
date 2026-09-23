@@ -180,6 +180,18 @@ func select_option(option_id: String) -> bool:
 	# Disparar eventos narrativos
 	_trigger_narrative_events(option.narrative_events)
 	
+	# Mejoras post-Spike 3, Grupo 1 — Guardado de partida vía NPC savepoint.
+	# Llamada directa a SaveManager, mismo nivel de acoplamiento que ya tiene
+	# esta función con Narrative.apply_event() dos líneas más arriba. Se
+	# guarda DESPUÉS de aplicar narrative_events, para que el save incluya
+	# cualquier flag que esta misma opción acabe de marcar.
+	if option.triggers_save:
+		var save_manager := get_node_or_null("/root/SaveManager")
+		if save_manager:
+			save_manager.save_game()
+		else:
+			push_error("[DialogueSystem] SaveManager not found at /root/SaveManager — cannot save")
+	
 	# Navegar al siguiente nodo o terminar
 	if option.ends_dialogue():
 		end_dialogue()

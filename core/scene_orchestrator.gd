@@ -178,22 +178,41 @@ func _handle_exploration() -> void:
 	# Cerrar cualquier overlay activo
 	_hide_current_overlay()
 
-	# Si venimos de combate, la escena de exploración ya está bajo el combate
-	# (queue_free en _on_combat_ended la deja intacta debajo). Si venimos de
-	# MENU/CHARACTER_CREATION por primera vez, todavía no existe — hay que
-	# instanciarla.
-	var existing := get_tree().root.get_node_or_null("ExplorationScene")
-	if not existing:
-		var packed := load(SCENE_EXPLORATION) as PackedScene
-		if not packed:
-			push_error("[SceneOrchestrator] Cannot load exploration scene: %s" % SCENE_EXPLORATION)
-			return
-		var instance := packed.instantiate()
-		instance.name = "ExplorationScene"
-		get_tree().root.add_child(instance)
-		print("[SceneOrchestrator] Exploration scene instantiated")
+	_ensure_exploration_scene_instantiated()
 
 	print("[SceneOrchestrator] Exploration active — overlays cleared")
+
+
+## Mejoras post-Spike 3, Grupo 1 — factorizado de _handle_exploration(), y
+## llamado también desde _handle_narrative_scene(). Necesario porque cargar
+## una partida directo en NARRATIVE_SCENE (MENU → NARRATIVE_SCENE, camino
+## nuevo de este grupo) podía dejar ExplorationScene sin instanciar todavía
+## si el jugador entraba en combate antes de volver nunca a EXPLORATION en
+## esa sesión. Sin la escena instanciada, ninguno de los listeners de
+## continuación que registra su propio _ready() (ej.
+## TelmoriVillage._register_telmori_ambush_continuation() escuchando
+## EventBus.combat_ended) llega a conectarse a tiempo — el combate termina,
+## emite combat_ended, y nadie lo escucha todavía. El contenido de
+## continuación (ej. "Rastros") se perdía en silencio.
+## IMPORTANTE: requiere que TelmoriVillage._ready() (y cualquier escena de
+## exploración equivalente) NO llame a enter_exploration() salvo cuando
+## current_game_state == MENU — si lo hiciera para cualquier otro estado,
+## instanciarla aquí en mitad de _handle_narrative_scene() dispararía una
+## transición de vuelta a EXPLORATION reentrante, cerrando el propio panel
+## narrativo que se está abriendo.
+func _ensure_exploration_scene_instantiated() -> void:
+	var existing := get_tree().root.get_node_or_null("ExplorationScene")
+	if existing:
+		return
+
+	var packed := load(SCENE_EXPLORATION) as PackedScene
+	if not packed:
+		push_error("[SceneOrchestrator] Cannot load exploration scene: %s" % SCENE_EXPLORATION)
+		return
+	var instance := packed.instantiate()
+	instance.name = "ExplorationScene"
+	get_tree().root.add_child(instance)
+	print("[SceneOrchestrator] Exploration scene instantiated")
 
 
 func _handle_dialogue(dialogue_id: String) -> void:
@@ -218,6 +237,13 @@ func _handle_narrative_scene(scene_id: String) -> void:
 	if scene_id.is_empty():
 		push_warning("[SceneOrchestrator] enter_narrative_scene called with empty scene_id")
 		return
+
+	# Mejoras post-Spike 3, Grupo 1 — ver _ensure_exploration_scene_instantiated().
+	# Garantiza que la escena de exploración (y sus listeners de continuación)
+	# existen ANTES de que pueda dispararse ningún combate desde esta escena
+	# narrativa, sin importar si se llegó aquí desde EXPLORATION (ya existía)
+	# o directo desde MENU al cargar una partida (no existía todavía).
+	_ensure_exploration_scene_instantiated()
 
 	_hide_current_overlay()
 	_show_overlay(OVERLAY_NARRATIVE_SCENE)
@@ -446,6 +472,16 @@ func open_loadout(character_id: String) -> void:
 # ============================================
 # GESTIÓN DE OVERLAYS
 # ============================================
+
+## Mejoras post-Spike 3, Grupo 1 — expone el overlay actualmente activo.
+## Usado por SaveSystem._collect_narrative_state() para preguntar, vía
+## duck-typing (has_method), si es un NarrativeScenePanel y así obtener el
+## scene_id activo en el momento de guardar. SceneOrchestrator sigue siendo
+## la única fuente de verdad de qué overlay hay abierto — este getter no
+## añade estado nuevo, solo lo expone de forma controlada.
+func get_current_overlay() -> Node:
+	return _current_overlay
+
 
 func _show_overlay(scene_path: String) -> void:
 	var packed := load(scene_path) as PackedScene

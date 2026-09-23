@@ -70,6 +70,16 @@ func _ready() -> void:
 # ============================================
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Mejoras post-Spike 3, Grupo 1 — atajo de desarrollo. Se comprueba ANTES
+	# del bloqueo por GameState, deliberadamente: sirve para saltar a un
+	# punto narrativo concreto sin depender de en qué estado esté la partida
+	# ahora mismo. Keycode crudo (no InputMap) — mismo criterio "desechable"
+	# que ya tuvo la tecla F1 de Spike 1.
+	if OS.is_debug_build() and event is InputEventKey and event.pressed and not event.echo \
+			and event.keycode == KEY_F2:
+		_apply_debug_shortcut()
+		return
+
 	# Bloquear todo input si el GameLoop no está en EXPLORATION
 	if game_loop.is_input_blocked():
 		return
@@ -87,11 +97,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	if event.is_action_pressed("open_player_menu"): # Tecla P
 		scene_orchestrator.open_player_menu()
-
-	# Guardado rápido — movido aquí desde player.gd (Día 2-5, script que ya
-	# no está en el árbol de la escena activa; PlayerExploration lo sustituyó).
-	if event.is_action_pressed("quicksave"): # Tecla F5
-		_quicksave()
 
 	if event.is_action_pressed("quickload"): # Tecla F9
 		_quickload()
@@ -240,21 +245,13 @@ func _register_combat_enemies(enemy_ids: Array[String]) -> void:
 
 
 # ============================================
-# GUARDADO RÁPIDO (F5 / F9)
+# GUARDADO RÁPIDO (F9 — cargar)
 # ============================================
-# Movido aquí desde player.gd (Día 2-5) — ese script ya no está en el árbol
-# de la escena activa (PlayerExploration lo sustituyó), así que este input
-# nunca se ejecutaba. El feedback visual (mensajes en pantalla) lo gestiona
-# SaveFeedbackUI, que ya escucha las señales de SaveSystem — no hace falta
-# duplicar esa lógica aquí.
-
-func _quicksave() -> void:
-	var save_manager := get_node_or_null("/root/SaveManager")
-	if save_manager:
-		save_manager.save_game("quicksave")
-	else:
-		push_warning("[ExplorationController] SaveManager not found")
-
+# Mejoras post-Spike 3, Grupo 1: F5 (guardar) se retira por completo — el
+# guardado ya no es una hotkey libre, solo lo dispara una opción de diálogo
+# de NPC savepoint marcada con DialogueOptionDefinition.triggers_save (ver
+# DialogueSystem.select_option()). F9 (cargar) se queda igual que antes,
+# sin restricción de estado de origen.
 
 func _quickload() -> void:
 	var save_manager := get_node_or_null("/root/SaveManager")
@@ -262,3 +259,65 @@ func _quickload() -> void:
 		save_manager.load_game("quicksave")
 	else:
 		push_warning("[ExplorationController] SaveManager not found")
+
+
+# ============================================
+# ATAJO DE DESARROLLO (debug, F2)
+# ============================================
+# Mejoras post-Spike 3, Grupo 1 — mecanismo APARTE del guardado real: no
+# toca SaveManager/SaveData en ningún momento, es mutación directa en
+# memoria de la sesión ya arrancada (partida nueva o cargada). Detrás de
+# OS.is_debug_build() desde el primer commit — lección de la tecla F1 de
+# Spike 1, que se quedó viva hasta que Grupo A tuvo que retirarla
+# explícitamente. Configurable por fichero JSON, releído en cada pulsación
+# (no cacheado en _ready()) para poder editarlo y volver a probar sin
+# reiniciar la partida.
+#
+# Formato esperado en user://debug_shortcut.json:
+#   {
+#     "flags": ["flag.telmori_lair_cleared", "flag.telmori_sheriff_briefed"],
+#     "skills": {"skill.exploration.stealth": 80, "skill.combat.dodge": 60}
+#   }
+
+const DEBUG_SHORTCUT_PATH := "user://debug_shortcut.json"
+
+func _apply_debug_shortcut() -> void:
+	if not FileAccess.file_exists(DEBUG_SHORTCUT_PATH):
+		push_warning("[ExplorationController] Debug shortcut: file not found at %s" % DEBUG_SHORTCUT_PATH)
+		return
+
+	var file := FileAccess.open(DEBUG_SHORTCUT_PATH, FileAccess.READ)
+	if not file:
+		push_warning("[ExplorationController] Debug shortcut: cannot open file")
+		return
+
+	var json := JSON.new()
+	var parse_result := json.parse(file.get_as_text())
+	file.close()
+
+	if parse_result != OK:
+		push_warning("[ExplorationController] Debug shortcut: JSON parse error at line %d" % json.get_error_line())
+		return
+
+	var data = json.data
+	if typeof(data) != TYPE_DICTIONARY:
+		push_warning("[ExplorationController] Debug shortcut: root of JSON must be an object")
+		return
+
+	var flags: Array = data.get("flags", [])
+	for flag_id in flags:
+		Narrative.set_flag(str(flag_id))
+	if not flags.is_empty():
+		print("[ExplorationController] Debug shortcut: %d flags applied" % flags.size())
+
+	var skills: Dictionary = data.get("skills", {})
+	if not skills.is_empty():
+		var character_system := get_node_or_null("/root/Characters")
+		if character_system:
+			for skill_id in skills.keys():
+				character_system.set_skill_value("player", skill_id, int(skills[skill_id]))
+			print("[ExplorationController] Debug shortcut: %d skill values applied" % skills.size())
+		else:
+			push_warning("[ExplorationController] Debug shortcut: CharacterSystem not found — skill values not applied")
+
+	print("[ExplorationController] Debug shortcut applied from %s" % DEBUG_SHORTCUT_PATH)
