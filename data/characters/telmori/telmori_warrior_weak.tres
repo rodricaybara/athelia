@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://rnd7r66wadtk"]
 
 [ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_char_def"]
+[ext_resource type="Texture2D" uid="uid://bqo6x5yru2wdh" path="res://data/characters/telmori/icons/telmori_warrior_icon.png" id="2_esyu0"]
 
 [resource]
 script = ExtResource("1_char_def")
 id = "telmori_warrior_weak"
 name_key = "character_telmori_warrior_weak_name"
 description_key = "character_telmori_warrior_weak_desc"
+type_icon = ExtResource("2_esyu0")
 base_attributes = {
 "charisma": 5,
 "constitution": 12,

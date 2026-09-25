@@ -1,6 +1,6 @@
 {
   "scene_id": "telmori_post_ambush_tracking",
-  "image_path": "",
+  "image_path": "res://data/narrative_scenes/images/telmori/_forest.jpg",
   "text_key": "TELMORI_POST_AMBUSH_TRACKING",
   "options": [
 	{

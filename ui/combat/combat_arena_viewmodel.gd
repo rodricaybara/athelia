@@ -261,10 +261,6 @@ func _on_target_changed(target_id: String) -> void:
 # RECURSOS Y MUERTE
 # ============================================
 
-## Firma real de Resources.resource_changed (ResourceSystem, NO EventBus —
-## ver el bug documentado en _ready(): nada reenvía esta señal a EventBus,
-## así que quien se conecte a EventBus.resource_changed nunca la recibe.
-##
 ## Solo actualizamos current, no max: max_value viene de
 ## ResourceState.max_effective, que es el máximo base genérico de la
 ## definición de recurso (ej. 100 de health.tres), no el máximo derivado

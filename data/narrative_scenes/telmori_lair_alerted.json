@@ -1,44 +1,45 @@
 {
   "scene_id": "telmori_lair_alerted",
-  "image_path": "",
+  "image_path": "res://data/narrative_scenes/images/telmori/_lair_interior.jpg",
   "text_key": "TELMORI_LAIR_ALERTED",
   "options": [
-    {
-      "option_id": "charge",
-      "text_key": "TELMORI_LAIR_ALERTED_OPTION_CHARGE",
-      "skill_id": "",
-      "roll_modifier": 0,
-      "challenge_level": 0,
-      "required_successes": 0,
-      "retry_policy": "immediate",
-      "group_aggregate": "",
-      "outcome_default": {
-        "next_scene_id": "",
-        "flag_to_set": "flag.telmori_lair_combat_won",
-        "combat_enemy_ids": [
-          "telmori_1",
-          "telmori_2",
-          "telmori_3",
-          "telmori_4",
-          "wolf_1",
-          "wolf_2",
-          "wolf_3",
+	{
+	  "option_id": "charge",
+	  "text_key": "TELMORI_LAIR_ALERTED_OPTION_CHARGE",
+	  "skill_id": "",
+	  "roll_modifier": 0,
+	  "challenge_level": 0,
+	  "required_successes": 0,
+	  "retry_policy": "immediate",
+	  "group_aggregate": "",
+	  "outcome_default": {
+		"next_scene_id": "",
+		"flag_to_set": "flag.telmori_lair_combat_won",
+		"combat_enemy_ids": [
+		  "telmori_1",
+		  "telmori_2",
+		  "telmori_3",
+		  "telmori_4",
+		  "wolf_1",
+		  "wolf_2",
+		  "wolf_3",
           "wolf_4"
-        ],
-        "combat_encounter": {
-          "surprise_favors": ""
-        },
-        "combat_enemy_definitions": {
-          "telmori_1": "telmori_warrior_base",
-          "telmori_2": "telmori_warrior_base",
-          "telmori_3": "telmori_warrior_weak",
-          "telmori_4": "telmori_warrior_weak",
-          "wolf_1": "telmori_wolf_base",
-          "wolf_2": "telmori_wolf_base",
-          "wolf_3": "telmori_wolf_weak",
-          "wolf_4": "telmori_wolf_weak"
-        }
-      }
-    }
+		],
+		"combat_encounter": {
+		  "surprise_favors": "",
+		  "background_path": "res://data/combat/backgrounds/telmori/telmori_battle_lair.jpg"
+		},
+		"combat_enemy_definitions": {
+		  "telmori_1": "telmori_warrior_base",
+		  "telmori_2": "telmori_warrior_base",
+		  "telmori_3": "telmori_warrior_weak",
+		  "telmori_4": "telmori_warrior_weak",
+		  "wolf_1": "telmori_wolf_base",
+		  "wolf_2": "telmori_wolf_base",
+		  "wolf_3": "telmori_wolf_weak",
+		  "wolf_4": "telmori_wolf_weak"
+		}
+	  }
+	}
   ]
 }

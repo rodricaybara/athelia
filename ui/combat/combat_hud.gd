@@ -49,7 +49,7 @@ const SLOT_INPUT_ACTION: Dictionary = {
 	"attack_3":    "combat_attack_3",
 	"dodge":       "combat_dodge",
 	"defense":     "combat_defense",
-	"escape":      "combat_escape",
+	"escape":      "combat_scape",
 	"consumable_1": "combat_consumable_1",
 	"consumable_2": "combat_consumable_2",
 }

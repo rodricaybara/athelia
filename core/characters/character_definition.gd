@@ -171,10 +171,14 @@ func duplicate_definition() -> CharacterDefinition:
 	copy.id = id
 	copy.name_key = name_key
 	copy.description_key = description_key
+	copy.token_color = token_color
+	copy.type_icon = type_icon
 	copy.base_attributes = base_attributes.duplicate()
 	copy.starting_resources = starting_resources.duplicate()
 	copy.skills = skills.duplicate()
+	copy.starting_skill_values = starting_skill_values.duplicate()
 	copy.inventory_slots = inventory_slots
+	copy.loot_table_id = loot_table_id
 	copy.equipment_slots = equipment_slots.duplicate()
 	return copy
 

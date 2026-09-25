@@ -291,7 +291,15 @@ const COLOR_LOG_CRITICAL: Color = Color("#FFD34D")
 ## ilustración de fondo cuando el encuentro tiene background_path. Valor
 ## inicial, a ajustar en playtest: más alto = fichas/log más legibles,
 ## más bajo = se ve más la imagen. Sin imagen, el velo es opaco (1.0).
-const COMBAT_BACKGROUND_SCRIM_ALPHA: float = 0.6
+const COMBAT_BACKGROUND_SCRIM_ALPHA: float = 0.2
+
+# ============================================
+# texto — contorno de legibilidad (Grupo 4)
+# ============================================
+## Contorno para texto que se pinta directamente sobre imágenes (fichas y
+## log de combate). outline_size de Godot = grosor total del trazo en px.
+const TEXT_OUTLINE_SIZE: int = 4
+const COLOR_TEXT_OUTLINE: Color = COLOR_BG
 
 # ============================================================
 # UTILIDADES

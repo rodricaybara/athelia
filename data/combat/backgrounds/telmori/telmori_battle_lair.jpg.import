@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ddwip8ejtbsou"
-path="res://.godot/imported/telmori_icon_warrior.jpg-16722ea1bd5ff2c76af6d25b084c8a72.ctex"
+uid="uid://hgqtuy3p8al5"
+path="res://.godot/imported/telmori_battle_lair.jpg-f0c4aaa1221d738df243851cf6250d09.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://data/characters/telmori/icons/telmori_icon_warrior.jpg"
-dest_files=["res://.godot/imported/telmori_icon_warrior.jpg-16722ea1bd5ff2c76af6d25b084c8a72.ctex"]
+source_file="res://data/combat/backgrounds/telmori/telmori_battle_lair.jpg"
+dest_files=["res://.godot/imported/telmori_battle_lair.jpg-f0c4aaa1221d738df243851cf6250d09.ctex"]
 
 [params]
 

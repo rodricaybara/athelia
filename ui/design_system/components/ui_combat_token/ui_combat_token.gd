@@ -87,6 +87,7 @@ var is_targeted: bool = false:
 # ============================================
 
 func _ready() -> void:
+	_apply_text_outline()
 	_update_party_dependent_visuals()
 	_center_fill.fill_color = fill_color
 	_turn_triangle.visible = is_current_turn
@@ -120,6 +121,16 @@ func set_stamina(current: int, max_value: int) -> void:
 # ============================================
 # INTERNO
 # ============================================
+
+## Grupo 4 — contorno oscuro en todo el texto de la ficha. Con fondos de
+## combate claros (mapas sobre pergamino) el texto claro sin contorno se
+## pierde. Desde el script y no desde el .tscn: los valores vienen de
+## UITokens, nunca fijados en la escena.
+func _apply_text_outline() -> void:
+	for label: Label in [_initials_label, _hp_value_label, _en_value_label]:
+		label.add_theme_constant_override("outline_size", UITokens.TEXT_OUTLINE_SIZE)
+		label.add_theme_color_override("font_outline_color", UITokens.COLOR_TEXT_OUTLINE)
+
 
 func _update_party_dependent_visuals() -> void:
 	_en_gauge.visible = is_party

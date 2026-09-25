@@ -94,7 +94,7 @@ athelia/
 │   │   ├── defense_module.gd       # Módulo de defensa
 │   │   ├── escape_module.gd        # Módulo de huida
 │   │   ├── skill_roller.gd         # Tiradas de habilidad (RollResult: FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL desde Spike 2 — CRITICAL/SPECIAL dinámicos skill/20 y skill/5, FUMBLE absoluto)
-│   │   ├── combat_encounter_definition.gd  # Resource opcional para start_combat() — moral de grupo (morale_threshold_pct, base dinámica desde Spike 3 Grupo A), refuerzos cronometrados, y sorpresa (Spike 3/B: surprise_favors "party"/"enemies", surprise_vulnerable_pct — vía buff staggered/vulnerable en GameLoopSystem._apply_surprise(), sin tocar turn_order)
+│   │   ├── combat_encounter_definition.gd  # Resource opcional para start_combat() — moral de grupo (morale_threshold_pct, base dinámica desde Spike 3 Grupo A), refuerzos cronometrados, y sorpresa (Spike 3/B: surprise_favors "party"/"enemies", surprise_vulnerable_pct — vía buff staggered/vulnerable en GameLoopSystem._apply_surprise(), sin tocar turn_order); mejoras post-Spike 3, Grupo 4: + background_path (ruta res:// al mapa de combate de ese encuentro, "" = fondo sólido) — el recurso nunca carga la textura, lo hace CombatArenaViewModel
 │   │   ├── enemy_world_link.gd     # [Autoload: EnemyWorldLink] ← NUEVO (Spike 3, Grupo A): hueco genérico de limpieza para enemigos que huyen
 │   │   └── enemy_ai.gd             # IA de enemigos — extends Node, sin dependencia de nodo padre (confirmado Grupo 5); antes colgaba de EnemyCombatNode (visual, retirado), ahora lo instancia combat_production_scene.gd directamente
 │   │
@@ -140,7 +140,7 @@ athelia/
 │   │
 │   ├── narrative_scenes/           # ← NUEVO (Spike 1): motor narrativo base del pivote hacia RPG narrativo
 │   │   ├── narrative_scene_registry.gd     # [Autoload: NarrativeSceneDB] carga JSON → Resource, sin estado runtime
-│   │   ├── narrative_scene_definition.gd   # Resource: escena (imagen, texto, opciones)
+│   │   ├── narrative_scene_definition.gd   # Resource: escena (imagen, texto, opciones) — mejoras post-Spike 3, Grupo 4: validate() avisa (push_warning, no error) si image_path apunta a un fichero inexistente
 │   │   ├── narrative_scene_option.gd       # Resource: opción (tirada opcional, referencias a outcomes por grado)
 │   │   └── narrative_scene_outcome.gd      # Resource: destino/consecuencias — Spike 3/B: + combat_encounter (CombatEncounterDefinition opcional), combat_enemy_definitions (mapeo enemy_id→definition_id, necesario porque combate disparado desde narrativa no tiene Interactable del que leerlo), grant_item_id/quantity/target
 │   │
@@ -184,7 +184,9 @@ athelia/
 │   │   │   ├── telmori_warrior_base.tres
 │   │   │   ├── telmori_wolf_base.tres
 │   │   │   ├── telmori_warrior_weak.tres   # ← NUEVO (Spike 3, Grupo C): Habitación Elevada — stats reducidos de la transcripción, único tipo usado como reinforcement_definition_id en telmori_lair_stealth (ver más abajo, no admite mezclar tipos en una misma oleada)
-│   │   │   └── telmori_wolf_weak.tres      # ← NUEVO (Spike 3, Grupo C): Habitación Elevada — solo se usa en el roster inicial de telmori_lair_alerted, no en refuerzo (misma razón)
+│   │   │   ├── telmori_wolf_weak.tres      # ← NUEVO (Spike 3, Grupo C): Habitación Elevada — solo se usa en el roster inicial de telmori_lair_alerted, no en refuerzo (misma razón)
+│   │   │   └── icons/                      # ← NUEVO (mejoras post-Spike 3, Grupo 4): iconos de tipo (type_icon) de la aventura, PNG 128×128 con transparencia real — telmori_warrior_icon.png (warrior_base/weak), telmori_wolf_icon.png (wolf_base/weak)
+│   │   ├── icons/                  # ← NUEVO (Grupo 4): iconos de tipo de enemigos genéricos, carpeta aparte de las de aventura — si el arte coincide se COPIA el fichero, nunca se apunta a la carpeta de una aventura desde un .tres genérico. Hoy: copia del icono de lobo para wolf_gray; enemy_base sin icono por decisión
 │   │   ├── companions/
 │   │   │   ├── companion_base.tres
 │   │   │   └── companion_mira.tres # Spike 3/B: kit de skills ampliado (+ track/search); Spike 3/C: + skill.exploration.stealth
@@ -194,6 +196,10 @@ athelia/
 │   │       ├── mira.png
 │   │       ├── orco.png
 │   │       └── [otros portraits...]
+│   │
+│   ├── combat/                     # ← NUEVO (mejoras post-Spike 3, Grupo 4)
+│   │   └── backgrounds/
+│   │       └── telmori/            # Mapas de batalla cenitales (tinta y aguada sobre pergamino, sin cuadrícula), uno por encuentro, referenciados por combat_encounter.background_path: telmori_battle_forest (emboscada), telmori_battle_lair (guarida)
 │   │
 │   ├── dialogue/                   # Ficheros JSON de diálogos
 │   │   ├── dialogue_prince_intro.json
@@ -261,6 +267,12 @@ athelia/
 │   │   # hombre-lobo, flavor puro, flag.telmori_adventure_completed). Ver
 │   │   # docs/spike_3_grupoD_cierre_informe_cierre.md para el detalle completo.
 │   │   # (Los JSON de prueba de Spike 1, más los de Spike 2, se eliminaron en Spike 3, Grupo A.)
+│   │   # Mejoras post-Spike 3, Grupo 4 — las 21 escenas tienen image_path real
+│   │   # (4 fondos: pueblo, camino, entrada de la guarida, interior). Ojo:
+│   │   # telmori_lair_loot_obsidian está como .json.json en el proyecto —
+│   │   # carga igual, pendiente de renombrar.
+│   │   └── images/
+│   │       └── telmori/            # ← NUEVO (Grupo 4): fondos de escena 16:9, catálogo reutilizable por TIPO de escenario, no por escena (telmori_bg_village.jpg y demás)
 │   │
 │   ├── resources/                  # Definiciones de recursos
 │   │   ├── gold.tres
@@ -382,7 +394,7 @@ athelia/
 │   ├── exploration/                 # scripts COMPARTIDOS entre todas las zonas de exploración
 │   │   ├── exploration_test.tscn    # sandbox de desarrollo — nodo raíz debe llamarse "ExplorationScene" para que SceneOrchestrator._handle_exploration() lo reconozca al ejecutarlo suelto (F6); si no, intenta instanciar otra copia de la escena de producción encima y crashea ("Parent node is busy setting up children")
 │   │   ├── exploration_test.gd
-│   │   ├── exploration_controller.gd  # Input de exploración (interact, inventory, party, player_menu, F5/F9 quicksave/quickload) — tecla F1 de debug de Spike 1 retirada en Spike 3, Grupo A; Spike 3/B: _on_interaction_requested() gana el caso "narrative_scene" (ver Interactable abajo)
+│   │   ├── exploration_controller.gd  # Input de exploración (interact, inventory, party, player_menu, F9 quickload) — tecla F1 de debug de Spike 1 retirada en Spike 3, Grupo A; Spike 3/B: _on_interaction_requested() gana el caso "narrative_scene" (ver Interactable abajo); mejoras post-Spike 3, Grupo 1: F5 (quicksave) retirado por completo, sustituido por tecla de debug F2 configurable por fichero (user://debug_shortcut.json)
 │   │   ├── exploration_hud.gd
 │   │   ├── player_exploration.gd
 │   │   ├── companion_follow_node.gd
@@ -425,10 +437,10 @@ athelia/
     │   ├── combat_hub_viewmodel.gd     # Menú de 8 acciones del jugador (3 ataque configurables + 3 defensivas fijas + 2 ítems) — sin cambios de contrato, Grupo 5 lo compone como action_menu dentro de CombatArenaViewModel
     │   ├── combat_hud.gd               # YA NO es la pantalla de producción desde Grupo 5 (ver combat_arena_panel.gd) — sigue vivo solo para combat_test.tscn
     │   ├── combat_hud.tscn
-    │   ├── combat_arena_viewmodel.gd   # ← NUEVO (Grupo 5): ViewModel de la arena — fichas de party/enemigos (dinámicas: companions/refuerzos a mitad de combate) + log narrado. Compone a combat_hub_viewmodel.gd como action_menu, sin tocarlo. Se conecta a Resources.resource_changed directamente (la señal de ResourceSystem, NO EventBus.resource_changed — ver hallazgo de motor abajo)
+    │   ├── combat_arena_viewmodel.gd   # ← NUEVO (Grupo 5): ViewModel de la arena — fichas de party/enemigos (dinámicas: companions/refuerzos a mitad de combate) + log narrado. Compone a combat_hub_viewmodel.gd como action_menu, sin tocarlo. Se conecta a Resources.resource_changed directamente (la señal de ResourceSystem, NO EventBus.resource_changed — ver hallazgo de motor abajo). Grupo 4: + background_texture / razón "background" (lee GameLoop.get_current_encounter() con call_deferred); fill_color resuelto también para enemigos (antes Color.WHITE por defecto) y centinela Color.BLACK de token_color respetado
     │   ├── combat_token_data.gd        # ← NUEVO (Grupo 5): data class — snapshot de una ficha (entity_id, is_party, HP/EN actual+máximo, turno, objetivo, color/icono)
     │   ├── log_entry_data.gd           # ← NUEVO (Grupo 5): data class — una línea del log (text_key + format_args + grade)
-    │   ├── combat_arena_panel.gd       # ← NUEVO (Grupo 5): View de producción, sustituye a combat_hud.tscn como SceneOrchestrator.OVERLAY_COMBAT_HUD. Fichas dinámicas en PartyColumn(VBoxContainer)/EnemyColumn(GridContainer 2 columnas — VBoxContainer no cabía con 6 enemigos reales), log con autoscroll, menú de 8 UIButton fijos, fondo opaco (tapa la escena de exploración, que sigue viva debajo por diseño de SceneOrchestrator)
+    │   ├── combat_arena_panel.gd       # ← NUEVO (Grupo 5): View de producción, sustituye a combat_hud.tscn como SceneOrchestrator.OVERLAY_COMBAT_HUD. Fichas dinámicas en PartyColumn(VBoxContainer)/EnemyColumn(GridContainer 2 columnas — VBoxContainer no cabía con 6 enemigos reales), log con autoscroll, menú de 8 UIButton fijos, fondo opaco (tapa la escena de exploración, que sigue viva debajo por diseño de SceneOrchestrator). Grupo 4: BackgroundImage (TextureRect) debajo de Background (ColorRect, ahora %), que pasa a ser velo con alfa UITokens.COMBAT_BACKGROUND_SCRIM_ALPHA si el encuentro trae imagen, opaco si no; color desde UITokens.COLOR_PANEL (ya no fijo en el .tscn); contorno en las líneas del log
     │   ├── combat_arena_panel.tscn
     │   └── damage_number.tscn
     │
@@ -454,7 +466,7 @@ athelia/
     │   │   ├── ui_radial_gauge/    # ← NUEVO (Grupo 5): anillo de progreso radial parametrizable (progress/ring_color/track_color/thickness), sin precedente previo de _draw()/arcos en el Design System (todo lo demás usa StyleBoxFlat). Un único anillo por instancia — una ficha de party lo instancia dos veces (PV+EN), una de enemigo una vez (solo PV)
     │   │   │   ├── ui_radial_gauge.gd
     │   │   │   └── ui_radial_gauge.tscn
-    │   │   └── ui_combat_token/    # ← NUEVO (Grupo 5): ficha de combate (party o enemigo), compone dos UIRadialGauge + relleno central (iniciales o icono de tipo) + triángulo de turno + retícula de objetivo. 3 scripts helper internos sin class_name (no reutilizables fuera de este componente): ui_combat_token_center_fill.gd, ui_combat_token_turn_triangle.gd, ui_combat_token_target_reticle.gd
+    │   │   └── ui_combat_token/    # ← NUEVO (Grupo 5): ficha de combate (party o enemigo), compone dos UIRadialGauge + relleno central (iniciales o icono de tipo) + triángulo de turno + retícula de objetivo. 3 scripts helper internos sin class_name (no reutilizables fuera de este componente): ui_combat_token_center_fill.gd, ui_combat_token_turn_triangle.gd, ui_combat_token_target_reticle.gd. Grupo 4: _apply_text_outline() en _ready() — contorno (UITokens.TEXT_OUTLINE_SIZE / COLOR_TEXT_OUTLINE) en iniciales y cifras de PV/EN
     │   │       ├── ui_combat_token.gd
     │   │       ├── ui_combat_token_center_fill.gd
     │   │       ├── ui_combat_token_turn_triangle.gd
@@ -508,7 +520,7 @@ athelia/
     ├── narrative_scene/             # Escena narrativa (patrón MVVM)
     │   ├── narrative_scene_viewmodel.gd  # enum PanelState (no SceneState) — Spike 3/B: _apply_outcome() resuelve grant_item_*/combat_encounter, registra enemigos antes de start_combat()
     │   ├── narrative_scene_panel.gd      # Spike 3/B: consume "streak_progress" (hueco abierto desde Spike 2); UIPanel anclado a tamaño fijo (bug de autowrap sin ancho)
-    │   └── narrative_scene_panel.tscn
+    │   └── narrative_scene_panel.tscn    # Grupo 4: layout B1 — SceneImage a pantalla completa detrás, UIPanel anclado al tercio inferior (anclas relativas, grow_vertical = BEGIN), texto y opciones en HBoxContainer. Cero cambios en el script
     │
     ├── party/                      # Pantalla de party (patrón MVVM)
     │   ├── party_viewmodel.gd
@@ -546,7 +558,7 @@ athelia/
 
 Estados del juego (`GameState`) y transiciones válidas:
 ```
-MENU → EXPLORATION, CHARACTER_CREATION
+MENU → EXPLORATION, CHARACTER_CREATION, NARRATIVE_SCENE  ⭐ NARRATIVE_SCENE añadido en mejoras post-Spike 3, Grupo 1
 CHARACTER_CREATION → EXPLORATION, MENU
 EXPLORATION → DIALOGUE, SHOP, NARRATIVE_SCENE, COMBAT_ACTIVE, PAUSE, SAVE_TRANSITION
 DIALOGUE → EXPLORATION, COMBAT_ACTIVE
@@ -570,6 +582,7 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 - Victoria: todos los enemigos muertos. Derrota: jugador muerto (los companions no evitan la derrota actualmente).
 - `start_combat()` acepta como estado de origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard explícito, independiente de `VALID_STATE_TRANSITIONS` — `start_combat()` transiciona directo con `_transition_game_state()`, no pasa por `request_state_change()`).
 - **Nota sobre `request_state_change()` (confirmado en Spike 3/B):** `DEFEAT` solo tiene transición válida hacia `EXPLORATION`/`MENU` — nunca directo a `CHARACTER_CREATION`. Cualquier flujo de reinicio de partida tras Game Over debe pasar por `enter_main_menu()` antes de `enter_character_creation()`, igual que el camino real de "Nueva Partida" desde el menú.
+- **`MENU → NARRATIVE_SCENE` (mejoras post-Spike 3, Grupo 1):** habilita "Cargar Partida" para resumir directamente dentro de una escena narrativa, si el save se hizo desde ahí. Antes de este grupo era un camino inexistente — la única entrada a `NARRATIVE_SCENE` era desde `EXPLORATION`. Ver sección propia de Grupo 1 más abajo para el hallazgo de reentrada que este camino nuevo expuso en `SceneOrchestrator`/`TelmoriVillage._ready()`.
 - **Sorpresa de combate (Spike 3, Grupo B):** `CombatEncounterDefinition.surprise_favors` no toca `turn_order` ni `TurnPhase` — la estructura de fases ya obliga a jugador+companions a actuar antes que los enemigos cada ronda, así que reordenar iniciativa no tendría ningún efecto real. En su lugar, el bando sorprendido recibe el buff `staggered` ya existente en `CombatSystem` (pierde su primera acción) y, opcionalmente, `vulnerable` (`surprise_vulnerable_pct`, daño extra recibido). Lógica compartida en `GameLoopSystem._apply_surprise()`, llamada desde `start_combat()` y `configure_active_encounter()` — esta segunda ruta hace falta porque un combate disparado desde `ExplorationController` ya está en marcha antes de que se le adjunte el encounter. El `turns_left` del buff `vulnerable` es asimétrico: 2 si perjudica a jugador/companions (actúan antes en la ronda, necesitan sobrevivir a su propio tick), 1 si perjudica a enemigos (actúan al final, su tick ya llega después del ataque).
 
 ### Nomenclatura y organización de escenas de juego
@@ -642,7 +655,7 @@ Estados del `MainMenuViewModel`: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIR
 
 **Importante:** `MainMenuViewModel` escucha `EventBus.game_state_changed` — vuelve a `"main"` al reentrar en `GameState.MENU`, y se oculta (`"hidden"`) en cualquier otro estado. Como `MainMenuScreen` es la Main Scene, nunca se destruye — sin este listener, tras la primera transición fuera de `MENU` se quedaba permanentemente en `TRANSITIONING` con los botones deshabilitados.
 
-El guardado **no está disponible desde el menú principal** — se guarda en checkpoints o con F5 desde la exploración.
+**Actualizado en mejoras post-Spike 3, Grupo 1:** el guardado **sí está disponible desde el menú principal** vía "Cargar Partida" — pero ya no se guarda con F5 desde la exploración (retirado del todo). Guardar solo es posible seleccionando una opción de diálogo ofrecida por NPCs concretos marcados como savepoint (`DialogueOptionDefinition.triggers_save`), dentro de una escena narrativa. "Cargar Partida" resume directamente en esa misma escena narrativa si el save se hizo así (`MainMenuViewModel.request_load_game()` decide entre `enter_narrative_scene()`/`enter_exploration()` según `SaveManager.get_pending_narrative_scene_id()`). Ver sección propia de Grupo 1 más abajo.
 
 ### LoadingScreen
 
@@ -750,14 +763,16 @@ Variante del patrón anterior para cuando el disparador **no** es un combate: la
 Sigue el patrón MVVM estándar. Vive fuera de `core/narrative/` deliberadamente — ese paquete (`NarrativeSystem`/`CheckpointSystem`) gestiona hitos recordados; `core/narrative_scenes/` resuelve "qué nodo se muestra ahora", responsabilidad distinta. Sin "system" runtime propio: `NarrativeSceneDB` es una consulta local síncrona sobre datos cargados de JSON, sin estado — el progreso por una escena vive enteramente en `NarrativeSceneViewModel`.
 
 ```
-NarrativeScenePanel (CanvasLayer)
+NarrativeScenePanel (CanvasLayer, layer 10)
 └── Root (Control, full rect)
-    └── UIPanel
-        └── MarginContainer → VBoxContainer
-            ├── SceneImage (TextureRect)
-            ├── SceneText (Label)
-            └── OptionsContainer (VBoxContainer)   ← UIButton instanciado por opción
+    ├── SceneImage (TextureRect, %)          ← Grupo 4: fondo a pantalla completa, IGNORE_SIZE + KEEP_ASPECT_COVERED
+    └── UIPanel                              ← Grupo 4: tercio inferior (anclas 0.04/0.66/0.96/0.96), crece hacia arriba
+        └── MarginContainer → HBoxContainer
+            ├── SceneText (Label, %)         ← ratio 1.4
+            └── OptionsContainer (VBoxContainer, %)   ← ratio 1.0, UIButton instanciado por opción
 ```
+
+**Mejoras post-Spike 3, Grupo 4 — layout B1.** Hasta este grupo, `SceneImage` vivía dentro del `VBoxContainer`, encima del texto, con `expand_mode` por defecto (`KEEP_SIZE`) — nunca se notó porque ninguna escena tenía `image_path` relleno, pero una imagen real habría reventado el panel (el tamaño mínimo de un `TextureRect` con `KEEP_SIZE` es el de su textura). El layout se eligió tras maquetar tres variantes; el cambio es solo de `.tscn` — el script sigue encontrando los tres nodos por nombre único. Una escena con `image_path` vacío muestra ahora la caja inferior con la exploración visible detrás (antes: panel centrado).
 
 Estados del `NarrativeSceneViewModel`: `HIDDEN → SHOWING ↔ WAITING_ROLL → TRANSITIONING → HIDDEN` (`WAITING_ROLL` reservado, no se emite todavía — `SkillRoller.roll_skill()` es síncrono, sin ventana real de espera en Spike 1).
 
@@ -780,7 +795,7 @@ Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `Na
 - Gating de opciones narrativas por flag (`required_flags`/`blocked_flags` en `NarrativeSceneOption`, como sí tiene `DialogueOptionDefinition`) se evaluó y se descartó — el diseño de `resume_after_dialogue()` no lo necesita.
 - Validado en partida real contra `sheriff_briefing` de "Los Telmori": apertura del sub-overlay, navegación por las tres ramas de pregunta sin perder el hub, cierre sin disparo indebido de `enter_exploration()`, reenganche automático a `telmori_equipment_arrows`. Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` para el detalle completo.
 
-**Esquema JSON real, confirmado en Grupo C contra ejemplos reales de Grupo B** (útil documentarlo aquí porque no coincidía con lo que se había inferido solo de la descripción de arriba): raíz `scene_id`/`image_path`/`text_key`/`options[]`; opción `option_id`/`text_key`/`skill_id`/`roll_modifier`/`challenge_level`/`required_successes`/`retry_policy`/`group_aggregate`. Sin `skill_id` resuelve por `outcome_default`; con `skill_id`, ramas **planas** en la propia opción — `outcome_failure`/`outcome_success`/`outcome_special`/`outcome_critical` (sin `outcome_fumble` explícito — cae a `outcome_failure`, fallback ya documentado arriba). Cada outcome lleva `next_scene_id`, `flag_to_set` (string único con prefijo `flag.`, solo activa un flag, nunca lo desactiva), `combat_enemy_ids` (array de strings — quiénes están presentes al *empezar* el combate) y `combat_enemy_definitions` (diccionario `entity_id → definition_id` de *todo* lo que hay que registrar, inicial o de refuerzo). `combat_encounter`, cuando aparece, es un **diccionario inline dentro del propio outcome** — nunca una ruta a un `.tres` — con las claves de `CombatEncounterDefinition` (`morale_threshold_pct`, `reinforcement_trigger`, `reinforcement_delay_rounds`, `reinforcement_enemy_ids`, `reinforcement_definition_id`, `surprise_favors`, `surprise_vulnerable_pct`). No hace falta crear ningún recurso `CombatEncounterDefinition` aparte para contenido disparado desde una escena narrativa.
+**Esquema JSON real, confirmado en Grupo C contra ejemplos reales de Grupo B** (útil documentarlo aquí porque no coincidía con lo que se había inferido solo de la descripción de arriba): raíz `scene_id`/`image_path`/`text_key`/`options[]`; opción `option_id`/`text_key`/`skill_id`/`roll_modifier`/`challenge_level`/`required_successes`/`retry_policy`/`group_aggregate`. Sin `skill_id` resuelve por `outcome_default`; con `skill_id`, ramas **planas** en la propia opción — `outcome_failure`/`outcome_success`/`outcome_special`/`outcome_critical` (sin `outcome_fumble` explícito — cae a `outcome_failure`, fallback ya documentado arriba). Cada outcome lleva `next_scene_id`, `flag_to_set` (string único con prefijo `flag.`, solo activa un flag, nunca lo desactiva), `combat_enemy_ids` (array de strings — quiénes están presentes al *empezar* el combate) y `combat_enemy_definitions` (diccionario `entity_id → definition_id` de *todo* lo que hay que registrar, inicial o de refuerzo). `combat_encounter`, cuando aparece, es un **diccionario inline dentro del propio outcome** — nunca una ruta a un `.tres` — con las claves de `CombatEncounterDefinition` (`morale_threshold_pct`, `reinforcement_trigger`, `reinforcement_delay_rounds`, `reinforcement_enemy_ids`, `reinforcement_definition_id`, `surprise_favors`, `surprise_vulnerable_pct`, y desde mejoras post-Spike 3, Grupo 4, `background_path`). No hace falta crear ningún recurso `CombatEncounterDefinition` aparte para contenido disparado desde una escena narrativa.
 
 **Restricción real de `reinforcement_definition_id` (Grupo C):** es un único string, no un diccionario por entidad — todo un refuerzo sale de la misma `CharacterDefinition`, no admite mezclar tipos de enemigo en la misma oleada (a diferencia del roster *inicial*, que sí admite tipos mixtos vía `combat_enemy_definitions` normal). Si un contenido necesita refuerzo de tipos mixtos, hay que elegir entre extender el recurso a un diccionario (cambio de motor, no hecho todavía) o simplificar el contenido a un refuerzo homogéneo (la opción que tomó Grupo C).
 
@@ -888,9 +903,41 @@ Sustituye la pantalla de combate de test (`combat_test_scene`/`combat_hud.tscn`)
 
 **Registro en frío — resuelto para 4 de los 5 sistemas.** `EquipmentManager` e `InventorySystem` ya se auto-registraban dentro de su propio `load_save_state()` (no requería cambios). `ResourceSystem` y `SkillSystem` **no** lo hacían — su `load_save_state()` no hacía nada en silencio si la entidad no existía. Desde el spike de producción, ambos exponen `has_entity(entity_id) -> bool`, y `SaveSystem._restore_state()` registra la entidad en frío antes de restaurar si hace falta (el universo de skills a registrar sale de las propias keys del snapshot guardado, no de un kit hardcodeado). "Cargar Partida" desde un arranque en frío real ya funciona con HP/Stamina/Gold/Skills correctos.
 
-**Pendiente conocido (distinto al anterior):** la **posición** del jugador no se restaura en arranque en frío — `_find_player()` corre dentro de `_restore_state()`, que se ejecuta *antes* de que `SceneOrchestrator` instancie la escena de exploración (el orden en `MainMenuViewModel.request_load_game()` es `load_game()` → `enter_exploration()`). El personaje aparece en el spawn por defecto de la escena, no en la posición guardada. Sin decisión de diseño tomada todavía — ver pendientes en `docs/spike_produccion_post_character_creation_informe_cierre.md`.
+**Actualizado en mejoras post-Spike 3, Grupo 1 — pendiente de posición cerrado, no por arreglo sino por irrelevancia:** con el pivote a RPG narrativo por eventos/flags (sin exploración espacial), `player_state["position"]` (x,y) sigue guardándose/restaurándose exactamente igual que antes (sin cambios de código), pero es dato vestigial — el jugador ya no se mueve por posición, así que el hueco de "no se restaura en arranque en frío" deja de tener ningún efecto observable en el juego. Candidato a limpieza futura (retirar el campo del schema), fuera de alcance de este grupo. `SAVE_VERSION` pasa a `6` en este mismo grupo — ver sección propia más abajo.
 
 `SaveSystem._find_player()` busca primero bajo el nodo `"ExplorationScene"` (creado explícitamente por `SceneOrchestrator`), no bajo `get_tree().current_scene` — este último nunca cambia mientras `MainMenuScreen` siga siendo la Main Scene, ya que la exploración se instancia de forma aditiva (`get_tree().root.add_child()`), no con `change_scene_to_file()`.
+
+### Mejoras post-Spike 3, Grupo 1 — Guardado de partida
+
+Objetivo del grupo: que la partida guardada recuerde el progreso narrativo real (no solo personaje/recursos/skills/inventario/equipo) y se pueda reanudar exactamente donde se dejó, más un atajo barato de desarrollo para probar tramos avanzados sin jugar la aventura entera. Ver `docs/mejoras_grupo1_guardado_informe_cierre.md` para el detalle completo.
+
+- **Comprobación de código — corrige un supuesto erróneo de la documentación previa:** `SaveManager`/`SaveData` **ya** guardaban flags/variables/eventos completados/checkpoints/party antes de este grupo (`narrative_state`, vía `_collect_narrative_state()`/`_restore_narrative_state()`) — la documentación de arquitectura decía lo contrario (desactualizada en este punto concreto, ya corregida). El hueco real no eran los flags en sí, era únicamente "a qué escena narrativa volver al cargar".
+- **Decisión de diseño que cambia el mecanismo original del spec:** guardar deja de ser una hotkey libre (F5) disponible en cualquier `NARRATIVE_SCENE` — solo se puede guardar seleccionando una opción de diálogo ofrecida por NPCs concretos marcados como savepoint (ej. el sheriff en "Los Telmori"), no todos los NPCs. Al ser NPCs "sin peso en la historia" los que la ofrecen, que el diálogo sea repetible no abre ningún exploit (a diferencia del caso del sheriff con recompensas económicas en Grupo 5). F5 se retira del todo de `ExplorationController`; F9 (cargar) se queda sin restricción de estado, igual que "Cargar Partida" desde el menú.
+- **`DialogueOptionDefinition` gana `triggers_save: bool = false`.** En `DialogueSystem.select_option()`, justo después de `_trigger_narrative_events()` y antes de navegar a `next_node_id`/terminar el diálogo: si `triggers_save`, llamada directa a `SaveManager.save_game()` — mismo nivel de acoplamiento que ese método ya tiene con `Narrative.apply_event()`. `DialogueRegistry._load_option_from_dict()` necesitó una línea nueva (`option.triggers_save = data.get("triggers_save", false)`) — construye cada opción campo a campo, sin mapeo genérico de claves JSON, así que un campo nuevo en el Resource no se lee solo por añadirlo al JSON de contenido.
+- **`SaveData.narrative_state` gana `current_narrative_scene_id: String`. `SAVE_VERSION` sube de 5 a 6**, con migración (`_migrate_from_version()`) que rellena `""` en saves antiguos. Se recoge en `_collect_narrative_state()` vía `SceneOrchestrator.get_current_overlay()` (getter nuevo) + `NarrativeScenePanel.get_current_scene_id()` (getter nuevo, lee `_vm.current_node.scene_id`) — duck-typing con `has_method()`, mismo estilo que ya usa `SceneOrchestrator` internamente. Sigue siendo válido aunque el panel esté detrás de un sub-overlay de Diálogo (`visible = false`, pero `_vm.current_node` no se toca — ver Grupo 3).
+- **Al cargar, `SaveSystem` no transiciona `GameState` directamente** — nunca lo ha hecho (el punto de cambio de escena en `_restore_state()` sigue comentado). Expone `get_pending_narrative_scene_id()`, y es `MainMenuViewModel.request_load_game()` quien decide `enter_narrative_scene(scene_id)` vs `enter_exploration()` tras `load_game()`.
+- **Hallazgo no anticipado — `MENU → NARRATIVE_SCENE` no existía en `VALID_STATE_TRANSITIONS`.** `enter_narrative_scene()` llamado desde `MENU` caía en `push_warning()` sin transicionar nada ni avisar de forma ruidosa — silencioso hasta comparar logs. Corregido añadiendo `NARRATIVE_SCENE` a las transiciones válidas desde `MENU`.
+- **Segundo hallazgo no anticipado, más profundo — orden de instanciación de `ExplorationScene`.** Con `MENU → NARRATIVE_SCENE` directo, es la primera vez que un combate puede dispararse desde una escena narrativa sin que `ExplorationScene` (y con ella, `_ready()` de la escena de exploración real, ej. `TelmoriVillage`) se haya instanciado todavía. Los listeners de continuación que ese `_ready()` registra (ej. `_register_telmori_ambush_continuation()` escuchando `EventBus.combat_ended` para spawnear "Rastros" tras la emboscada) se conectaban **después** de que el combate ya hubiera terminado y emitido su propia `combat_ended` — señal perdida en silencio, contenido de continuación nunca aparecía. Corregido factorizando `_ensure_exploration_scene_instantiated()` en `SceneOrchestrator`, llamado tanto desde `_handle_exploration()` como desde `_handle_narrative_scene()`.
+- **Trampa de reentrada descubierta al aplicar el fix anterior, resuelta antes de que llegara a producción:** `TelmoriVillage._ready()` tenía su propio guard `if current_game_state != EXPLORATION: enter_exploration()`, pensado para cuando la escena se ejecuta suelta en el editor. Instanciar `ExplorationScene` dentro de `_handle_narrative_scene()` sin corregir ese guard habría hecho que `_ready()` viera `NARRATIVE_SCENE` (`!= EXPLORATION`) y llamara a `enter_exploration()` **en mitad de la propia apertura de la escena narrativa** — transición reentrante que habría cerrado el panel narrativo justo después de abrirlo. Corregido cambiando la condición a `== MENU` (el único caso real que necesitaba cubrir: arranque sin `GameLoop`/`SceneOrchestrator` de por medio).
+- **Falsa alarma descartada:** el warning `[InventorySystem] Entity not registered for load` al cargar no es un bug — `InventorySystem.load_save_state()` ya se auto-registra (`register_entity()`) si la entidad no existe, a diferencia de lo que en un primer momento se sospechó por analogía con `ResourceSystem`/`SkillSystem` (que si necesitaron ese fix, en el spike de producción). El inventario se carga bien pese al warning.
+- **Hallazgo de paso, sin código:** `SaveFeedbackUI` ya existía y ya escuchaba `save_completed`/`save_failed` de `SaveSystem` — el feedback visual de "partida guardada" al usar la opción de diálogo del NPC savepoint no necesitó código nuevo.
+- **Atajo de desarrollo** (mecanismo aparte del guardado real, nunca toca `SaveManager`/`SaveData`): tecla F2, ver sección "Input en exploración" más abajo para el detalle.
+- Validado en partida real completa: guardar desde el sheriff en `NARRATIVE_SCENE` → cerrar el juego → "Cargar Partida" desde el menú resume exactamente en esa escena narrativa, con todo el estado restaurado (personaje, recursos, skills, equipo, inventario, party, economía, flags) → seguir jugando con normalidad, incluida una mejora de skill post-combate (`SkillProgressionService`) y el combate final de la guarida, hasta completar la aventura entera de "Los Telmori" de principio a fin.
+
+### Mejoras post-Spike 3, Grupo 4 — Arte narrativo
+
+Fondos de escena, fondos de combate reales (Grupo 5 los había dejado como `ColorRect` fijo) e iconos de tipo de enemigo para "Los Telmori", generados con IA bajo una dirección de arte acordada en conversación. Sin animación. Ver `docs/mejoras_grupo4_arte_narrativo_informe_cierre.md` para el detalle completo (catálogo, primers de estilo, mapeo escena → fondo). Resumen de lo más relevante a nivel de motor:
+
+- **Layout narrativo B1** — imagen a pantalla completa detrás, panel en el tercio inferior (ver árbol en "Narrative Scene — Arquitectura" arriba). Solo `.tscn`, cero líneas de script.
+- **`image_path` validado al cargar**: `NarrativeSceneDefinition.validate()` emite `push_warning` si la ruta no existe — antes solo fallaba al llegar a la escena en partida.
+- **Fondo de combate por encuentro**: `CombatEncounterDefinition.background_path` (clave del `combat_encounter` inline del outcome). `GameLoopSystem.get_current_encounter()` (getter nuevo, solo lectura) lo expone; `CombatArenaViewModel` carga la textura con `call_deferred()` desde `_on_combat_started()` — `combat_started` no se emite desde `game_loop_system.gd`, así que no hay orden garantizado frente a la asignación de `_current_encounter`. Limitación conocida: un encuentro sustituido a mitad de combate vía `configure_active_encounter()` no actualiza el fondo (no hay señal); ningún contenido lo usa.
+- **Los fondos de combate son mapas cenitales, no las láminas de escena** — decisión tomada durante el grupo (el spec proponía reutilizar el catálogo de escena): tinta y aguada sobre pergamino, sin cuadrícula porque las fichas no se mueven por el mapa. Uno por encuentro, en `data/combat/backgrounds/<aventura>/`.
+- **Velo y contorno**: `Background` pasa a ser velo (`COLOR_PANEL` con alfa `COMBAT_BACKGROUND_SCRIM_ALPHA = 0.2`) encima de la imagen, opaco si no la hay. Contorno oscuro (`TEXT_OUTLINE_SIZE`/`COLOR_TEXT_OUTLINE`, tokens nuevos) en el texto de `UICombatToken` y del log. El alfa es una constante global válida mientras todos los fondos de combate sean mapas claros del mismo estilo — si conviven con láminas oscuras, tendrá que pasar a dato por encuentro.
+- **Bug preexistente corregido**: las fichas enemigas nunca recibían `fill_color` (quedaban en el `Color.WHITE` por defecto de `CombatTokenData`) — un icono claro habría sido invisible. Y `_resolve_fill_color()` no respetaba el centinela `Color.BLACK` de `token_color` (ficha negra en vez de color neutro).
+- **Iconos de tipo**: carpeta por aventura (`data/characters/telmori/icons/`) + carpeta genérica (`data/characters/icons/`); si el arte coincide se copia el fichero. `enemy_base` sin icono por decisión.
+- **Latente, no corregido**: `CharacterDefinition.duplicate_definition()` no copia `token_color`/`type_icon`/`starting_skill_values`/`loot_table_id` — sin llamadas en el proyecto, sin efecto hoy.
+- **Hallazgos preexistentes fuera de alcance, sin corregir**: los 8 botones de acción de la arena no muestran nombre; la columna enemiga se desborda por arriba con 6-8 enemigos; el log muestra IDs internos en vez de nombres localizados; el desajuste PV actual/máximo de Grupo 5 (visible como `50/45`).
+- Validado en partida completa de "Los Telmori": las 21 escenas con fondo, los dos combates con su mapa, iconos reales en todas las variantes de enemigo.
 
 ### ItemCharacterBridge — Aplicación de modificadores
 
@@ -915,7 +962,8 @@ Todos los componentes de UI deben usar el Design System centralizado:
 - **UISlot**: Slot de inventario/equipo con drag & drop
 - **UIResourceBar**: Barra de recurso (vida, stamina) con valores actuales/máximos
 - **UIRadialGauge** (Grupo 5): Anillo de progreso radial parametrizable, un único anillo por instancia — primer componente con `_draw()`/arcos, sin precedente previo en el Design System
-- **UICombatToken** (Grupo 5): Ficha de combate (party o enemigo) — compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo
+- **UICombatToken** (Grupo 5): Ficha de combate (party o enemigo) — compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo. Grupo 4: contorno de texto desde tokens, para leerse sobre fondos de combate claros
+- **Spike aparcado — marco decorativo**: doble filete + esquineras (una única imagen de esquina reutilizada en las 4), como opción activable dentro de `UIPanel`. Surgido en Grupo 4, sin empezar
 
 Ver `docs/athelia_ui_architecture.md` y `README.md` para documentación completa del Design System.
 
@@ -951,13 +999,17 @@ El InputMap de combate usa estos nombres de action:
 | `combat_scape` | R | `skill.combat.flee` |
 | `cycle_target` | Tab | — |
 
-### Input en exploración — Quicksave/Quickload
+### Input en exploración — Quickload (F9) y atajo de desarrollo (F2)
 
-Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4.7): `player.gd` (script de una fase muy temprana del proyecto) tenía la lógica de `quicksave`/`quickload` en `_input()`, pero ese script ya no está en el árbol de ninguna escena activa — el nodo `Player` real usa `PlayerExploration` (`scenes/exploration/player_exploration.gd`). La lógica se movió a `ExplorationController._unhandled_input()` (F5 / F9), que ya gestionaba el resto del input de exploración (`interact`, `open_inventory`, `open_party`, `open_player_menu`) correctamente.
+Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4.7): `player.gd` (script de una fase muy temprana del proyecto) tenía la lógica de `quicksave`/`quickload` en `_input()`, pero ese script ya no está en el árbol de ninguna escena activa — el nodo `Player` real usa `PlayerExploration` (`scenes/exploration/player_exploration.gd`). La lógica se movió a `ExplorationController._unhandled_input()`, que ya gestionaba el resto del input de exploración (`interact`, `open_inventory`, `open_party`, `open_player_menu`) correctamente.
+
+**Mejoras post-Spike 3, Grupo 1 — F5 retirado por completo.** Guardar deja de ser una hotkey libre en `EXPLORATION`: la única vía es seleccionar una opción de diálogo marcada `triggers_save` en NPCs concretos, dentro de una escena narrativa (ver sección de Grupo 1 más abajo). F9 (quickload) se queda exactamente igual, sin restricción de estado de origen.
+
+**Nuevo en el mismo grupo — atajo de desarrollo (F2).** Tecla de debug, keycode crudo (sin InputMap) detrás de `OS.is_debug_build()` desde el primer commit — misma disciplina que evitó que F1 (Spike 1) se quedara viva en producción. Lee `user://debug_shortcut.json` en cada pulsación (no cacheado en `_ready()`), aplica `Narrative.set_flag()` por cada entrada de `"flags"` y `Characters.set_skill_value("player", skill_id, value)` por cada entrada de `"skills"`. Se comprueba **antes** del guard `is_input_blocked()`, deliberadamente — funciona en cualquier `GameState`, para poder forzar un tramo concreto durante una prueba sin depender de dónde esté la partida. Mecanismo aparte del guardado real: nunca toca `SaveManager`/`SaveData`, es mutación directa en memoria de la sesión ya arrancada.
 
 `player.gd`/`player.tscn` (`scenes/player/`) no se usan en ninguna escena activa, pero **su limpieza queda aparcada**: `test/test_shop_ui.gd` sigue cargando `player.tscn` como andamiaje. No se tocan hasta una revisión general de la carpeta `test/`.
 
-**Bug conocido, sin resolver:** F9 (quickload) en una sesión activa ya en `EXPLORATION` (a diferencia de "Cargar Partida" desde el menú, que sí funciona) provoca un bloqueo total de input — ni movimiento ni menús responden, sin errores en Output/Debugger. Se descartaron como causa: bloqueo por `GameState` (`SAVE_TRANSITION` nunca se dispara en el proyecto), `get_tree().paused`, captura de input por `WorldObjectInteractionPanel`, y pérdida de foco de ventana. Causa raíz aún no confirmada — ver `docs/spike_produccion_post_character_creation_informe_cierre.md`.
+**Bug conocido, sin resolver (sin relación con el Grupo 1 — no investigado en este grupo):** F9 (quickload) en una sesión activa ya en `EXPLORATION` (a diferencia de "Cargar Partida" desde el menú, que sí funciona) provoca un bloqueo total de input — ni movimiento ni menús responden, sin errores en Output/Debugger. Se descartaron como causa: bloqueo por `GameState` (`SAVE_TRANSITION` nunca se dispara en el proyecto), `get_tree().paused`, captura de input por `WorldObjectInteractionPanel`, y pérdida de foco de ventana. Causa raíz aún no confirmada — ver `docs/spike_produccion_post_character_creation_informe_cierre.md`.
 
 **Spike 1 Motor Narrativo añadió F1** como tecla de debug temporal en `_unhandled_input()` para disparar `GameLoop.enter_narrative_scene("test_intro")` — retirada en Spike 3, Grupo A junto con `_debug_test_narrative_scene()` y las escenas de prueba asociadas.
 
@@ -992,10 +1044,42 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **No asumir que "la entidad ya está registrada" cubre Skills solo porque cubre Characters/Resources (Grupo 5):** `NarrativeSceneViewModel`/`ExplorationController` pre-registran Characters/Resources para enemigos de combate, pero nunca Skills — cualquier pieza nueva que asuma "ya está todo listo" antes de `start_combat()` debe comprobar los tres registros por separado, no dar por hecho que van juntos.
 - **Una escena de prueba nueva necesita un nombre de fichero (`.gd` Y `.tscn`) que no coincida con ninguno usado por una escena de producción real (Grupo 5):** sobrescribir por error el script o la estructura de nodos de una escena de producción real (`combat_test.tscn`, apuntada por `SceneOrchestrator.SCENE_COMBAT`) la deja rota hasta que se restaura desde control de versiones. Nombrar explícitamente distinto desde el principio (`combat_production_scene.gd`, no `combat_test_scene.gd`) evita el problema de raíz.
 - **Un nodo `Control` vacío sin `_draw()` no se ve, aunque su posición/anchors estén bien** (Grupo 5): tanto la primera vez que una sección de layout se quedó con el tamaño por defecto del editor (40×40, esquina superior-izquierda) como la línea divisoria entre columnas de la arena de combate (`Control` sin script) fallaron por el mismo motivo — un `Control` sin contenido ni `_draw()` propio simplemente no pinta nada, por bien colocado que esté.
+- **Reenviar la señal de un autoload a `EventBus` depende de cuántos consumidores reales tiene, no de cuál motivó el hallazgo (Spike 5):** `Find in Files` sobre `EventBus.resource_changed` reveló dos consumidores reales, no uno — reconectar solo el que se detectó primero (`combat_hub_viewmodel.gd`) habría dejado el segundo (`player_menu_viewmodel.gd`) sin arreglar. Con más de un consumidor real, el puente centralizado en el punto de emisión es la opción correcta; con uno solo, la reconexión directa (mismo patrón que `CombatArenaViewModel`) habría sido más simple. Confirmar el número de consumidores reales antes de elegir el mecanismo.
+- **Un campo nuevo en un data class no se lee solo por añadirlo al JSON de contenido, si el registry construye cada campo explícitamente (mejoras post-Spike 3, Grupo 1):** `DialogueRegistry._load_option_from_dict()` asigna `id`/`text_key`/`next_node_id`/etc. uno a uno, sin mapeo genérico de claves — añadir `triggers_save` al JSON sin tocar también el registry se habría ignorado en silencio, sin error ni warning. Comprobar siempre el registry/parser real de un dato, no asumir que "está en el JSON" basta.
+- **Una transición de `GameState` que nunca se había necesitado puede fallar en silencio (mejoras post-Spike 3, Grupo 1):** `enter_narrative_scene()` llamado desde `MENU` (camino nuevo, antes inexistente) caía en `_can_transition_state() == false` → `push_warning()`, no `push_error()` — fácil de perder en la consola, y sin ningún otro síntoma más que "no pasa nada" en el juego. Cualquier transición de `GameState` nueva (no solo las del código que se está escribiendo) debe verificarse contra `VALID_STATE_TRANSITIONS`, no darse por hecho porque el estado de destino ya existe.
+- **Instanciar una escena tarde puede desconectar listeners de continuación que dependen de que existan ANTES de un evento concreto (mejoras post-Spike 3, Grupo 1):** un `EventBus.combat_ended` (u otra señal cualquiera) emitido antes de que su listener se conecte se pierde sin rastro — no hay cola ni replay. Cualquier camino nuevo que permita llegar a un punto del juego (aquí, un combate) sin pasar por la instanciación habitual de una escena puede dejar huérfanos a listeners que esa escena registra en su propio `_ready()`.
+- **Corregir un orden de instanciación puede exponer una trampa de reentrada en código que llevaba tiempo sin tocarse (mejoras post-Spike 3, Grupo 1):** un guard de tipo `if current_game_state != X: transicionar_a(X)`, escrito pensando solo en "arrancar la escena sola", puede disparar una transición real e inesperada si esa misma escena se instancia ahora en un momento distinto al que el guard asumía — en este caso, en mitad de la apertura de otro estado (`NARRATIVE_SCENE`), cerrándolo justo después de abrirlo. La condición correcta era más estricta (`== MENU`, el único caso real que el guard necesitaba cubrir) que la que llevaba tiempo en el código (`!= EXPLORATION`).
 
 ---
 
-*Última actualización: Mejoras post-Spike 3, Grupo 5 — Pantalla de combate de producción. Sustituye la pantalla de test (`combat_test_scene`/`combat_hud.tscn`) por una real: `UIRadialGauge`/`UICombatToken` (Design System), `CombatArenaViewModel` (compone a `CombatHudViewModel` existente, primer caso de composición de ViewModels del proyecto) + `CombatTokenData`/`LogEntryData`, `CombatArenaPanel` (fichas dinámicas party/enemigo, log narrado, menú de 8 acciones), `combat_production_scene.gd` (nueva pieza sin UI que sustituye a `combat_test_scene.gd` como `SceneOrchestrator.SCENE_COMBAT`). Varios bugs de motor preexistentes encontrados, algunos corregidos (payload de dodge sin `actor`, posición de damage number para fichas `Control`, Skills nunca registrado para el roster inicial de enemigos) y otros solo documentados (puente roto `ResourceSystem.resource_changed`→`EventBus`, typo `combat_escape`/`combat_scape`, fuga de la instancia de `SCENE_COMBAT` en `SceneOrchestrator`, desconexión `AttributeResolver`/`ResourceState.max_effective`). Validado jugando la aventura completa de "Los Telmori" de principio a fin, refuerzos reales incluidos. Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+*Última actualización: Spike 5 — Arreglos rápidos de motor. Cinco bugs de
+motor preexistentes cerrados, documentados como pendientes desde el
+Grupo 5 de mejoras post-Spike 3, sin dependencias cruzadas entre sí.
+Typo `combat_escape`→`combat_scape` corregido en `combat_hud.gd` (consenso
+de dos consumidores + documentación). Puente
+`ResourceSystem.resource_changed` → `EventBus.resource_changed` añadido en
+`_emit_resource_changed()`: Find in Files confirmó dos consumidores reales
+(`combat_hub_viewmodel.gd`, `player_menu_viewmodel.gd`), no uno, así que el
+mecanismo elegido fue el reenvío centralizado en el punto de emisión y no
+la reconexión de un único consumidor. `telmori_lair_loot_obsidian.json.json`
+renombrado sin referencias que actualizar.
+`CharacterDefinition.duplicate_definition()` gana los cuatro campos que le
+faltaban (`token_color`, `type_icon`, `starting_skill_values`,
+`loot_table_id`), sin efecto observable todavía (sin llamada real en el
+proyecto). `combat_resolver.gd` eliminado — código muerto confirmado dos
+veces (Grupo 5 y de nuevo en este spike), sin ningún fichero activo que lo
+referenciara. Hallazgo no anticipado, movido a Spike 6/7: desync
+PV/EN confirmado en pantalla real en `player_menu` (ya listado como fuera
+de alcance de este spike). Validado jugando la aventura completa de "Los
+Telmori" de principio a fin, sin errores ni warnings nuevos. Ver
+`docs/spike_5_arreglos_motor_informe_cierre.md` para el detalle completo.
+Godot 4.7.2.
+
+*Última actualización anterior: Mejoras post-Spike 3, Grupo 4 — Arte narrativo. Layout narrativo B1 (imagen a pantalla completa, panel en el tercio inferior; solo `.tscn`, el `SceneImage` original con `expand_mode` por defecto habría reventado el panel con cualquier imagen real). Fondo de combate por encuentro (`CombatEncounterDefinition.background_path`, `GameLoopSystem.get_current_encounter()`, `CombatArenaViewModel.background_texture`), con mapas de batalla cenitales en vez de reutilizar las láminas de escena; velo de la arena a 0.2 y contorno de texto en fichas y log (tokens nuevos en `UITokens`). `image_path` validado al cargar. Bug preexistente corregido: fichas enemigas sin `fill_color` (blancas) y centinela `Color.BLACK` de `token_color` ignorado. Iconos de tipo reales para todas las variantes Telmori y `wolf_gray`. Cuatro hallazgos preexistentes documentados sin corregir (botones de acción sin nombre, desborde de la columna enemiga, IDs sin localizar en el log, desajuste PV). Spike de marco decorativo de `UIPanel` aparcado. Validado en partida completa de "Los Telmori". Ver `docs/mejoras_grupo4_arte_narrativo_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Mejoras post-Spike 3, Grupo 1 — Guardado de partida. Corrige un supuesto erróneo de la documentación anterior: `SaveManager` ya guardaba flags/variables/eventos/checkpoints/party antes de este grupo; el hueco real era solo "a qué escena narrativa volver al cargar". Guardar deja de ser hotkey libre (F5, retirado) — solo se guarda vía opción de diálogo (`DialogueOptionDefinition.triggers_save`, nuevo) ofrecida por NPCs savepoint concretos dentro de una escena narrativa; F9 (cargar) sin cambios. `SaveData.narrative_state` gana `current_narrative_scene_id`, `SAVE_VERSION` 5→6 con migración; `MainMenuViewModel.request_load_game()` decide `enter_narrative_scene()` vs `enter_exploration()` según `SaveManager.get_pending_narrative_scene_id()`. Dos hallazgos no anticipados por el spec, ambos corregidos: `MENU → NARRATIVE_SCENE` no existía en `VALID_STATE_TRANSITIONS` (fallaba en silencio, solo `push_warning()`); y `ExplorationScene` podía no estar instanciada todavía cuando un combate terminaba tras cargar directo en `NARRATIVE_SCENE`, perdiendo listeners de continuación de contenido (ej. "Rastros" tras la emboscada) — corregido con `SceneOrchestrator._ensure_exploration_scene_instantiated()`, lo que a su vez expuso una trampa de reentrada en `TelmoriVillage._ready()` (guard de estado demasiado laxo, corregido a `== MENU`). Nuevo atajo de desarrollo configurable (tecla F2, `user://debug_shortcut.json`), detrás de `OS.is_debug_build()`. Validado en partida real completa de "Los Telmori", de principio a fin, incluido el combate final de la guarida. Ver `docs/mejoras_grupo1_guardado_informe_cierre.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Mejoras post-Spike 3, Grupo 5 — Pantalla de combate de producción. Sustituye la pantalla de test (`combat_test_scene`/`combat_hud.tscn`) por una real: `UIRadialGauge`/`UICombatToken` (Design System), `CombatArenaViewModel` (compone a `CombatHudViewModel` existente, primer caso de composición de ViewModels del proyecto) + `CombatTokenData`/`LogEntryData`, `CombatArenaPanel` (fichas dinámicas party/enemigo, log narrado, menú de 8 acciones), `combat_production_scene.gd` (nueva pieza sin UI que sustituye a `combat_test_scene.gd` como `SceneOrchestrator.SCENE_COMBAT`). Varios bugs de motor preexistentes encontrados, algunos corregidos (payload de dodge sin `actor`, posición de damage number para fichas `Control`, Skills nunca registrado para el roster inicial de enemigos) y otros solo documentados (puente roto `ResourceSystem.resource_changed`→`EventBus`, typo `combat_escape`/`combat_scape`, fuga de la instancia de `SCENE_COMBAT` en `SceneOrchestrator`, desconexión `AttributeResolver`/`ResourceState.max_effective`). Validado jugando la aventura completa de "Los Telmori" de principio a fin, refuerzos reales incluidos. Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 
 *Última actualización anterior: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa. `NarrativeSceneOutcome` gana `dialogue_id`, resuelto como sub-overlay de `DialoguePanel` (mismo patrón de Grupo 3, ahora extendido a Diálogo) con reenganche automático vía `resume_after_dialogue()` reutilizando `next_scene_id` con significado condicional. Hallazgo crítico corregido: `SceneOrchestrator._on_dialogue_ended()` forzaba `enter_exploration()` de forma incondicional vía señal global, lo que habría roto cualquier escena narrativa con un diálogo abierto como sub-overlay — ahora gateado a `GameState.DIALOGUE`. Bug de motor preexistente encontrado y corregido: `DialogueRegistry` no escaneaba subcarpetas, a diferencia de `SkillSystem`/`ItemRegistry`. Validado en partida real contra `sheriff_briefing` de "Los Telmori". Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
 

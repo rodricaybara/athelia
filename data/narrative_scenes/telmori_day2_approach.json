@@ -1,6 +1,6 @@
 {
   "scene_id": "telmori_day2_approach",
-  "image_path": "",
+  "image_path": "res://data/narrative_scenes/images/telmori/_forest.jpg",
   "text_key": "TELMORI_DAY2_APPROACH",
   "options": [
 	{
@@ -25,7 +25,7 @@
 		],
 		"combat_encounter": {
 		  "surprise_favors": "enemies",
-		  "background_path": "res://icon.svg"
+		  "background_path": "res://data/combat/backgrounds/telmori/telmori_battle_forest.jpg"
 		},
 		"combat_enemy_definitions": {
 		  "telmori_warrior_1": "telmori_warrior_base",

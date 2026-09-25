@@ -167,7 +167,10 @@ func _render_new_log_entry() -> void:
 	label.text = tr(entry.text_key) % entry.format_args
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_color_override("font_color", _color_for_grade(entry.grade))
-	label.add_theme_font_size_override("font_size", 14)  # mismo tamaño que main_theme.tres, sin depender de herencia del tema a través de CanvasLayer
+	label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_MD)  # explícito: el tema no se hereda a través del CanvasLayer
+	# Grupo 4 — contorno para legibilidad sobre fondos de combate claros.
+	label.add_theme_constant_override("outline_size", UITokens.TEXT_OUTLINE_SIZE)
+	label.add_theme_color_override("font_outline_color", UITokens.COLOR_TEXT_OUTLINE)
 	log_list.add_child(label)
 
 	# Autoscroll al final — un frame de margen para que el ScrollContainer

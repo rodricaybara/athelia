@@ -200,7 +200,14 @@ func _process(delta: float):
 ## Emite señal de cambio de recurso
 func _emit_resource_changed(entity_id: String, resource_id: String, state: ResourceState):
 	resource_changed.emit(entity_id, resource_id, state.current, state.max_effective)
-	
+
+	# Puente a EventBus.resource_changed (Spike 5, punto 2): ResourceSystem
+	# es el autoload "Resources", con señal propia distinta de EventBus.
+	# Dos consumidores reales confirmados escuchan solo la de EventBus
+	# (combat_hub_viewmodel.gd, player_menu_viewmodel.gd) y nunca la
+	# recibían sin este reenvío.
+	EventBus.resource_changed.emit(entity_id, resource_id, state.current, state.max_effective)
+
 	# Emitir evento de agotamiento si llegó a 0
 	if state.is_empty() and not state.definition.is_infinite:
 		resource_depleted.emit(entity_id, resource_id)

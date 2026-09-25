@@ -1,6 +1,6 @@
 {
   "scene_id": "telmori_lair_stealth",
-  "image_path": "",
+  "image_path": "res://data/narrative_scenes/images/telmori/_lair_interior.jpg",
   "text_key": "TELMORI_LAIR_STEALTH",
   "options": [
 	{
@@ -23,6 +23,7 @@
 		],
 		"combat_encounter": {
 		  "surprise_favors": "party",
+		  "background_path": "res://data/combat/backgrounds/telmori/telmori_battle_lair.jpg",
 		  "surprise_vulnerable_pct": 25,
 		  "reinforcement_trigger": "",
 		  "reinforcement_delay_rounds": 4,

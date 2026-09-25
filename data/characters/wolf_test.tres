@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="CharacterDefinition" format=3 uid="uid://bloa5jmmb88hb"]
 
 [ext_resource type="Script" uid="uid://cmvsxyq5sohf4" path="res://core/characters/character_definition.gd" id="1_d28lj"]
+[ext_resource type="Texture2D" uid="uid://dusw6sno10t14" path="res://data/characters/icons/telmori_wolf_icon.png" id="2_ubvlt"]
 
 [resource]
 script = ExtResource("1_d28lj")
 id = "wolf_gray"
 name_key = "mob.wolf_gray.name"
 description_key = "mob.wolf_gray.description"
+type_icon = ExtResource("2_ubvlt")
 base_attributes = {
 "charisma": 6,
 "constitution": 10,

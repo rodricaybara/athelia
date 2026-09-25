@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cuu0l8n8h2ss2"
-path="res://.godot/imported/telmori_icon_wolf.jpg-ebaf1c44985c1dad88725ebd8c15557d.ctex"
+uid="uid://dvomahcstxu3s"
+path="res://.godot/imported/telmori_battle_forest.jpg-a449a77a00a5a4608cd63f3a05291723.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://data/characters/telmori/icons/telmori_icon_wolf.jpg"
-dest_files=["res://.godot/imported/telmori_icon_wolf.jpg-ebaf1c44985c1dad88725ebd8c15557d.ctex"]
+source_file="res://data/combat/backgrounds/telmori/telmori_battle_forest.jpg"
+dest_files=["res://.godot/imported/telmori_battle_forest.jpg-a449a77a00a5a4608cd63f3a05291723.ctex"]
 
 [params]
 
