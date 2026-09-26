@@ -84,6 +84,11 @@ var _is_processing: bool = false
 ## Índice del companion actual procesando su turno
 var _companion_turn_index: int = 0
 
+## Actor cuyo turno se está resolviendo ahora mismo (companion o enemigo).
+## Usado por _on_combat_action_completed() para descartar señales tardías/
+## huérfanas de un actor que no es el que realmente tiene el turno.
+var _current_acting_entity: String = ""
+
 ## Spike 2, punto 6 — moral de grupo y refuerzos cronometrados. Todo nulo/en
 ## reposo si start_combat() no recibió un CombatEncounterDefinition — cero
 ## comportamiento nuevo para combates que no lo usan.
@@ -631,22 +636,22 @@ func _process_next_companion() -> void:
 	if not party:
 		_start_enemy_turns()
 		return
-
+ 
 	var active_companions: Array[String] = party.get_active_members()
-
+ 
 	if _companion_turn_index >= active_companions.size():
 		# Todos los companions actuaron → turno enemigos
 		_start_enemy_turns()
 		return
-
+ 
 	var companion_id: String = active_companions[_companion_turn_index]
 	print("[GameLoopSystem] 🤝 Companion turn [%d/%d]: %s" % [
 		_companion_turn_index + 1, active_companions.size(), companion_id
 	])
-
+ 
+	_current_acting_entity = companion_id
 	EventBus.companion_turn_started.emit(companion_id)
 	# CompanionAI escucha y emitirá player_action_requested o companion_action_completed
-
 
 func _start_enemy_turns() -> void:
 	_transition_to_phase(TurnPhase.ENEMY_TURN_START)
@@ -654,38 +659,42 @@ func _start_enemy_turns() -> void:
 	current_turn_index = 0
 	_process_next_enemy()
 
-
 func _process_next_enemy() -> void:
 	var enemies := get_active_enemies()
-
+ 
 	if current_turn_index >= enemies.size():
 		_end_turn()
 		return
-
+ 
 	var enemy_id := enemies[current_turn_index]
 	print("[GameLoopSystem] Processing enemy [%d/%d]: %s" % [
 		current_turn_index + 1, enemies.size(), enemy_id
 	])
-
+ 
+	_current_acting_entity = enemy_id
 	_transition_to_phase(TurnPhase.ENEMY_ACTION_RESOLVE)
 	EventBus.emit_signal("enemy_turn_started", enemy_id)
 
-
 func _end_turn() -> void:
-	_transition_to_phase(TurnPhase.TURN_END)
+	if not _transition_to_phase(TurnPhase.TURN_END):
+		# Llamada duplicada/tardía mientras el cierre de ronda anterior aún
+		# está en curso (current_phase ya en ROUND_END) — no reemitir
+		# turn_ended, no volver a llamar a _end_round().
+		push_warning("[GameLoopSystem] _end_turn() ignorado: transición a TURN_END rechazada (fase actual: %s)" % TurnPhase.keys()[current_phase])
+		return
 	EventBus.emit_signal("turn_ended")
 	print("[GameLoopSystem] Turn ended")
 	_end_round()
 
-
 func _end_round() -> void:
-	_transition_to_phase(TurnPhase.ROUND_END)
+	if not _transition_to_phase(TurnPhase.ROUND_END):
+		push_warning("[GameLoopSystem] _end_round() ignorado: transición a ROUND_END rechazada (fase actual: %s)" % TurnPhase.keys()[current_phase])
+		return
 	EventBus.emit_signal("round_ended", round_number)
 	print("[GameLoopSystem] Round %d ended" % round_number)
-
+ 
 	await get_tree().create_timer(0.3).timeout
 	_start_new_round()
-
 
 # ============================================
 # CALLBACKS DE EVENTOS
@@ -744,8 +753,13 @@ func _on_player_action_completed(_result: Dictionary) -> void:
 
 
 ## Callback: acción de combate completada (jugador, companion o enemigo)
-func _on_combat_action_completed(_result: Dictionary) -> void:
+func _on_combat_action_completed(result: Dictionary) -> void:
+	var actor: String = result.get("actor", "")
+ 
 	if current_phase == TurnPhase.COMPANION_ACTION_RESOLVE:
+		if actor != _current_acting_entity:
+			push_warning("[GameLoopSystem] combat_action_completed ignorado: actor '%s' no coincide con el companion en turno ('%s')" % [actor, _current_acting_entity])
+			return
 		# Acción de companion completada — continuar con el siguiente
 		print("[GameLoopSystem] Companion action completed via combat_action_completed")
 		if _check_combat_conditions():
@@ -753,15 +767,17 @@ func _on_combat_action_completed(_result: Dictionary) -> void:
 		_companion_turn_index += 1
 		await get_tree().create_timer(companion_turn_delay).timeout
 		_process_next_companion()
-
+ 
 	elif current_phase == TurnPhase.ENEMY_ACTION_RESOLVE:
+		if actor != _current_acting_entity:
+			push_warning("[GameLoopSystem] combat_action_completed ignorado: actor '%s' no coincide con el enemigo en turno ('%s')" % [actor, _current_acting_entity])
+			return
 		print("[GameLoopSystem] Enemy action completed")
 		if _check_combat_conditions():
 			return
 		current_turn_index += 1
 		await get_tree().create_timer(enemy_turn_delay).timeout
 		_process_next_enemy()
-
 
 ## Callback específico de companions (cuando skipean su turno)
 func _on_companion_action_completed(companion_id: String, _result: Dictionary) -> void:
@@ -911,19 +927,18 @@ func _can_transition_state(from: GameState, to: GameState) -> bool:
 		return false
 	return to in VALID_STATE_TRANSITIONS[from]
 
-
-func _transition_to_phase(new_phase: TurnPhase) -> void:
+func _transition_to_phase(new_phase: TurnPhase) -> bool:
 	if _is_processing:
 		push_warning("[GameLoopSystem] Transition blocked: already processing")
-		return
-
+		return false
+ 
 	if not _can_transition(current_phase, new_phase):
 		push_error("[GameLoopSystem] Invalid transition: %s → %s" % [
 			TurnPhase.keys()[current_phase],
 			TurnPhase.keys()[new_phase]
 		])
-		return
-
+		return false
+ 
 	var old_phase := current_phase
 	current_phase = new_phase
 	EventBus.emit_signal("turn_phase_changed", new_phase)
@@ -931,7 +946,7 @@ func _transition_to_phase(new_phase: TurnPhase) -> void:
 		TurnPhase.keys()[old_phase],
 		TurnPhase.keys()[new_phase]
 	])
-
+	return true
 
 func _can_transition(from: TurnPhase, to: TurnPhase) -> bool:
 	var valid_transitions := {

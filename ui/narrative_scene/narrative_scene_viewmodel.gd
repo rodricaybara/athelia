@@ -410,7 +410,7 @@ func _register_combat_enemies(enemy_ids: Array[String], definitions: Dictionary)
 					chars.register_entity(enemy_id, "enemy_base")
  
 		resources.register_entity(enemy_id)
-		resources.set_resource(enemy_id, "health", 50.0)
+		resources.restore_resource(enemy_id, "health")
  
 		print("[NarrativeSceneViewModel] Pre-registered enemy: %s (def: %s)" % [enemy_id, def_id])
 

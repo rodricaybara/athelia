@@ -366,6 +366,7 @@ func _on_skill_used(entity_id: String, skill_id: String):
 			SkillRoller.to_progression_outcome(roll_result.result)
 		)
 
+	result["actor"] = entity_id
 	_pending_skill_context.clear()
 	
 	EventBus.emit_signal("combat_action_completed", result)

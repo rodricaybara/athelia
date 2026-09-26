@@ -55,6 +55,15 @@ func register_entity(entity_id: String, resource_ids: Array = []) -> void:
 	if resource_ids.is_empty():
 		resource_ids = _resource_definitions.keys()
 	
+	# Spike 6, Punto 1 — sincronizar max_effective con el máximo derivado
+	# real nada más registrar. Requiere Characters.register_entity() ya
+	# hecho para esta entidad (todos los call sites del proyecto cumplen
+	# este orden). Si no, no se sincroniza — queda en el genérico de
+	# ResourceDefinition.max_base, nunca en 0 ni en un valor inventado.
+	var can_resolve_max: bool = Characters.has_entity(entity_id)
+	if not can_resolve_max:
+		push_warning("[ResourceSystem] '%s' no registrado todavía en CharacterSystem — max_effective sin sincronizar (quedará en el genérico de la definición)" % entity_id)
+	
 	# Crear ResourceState para cada recurso
 	for res_id in resource_ids:
 		if not _resource_definitions.has(res_id):
@@ -63,6 +72,8 @@ func register_entity(entity_id: String, resource_ids: Array = []) -> void:
 		
 		var definition = _resource_definitions[res_id]
 		var state = ResourceState.new(definition)
+		if can_resolve_max:
+			state.set_max_effective(AttributeResolver.resolve_resource_max(entity_id, res_id))
 		_entities[entity_id][res_id] = state
 	
 	print("[ResourceSystem] Registered entity '%s' with %d resources" % [entity_id, resource_ids.size()])

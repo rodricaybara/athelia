@@ -235,11 +235,11 @@ func _register_combat_enemies(enemy_ids: Array[String]) -> void:
 				if chars.has_definition("enemy_base"):
 					chars.register_entity(enemy_id, "enemy_base")
 		
-		# ResourceSystem — necesario para HP
-		# No hay has_entity() público: registrar y dejar que el sistema
-		# emita su propio warning si ya estaba registrado (es inofensivo)
+		# ResourceSystem — necesario para HP. Spike 6, Punto 1: ya no se
+		# fija a 50.0 — restore_resource() llena al máximo real, que
+		# register_entity() ya deja sincronizado por AttributeResolver.
 		resources.register_entity(enemy_id)
-		resources.set_resource(enemy_id, "health", 50.0)
+		resources.restore_resource(enemy_id, "health")
 		
 		print("[ExplorationController] Pre-registered enemy: %s (def: %s)" % [enemy_id, def_id])
 

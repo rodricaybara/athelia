@@ -87,12 +87,15 @@ func _spawn_enemy_ai(enemy_id: String) -> void:
 ## y refuerzo), no lo dupliques aquí.
 func _on_reinforcement_spawned(enemy_id: String, definition_id: String) -> void:
 	if not Characters.has_entity(enemy_id):
-		Resources.register_entity(enemy_id, ["health"])
 		if Characters.has_definition(definition_id):
 			Characters.register_entity(enemy_id, definition_id)
 		else:
 			push_warning("[CombatProductionScene] Definición no encontrada: %s" % definition_id)
-
+		# Resources SIEMPRE después de Characters — Spike 6, Punto 1:
+		# ResourceSystem.register_entity() necesita la entidad ya en
+		# CharacterSystem para poder sincronizar max_effective.
+		Resources.register_entity(enemy_id, ["health"])
+ 
 	_spawn_enemy_ai(enemy_id)
 
 

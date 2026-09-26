@@ -222,14 +222,13 @@ func _refresh_buffs() -> void:
 	for state_dict in state.active_states:
 		active_buffs.append(BuffData.from_state(state_dict))
 
-
 func _refresh_resources() -> void:
 	var state: CharacterState = Characters.get_character_state(_character_id)
 	if state == null:
 		return
-
-	health_current  = int(state.get_resource("health"))
+ 
+	health_current  = int(Resources.get_resource_amount(_character_id, "health"))
 	health_max      = int(AttributeResolver.resolve(_character_id, "health_max"))
-	stamina_current = int(state.get_resource("stamina"))
+	stamina_current = int(Resources.get_resource_amount(_character_id, "stamina"))
 	stamina_max     = int(AttributeResolver.resolve(_character_id, "stamina_max"))
-	gold            = int(state.get_resource("gold"))
+	gold            = int(Resources.get_resource_amount(_character_id, "gold"))

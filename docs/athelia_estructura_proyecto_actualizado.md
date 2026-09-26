@@ -23,7 +23,7 @@ Estos sistemas están disponibles globalmente en todo el proyecto sin necesidad 
 |-----------|--------|-------------|
 | `Characters` | `core/characters/character_system.gd` | Gestión de personajes: creación, acceso y ciclo de vida. |
 | `Modifiers` | `core/characters/modifier_applicator.gd` | Aplicación de modificadores sobre atributos de personajes. |
-| `Resources` | `core/resources/resource_system.gd` | Gestión de recursos vitales (vida, stamina, oro). |
+| `Resources` | `core/resources/resource_system.gd` | Gestión de recursos vitales (vida, stamina, oro). **Desde Spike 6**: `register_entity()` depende de `Characters`/`AttributeResolver` (llama a `AttributeResolver.resolve_resource_max()` para sincronizar `max_effective` de cualquier entidad) — requiere que `Characters.register_entity()` ya se haya llamado antes para esa entidad, o se queda sin sincronizar (con warning). Primera dependencia real de `ResourceSystem` hacia otro sistema; antes era autocontenido. |
 | `Skills` | `core/skills/skill_system.gd` | Sistema de habilidades: registro, acceso y uso. `SkillRoller` (no autoload, `class_name` estático) resuelve las tiradas D100: 5 grados desde Spike 2 (`FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL`), con `CRITICAL`/`SPECIAL` dinámicos (skill/20, skill/5) y `FUMBLE` absoluto (≥98). |
 | `SkillProgression` | `core/skills/skill_progression_service.gd` | Progresión y aprendizaje de habilidades. |
 | `SkillEventHandler` | `core/skills/skill_event_handler.gd` | Manejo de eventos relacionados con habilidades. |
@@ -581,6 +581,7 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 - Un companion incapacitado permanece en `turn_order` pero `CompanionAI` skipea su turno.
 - Victoria: todos los enemigos muertos. Derrota: jugador muerto (los companions no evitan la derrota actualmente).
 - `start_combat()` acepta como estado de origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard explícito, independiente de `VALID_STATE_TRANSITIONS` — `start_combat()` transiciona directo con `_transition_game_state()`, no pasa por `request_state_change()`).
+- **`_transition_to_phase()` devuelve `bool` desde Spike 6** (antes `void`) — `_end_turn()`/`_end_round()` abortan sin reemitir señales si la transición es rechazada. Causa raíz confirmada de un bug de motor real: una invocación duplicada de `_end_turn()` (candidato: señal `combat_action_completed` de un actor equivocado, mal atribuida por fase en vez de por `actor`) dejaba pasar el error de transición y seguía igual, duplicando `round_ended` y el incremento de `round_number` a la vez. `_on_combat_action_completed()` ahora compara `result["actor"]` contra el actor que realmente tiene el turno (`_current_acting_entity`) antes de procesar — requirió añadir `"actor"` al payload de la resolución normal de skill en `CombatSystem`, que no lo llevaba (solo las ramas de excepción staggered/disarmed/dodge sí). Ver `docs/spike_6_investigacion_motor_combate.md` para el detalle completo.
 - **Nota sobre `request_state_change()` (confirmado en Spike 3/B):** `DEFEAT` solo tiene transición válida hacia `EXPLORATION`/`MENU` — nunca directo a `CHARACTER_CREATION`. Cualquier flujo de reinicio de partida tras Game Over debe pasar por `enter_main_menu()` antes de `enter_character_creation()`, igual que el camino real de "Nueva Partida" desde el menú.
 - **`MENU → NARRATIVE_SCENE` (mejoras post-Spike 3, Grupo 1):** habilita "Cargar Partida" para resumir directamente dentro de una escena narrativa, si el save se hizo desde ahí. Antes de este grupo era un camino inexistente — la única entrada a `NARRATIVE_SCENE` era desde `EXPLORATION`. Ver sección propia de Grupo 1 más abajo para el hallazgo de reentrada que este camino nuevo expuso en `SceneOrchestrator`/`TelmoriVillage._ready()`.
 - **Sorpresa de combate (Spike 3, Grupo B):** `CombatEncounterDefinition.surprise_favors` no toca `turn_order` ni `TurnPhase` — la estructura de fases ya obliga a jugador+companions a actuar antes que los enemigos cada ronda, así que reordenar iniciativa no tendría ningún efecto real. En su lugar, el bando sorprendido recibe el buff `staggered` ya existente en `CombatSystem` (pierde su primera acción) y, opcionalmente, `vulnerable` (`surprise_vulnerable_pct`, daño extra recibido). Lógica compartida en `GameLoopSystem._apply_surprise()`, llamada desde `start_combat()` y `configure_active_encounter()` — esta segunda ruta hace falta porque un combate disparado desde `ExplorationController` ya está en marcha antes de que se le adjunte el encounter. El `turns_left` del buff `vulnerable` es asimétrico: 2 si perjudica a jugador/companions (actúan antes en la ronda, necesitan sobrevivir a su propio tick), 1 si perjudica a enemigos (actúan al final, su tick ya llega después del ataque).
@@ -894,7 +895,7 @@ Sustituye la pantalla de combate de test (`combat_test_scene`/`combat_hud.tscn`)
 - **Bug de motor preexistente confirmado, no arreglado en este grupo**: `ResourceSystem.resource_changed` (señal propia del autoload `Resources`) nunca se reenvía a `EventBus.resource_changed` — `combat_hub_viewmodel.gd` se conecta a la señal equivocada, así que el HP/EN del jugador probablemente no se actualiza en vivo en la pantalla de test. `CombatArenaViewModel` se conecta directamente a `Resources.resource_changed`, evitando el mismo bug.
 - **Otro bug de motor preexistente confirmado**: `combat_hud.gd` mapea el slot `"escape"` a la action `"combat_escape"`, pero el InputMap real usa `"combat_scape"` (typo/mismatch) — el botón de huir por teclado probablemente no respondía en la pantalla de test.
 - **Fuga de memoria preexistente confirmada**: `SceneOrchestrator._handle_combat()` nunca guarda referencia a la instancia de `SCENE_COMBAT` ni la libera en `_on_combat_ended()` (a diferencia de `OVERLAY_COMBAT_HUD`, sí liberada) — se acumula una copia por combate. `combat_production_scene.gd` se libera a sí misma como mitigación local, el problema de fondo en `SceneOrchestrator` sigue sin arreglar.
-- **`AttributeResolver` (máximo derivado real del personaje) y `ResourceState.max_effective` (máximo genérico de `ResourceDefinition.max_base`, típicamente 100) confirmados como dos números desconectados** — nada llama a `Resources.set_max_effective()` para sincronizarlos, al menos en el camino de `combat_test_scene.gd`. Sin resolver, origen histórico desconocido.
+- **`AttributeResolver` (máximo derivado real del personaje) y `ResourceState.max_effective` (máximo genérico de `ResourceDefinition.max_base`, típicamente 100) confirmados como dos números desconectados** — nada llama a `Resources.set_max_effective()` para sincronizarlos, al menos en el camino de `combat_test_scene.gd`. **Resuelto en Spike 6**: causa raíz completa (no solo el camino de `combat_test_scene.gd`) era que `ModifierApplicator` solo sincroniza como efecto de `Characters.set_base_attribute()`, y el único caller de eso en todo el proyecto era `character_creation_viewmodel.gd` para `"player"` — enemigos/refuerzos/companions nunca pasaban por ahí. Arreglado sincronizando dentro de `ResourceSystem.register_entity()` mismo (ver tabla de autoloads arriba), no en cada punto de registro por separado. Ver `docs/spike_6_investigacion_motor_combate.md` para el detalle completo, incluido el segundo bug independiente que compartía síntoma (el HP fijo a 50.0 en el registro de enemigos, origen real del patrón `50/60` reportado).
 - Validado jugando la aventura completa de "Los Telmori" de principio a fin, incluidos refuerzos reales a mitad de combate en la guarida (ronda 4).
 
 
@@ -1052,7 +1053,45 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 
 ---
 
-*Última actualización: Spike 5 — Arreglos rápidos de motor. Cinco bugs de
+*Última actualización: Spike 6 — Investigación de motor de combate (los dos
+puntos de alcance investigados y cerrados, sin necesidad de spike aparte para
+ninguno). Punto 1: dos bugs independientes bajo el mismo síntoma (número
+mostrado ≠ número real). Sub-bug A, el desync `50/60`/`50/45` original —
+causa raíz: `ModifierApplicator` solo sincroniza `max_effective` como efecto
+de `Characters.set_base_attribute()`, y el único caller de eso en todo el
+proyecto era `character_creation_viewmodel.gd` para `"player"` — enemigos,
+refuerzos y companions se registran vía `register_entity()` directo, sin
+pasar nunca por ahí. El "50" del patrón reportado era además literal:
+`exploration_controller.gd`/`narrative_scene_viewmodel.gd` fijaban el HP
+inicial de cada enemigo a `50.0` hardcodeado. Arreglado sincronizando dentro
+de `ResourceSystem.register_entity()` mismo (Opción B, elegida sobre arreglar
+cada punto de registro por separado — 4 call sites confirmados, 3 de ellos
+bugueados, 2 con código duplicado línea por línea — para cerrar el gap de
+raíz en vez de depender de que cada spawner futuro se acuerde), con guard
+defensivo y orden de registro corregido en `combat_production_scene.gd`
+(refuerzos). Sub-bug B, hallazgo ampliado del cierre de Spike 5 en
+`player_menu` — sin relación con el sub-bug A: `player_menu_viewmodel.gd`
+leía el HP/EN actual desde `CharacterState.get_resource()`, un accesor
+fósil congelado desde la creación del personaje (mismo patrón que
+`skill_values` vs. `SkillSystem._entity_skills` de Spike 3/Grupo B), en vez
+del estado vivo de `ResourceSystem`. Punto 2: `Invalid transition: ROUND_END
+→ TURN_END` y rondas que saltan número — confirmado que afecta al contador
+real (`round_number`, usado por refuerzos temporizados), no es cosmético.
+Causa raíz: `_transition_to_phase()` no devolvía éxito/fracaso y ningún
+llamador comprobaba el resultado antes de seguir — ver nota propia en
+"GameLoop — Estados y fases de turno" más abajo. Disparador exacto de la
+doble invocación no confirmado al 100%; candidato identificado y mitigado
+con una comprobación de actor nueva en `_on_combat_action_completed()`.
+Nuevo test de regresión sin necesitar combate real,
+`test/test_spike6_investigacion.gd` (8/8 asserts). Validado en varias
+partidas reales completas, refuerzos incluidos. Quedan sin tocar, sin
+decisión de Fernando: typo `combat_scape`/`combat_escape`, puente
+`resource_changed`→`EventBus.resource_changed`, fuga de memoria ya
+mitigada, `combat_resolver.gd` código muerto sospechoso (los 4 hallazgos de
+motor de Grupo 5 restantes). Ver `docs/spike_6_investigacion_motor_combate.md`
+para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 5 — Arreglos rápidos de motor. Cinco bugs de
 motor preexistentes cerrados, documentados como pendientes desde el
 Grupo 5 de mejoras post-Spike 3, sin dependencias cruzadas entre sí.
 Typo `combat_escape`→`combat_scape` corregido en `combat_hud.gd` (consenso

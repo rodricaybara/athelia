@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cyhks631mxuot"]
+
+[ext_resource type="Script" uid="uid://byukcdiqa60cu" path="res://test/test_spike6_investigacion.gd" id="1_kb3v1"]
+
+[node name="TestSpike6Investigacion" type="Node" unique_id=1903849960]
+script = ExtResource("1_kb3v1")
