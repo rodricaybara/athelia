@@ -1,6 +1,12 @@
 class_name UICombatToken
 extends Control
 
+## Spike 8, Punto 4 — tamaño de diseño de la ficha, fijado también en el
+## .tscn (custom_minimum_size/custom_maximum_size). Vive aquí porque es
+## SU tamaño, no un dato que combat_arena_panel.gd deba conocer de
+## memoria — evita un número mágico duplicado entre los dos ficheros.
+const BASE_SIZE: Vector2 = Vector2(96, 144)
+
 ## UICombatToken — Ficha de combate (party o enemigo)
 ##
 ## Componente del Design System. Compone dos UIRadialGauge (PV/EN),

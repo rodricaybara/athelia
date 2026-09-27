@@ -82,7 +82,7 @@ athelia/
 │   ├── characters/                 # Sistema de personajes
 │   │   ├── character_system.gd     # [Autoload: Characters]
 │   │   ├── character_definition.gd # Resource: definición estática del personaje — Grupo 5: + token_color (Color, centinela Color.BLACK) y type_icon (Texture2D), color de relleno e icono de tipo de la ficha en la arena de combate
-│   │   ├── character_state.gd      # Resource: estado en tiempo de ejecución
+│   │   ├── character_state.gd      # Resource: estado en tiempo de ejecución. character_name solo se rellena para el jugador (Character Creation) o vía load_save_state() — SIEMPRE vacío para enemigos/companions por diseño (docstring propio: "nombre fijo en su definición"). Spike 8: confirmado que nada en el proyecto caía a CharacterDefinition.name_key como fallback para esas entidades — ver combat_arena_viewmodel.gd
 │   │   ├── loadout_state.gd        # Resource: estado de loadout del personaje
 │   │   ├── attribute_resolver.gd   # Resolución de atributos derivados
 │   │   └── modifier_applicator.gd  # [Autoload: Modifiers]
@@ -411,7 +411,7 @@ athelia/
 │   ├── player/                      # ⚠️ player.gd/player.tscn: código muerto, limpieza APARCADA
 │   │   ├── player.gd                #    (bloqueada por test/test_shop_ui.gd, que aún los referencia)
 │   │   ├── player.tscn
-│   │   ├── player_combat_controller.gd
+│   │   ├── player_combat_controller.gd  # Único dueño real del targeting (auto-target en _on_combat_started(), ciclado con Tab) y del despacho completo de player_action_requested (request_skill()). Spike 8: + add_to_group("player_combat_controller") en _ready(), para que combat_arena_panel.gd pueda localizarlo sin acoplarse a una ruta de nodo fija — antes los botones de UI construían su propio action_data incompleto (sin "target"), en vez de llamar a request_skill()
 │   │   ├── player_ui.gd
 │   │   ├── player_ui.tscn
 │   │   ├── save_feedback_ui.gd
@@ -437,10 +437,10 @@ athelia/
     │   ├── combat_hub_viewmodel.gd     # Menú de 8 acciones del jugador (3 ataque configurables + 3 defensivas fijas + 2 ítems) — sin cambios de contrato, Grupo 5 lo compone como action_menu dentro de CombatArenaViewModel
     │   ├── combat_hud.gd               # YA NO es la pantalla de producción desde Grupo 5 (ver combat_arena_panel.gd) — sigue vivo solo para combat_test.tscn
     │   ├── combat_hud.tscn
-    │   ├── combat_arena_viewmodel.gd   # ← NUEVO (Grupo 5): ViewModel de la arena — fichas de party/enemigos (dinámicas: companions/refuerzos a mitad de combate) + log narrado. Compone a combat_hub_viewmodel.gd como action_menu, sin tocarlo. Se conecta a Resources.resource_changed directamente (la señal de ResourceSystem, NO EventBus.resource_changed — ver hallazgo de motor abajo). Grupo 4: + background_texture / razón "background" (lee GameLoop.get_current_encounter() con call_deferred); fill_color resuelto también para enemigos (antes Color.WHITE por defecto) y centinela Color.BLACK de token_color respetado
+    │   ├── combat_arena_viewmodel.gd   # ← NUEVO (Grupo 5): ViewModel de la arena — fichas de party/enemigos (dinámicas: companions/refuerzos a mitad de combate) + log narrado. Compone a combat_hub_viewmodel.gd como action_menu, sin tocarlo. Se conecta a Resources.resource_changed directamente (la señal de ResourceSystem, NO EventBus.resource_changed — ver hallazgo de motor abajo). Grupo 4: + background_texture / razón "background" (lee GameLoop.get_current_encounter() con call_deferred); fill_color resuelto también para enemigos (antes Color.WHITE por defecto) y centinela Color.BLACK de token_color respetado. Spike 8: _initials_for()/_display_name() solo leían CharacterState.character_name (vacío para toda entidad no-jugador) — arreglado con fallback a tr(CharacterDefinition.name_key), cierra a la vez el "??" de fichas y los IDs sin localizar en el log (misma causa). _on_combat_started() sincroniza is_targeted leyendo PlayerCombatController.get_current_target() directamente al construir las fichas, en vez de depender del orden de conexión a combat_started entre nodos distintos (el auto-target de PlayerCombatController se perdía si su señal target_changed llegaba antes de que las fichas existieran)
     │   ├── combat_token_data.gd        # ← NUEVO (Grupo 5): data class — snapshot de una ficha (entity_id, is_party, HP/EN actual+máximo, turno, objetivo, color/icono)
     │   ├── log_entry_data.gd           # ← NUEVO (Grupo 5): data class — una línea del log (text_key + format_args + grade)
-    │   ├── combat_arena_panel.gd       # ← NUEVO (Grupo 5): View de producción, sustituye a combat_hud.tscn como SceneOrchestrator.OVERLAY_COMBAT_HUD. Fichas dinámicas en PartyColumn(VBoxContainer)/EnemyColumn(GridContainer 2 columnas — VBoxContainer no cabía con 6 enemigos reales), log con autoscroll, menú de 8 UIButton fijos, fondo opaco (tapa la escena de exploración, que sigue viva debajo por diseño de SceneOrchestrator). Grupo 4: BackgroundImage (TextureRect) debajo de Background (ColorRect, ahora %), que pasa a ser velo con alfa UITokens.COMBAT_BACKGROUND_SCRIM_ALPHA si el encuentro trae imagen, opaco si no; color desde UITokens.COLOR_PANEL (ya no fijo en el .tscn); contorno en las líneas del log
+    │   ├── combat_arena_panel.gd       # ← NUEVO (Grupo 5): View de producción, sustituye a combat_hud.tscn como SceneOrchestrator.OVERLAY_COMBAT_HUD. Fichas dinámicas en PartyColumn(VBoxContainer)/EnemyColumn(GridContainer 2 columnas — VBoxContainer no cabía con 6 enemigos reales), log con autoscroll, menú de 8 UIButton fijos, fondo opaco (tapa la escena de exploración, que sigue viva debajo por diseño de SceneOrchestrator). Grupo 4: BackgroundImage (TextureRect) debajo de Background (ColorRect, ahora %), que pasa a ser velo con alfa UITokens.COMBAT_BACKGROUND_SCRIM_ALPHA si el encuentro trae imagen, opaco si no; color desde UITokens.COLOR_PANEL (ya no fijo en el .tscn); contorno en las líneas del log. Spike 8, Punto 4: EnemyColumn sin límite de altura se desbordaba por arriba con 6-8 fichas — cada ficha enemiga se instancia ahora dentro de un Control envoltorio (_enemy_slots[entity_id]) que es lo único que _rescale_enemy_tokens() redimensiona; UICombatToken en sí nunca cambia de tamaño real, solo se escala visualmente (.scale) — ver antipatrón nuevo en athelia_ui_architecture.md. Spike 8, Punto 5: _on_slot_action_pressed() ya no construye su propio action_data (nunca incluía "target") — delega en PlayerCombatController.request_skill() vía get_tree().get_first_node_in_group("player_combat_controller")
     │   ├── combat_arena_panel.tscn
     │   └── damage_number.tscn
     │
@@ -466,7 +466,7 @@ athelia/
     │   │   ├── ui_radial_gauge/    # ← NUEVO (Grupo 5): anillo de progreso radial parametrizable (progress/ring_color/track_color/thickness), sin precedente previo de _draw()/arcos en el Design System (todo lo demás usa StyleBoxFlat). Un único anillo por instancia — una ficha de party lo instancia dos veces (PV+EN), una de enemigo una vez (solo PV)
     │   │   │   ├── ui_radial_gauge.gd
     │   │   │   └── ui_radial_gauge.tscn
-    │   │   └── ui_combat_token/    # ← NUEVO (Grupo 5): ficha de combate (party o enemigo), compone dos UIRadialGauge + relleno central (iniciales o icono de tipo) + triángulo de turno + retícula de objetivo. 3 scripts helper internos sin class_name (no reutilizables fuera de este componente): ui_combat_token_center_fill.gd, ui_combat_token_turn_triangle.gd, ui_combat_token_target_reticle.gd. Grupo 4: _apply_text_outline() en _ready() — contorno (UITokens.TEXT_OUTLINE_SIZE / COLOR_TEXT_OUTLINE) en iniciales y cifras de PV/EN
+    │   │   └── ui_combat_token/    # ← NUEVO (Grupo 5): ficha de combate (party o enemigo), compone dos UIRadialGauge + relleno central (iniciales o icono de tipo) + triángulo de turno + retícula de objetivo. 3 scripts helper internos sin class_name (no reutilizables fuera de este componente): ui_combat_token_center_fill.gd, ui_combat_token_turn_triangle.gd, ui_combat_token_target_reticle.gd. Grupo 4: _apply_text_outline() en _ready() — contorno (UITokens.TEXT_OUTLINE_SIZE / COLOR_TEXT_OUTLINE) en iniciales y cifras de PV/EN. Spike 8: + const BASE_SIZE (96×144) — su tamaño de diseño, del que combat_arena_panel.gd deriva el factor de escala en vez de duplicar el número; todo su anclaje interno usa desplazamientos en píxeles fijos calculados para ESE tamaño exacto (ver antipatrón nuevo en athelia_ui_architecture.md), por lo que el propio nodo nunca debe redimensionarse directamente
     │   │       ├── ui_combat_token.gd
     │   │       ├── ui_combat_token_center_fill.gd
     │   │       ├── ui_combat_token_turn_triangle.gd
@@ -504,8 +504,8 @@ athelia/
     │   └── feedback_popup.tscn
     │
     ├── loadout/                    # Pantalla de loadout (patrón MVVM)
-    │   ├── loadout_viewmodel.gd
-    │   ├── loadout_screen.gd
+    │   ├── loadout_viewmodel.gd     # Spike 8: SlotData.display_name se fijaba ya traducido (tr(def.name_key)) en _refresh_slots(), a diferencia de SkillSlotData/ConsumableSlotData en el mismo fichero (clave sin traducir, "se traduce en la View") — loadout_screen.gd hacía tr() una segunda vez sobre el resultado. Sin efecto visible (tr() sobre un string no-clave devuelve el string tal cual) pero es un doble-tr() real; arreglado para seguir el mismo patrón que las otras dos data class
+    │   ├── loadout_screen.gd        # Selección en dos pasos (clic en slot → clic en skill/ítem de la lista) sin ninguna pista visual de que hace falta el primer clic — confundió la validación de Spike 8 hasta confirmarlo en juego. Candidato a mejora de UX menor, aparcado
     │   └── loadout_screen.tscn
     │
     ├── loading_screen/             # Pantalla de carga
@@ -1050,11 +1050,46 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Una transición de `GameState` que nunca se había necesitado puede fallar en silencio (mejoras post-Spike 3, Grupo 1):** `enter_narrative_scene()` llamado desde `MENU` (camino nuevo, antes inexistente) caía en `_can_transition_state() == false` → `push_warning()`, no `push_error()` — fácil de perder en la consola, y sin ningún otro síntoma más que "no pasa nada" en el juego. Cualquier transición de `GameState` nueva (no solo las del código que se está escribiendo) debe verificarse contra `VALID_STATE_TRANSITIONS`, no darse por hecho porque el estado de destino ya existe.
 - **Instanciar una escena tarde puede desconectar listeners de continuación que dependen de que existan ANTES de un evento concreto (mejoras post-Spike 3, Grupo 1):** un `EventBus.combat_ended` (u otra señal cualquiera) emitido antes de que su listener se conecte se pierde sin rastro — no hay cola ni replay. Cualquier camino nuevo que permita llegar a un punto del juego (aquí, un combate) sin pasar por la instanciación habitual de una escena puede dejar huérfanos a listeners que esa escena registra en su propio `_ready()`.
 - **Corregir un orden de instanciación puede exponer una trampa de reentrada en código que llevaba tiempo sin tocarse (mejoras post-Spike 3, Grupo 1):** un guard de tipo `if current_game_state != X: transicionar_a(X)`, escrito pensando solo en "arrancar la escena sola", puede disparar una transición real e inesperada si esa misma escena se instancia ahora en un momento distinto al que el guard asumía — en este caso, en mitad de la apertura de otro estado (`NARRATIVE_SCENE`), cerrándolo justo después de abrirlo. La condición correcta era más estricta (`== MENU`, el único caso real que el guard necesitaba cubrir) que la que llevaba tiempo en el código (`!= EXPLORATION`).
+- **Un campo de nombre "para entidades sin necesidad de él" (Spike 8):** `CharacterState.character_name` solo se rellena para el jugador (Character Creation) o vía `load_save_state()` — su propio docstring ya avisaba de que queda vacío para "enemigos, companions con nombre fijo en su definición", pero nada en el proyecto implementaba de verdad ese fallback a `CharacterDefinition.name_key`. Un comentario que documenta el caso vacío no es lo mismo que código que lo resuelve — comprobar ambos por separado antes de asumir que un campo "vacío a propósito" tiene también su ruta de fallback cubierta.
+- **Redimensionar un `Control` cuyo contenido usa desplazamientos en píxeles fijos rompe su layout interno (Spike 8):** `UICombatToken` ancla sus hijos (`TokenVisual`, `HpValueLabel`...) con offsets absolutos calculados para un lienzo exacto de 96×144 — forzar un `.size` real menor vía `custom_minimum_size` descoloca ese contenido (iconos incluidos) en vez de reescalarlo. Arreglo: un `Control` envoltorio es lo que el `Container` redimensiona de verdad; el componente en sí se encoge solo visualmente con `.scale`, sin tocar su propio tamaño real. Ver antipatrón nuevo en `athelia_ui_architecture.md`.
+- **Dos caminos para construir el mismo evento divergen — uno gana, el otro se queda incompleto (Spike 8):** `combat_arena_panel.gd` construía su propio `action_data` para `player_action_requested` en vez de llamar a `PlayerCombatController.request_skill()`, el único sitio del proyecto que resuelve el target actual — la copia manual nunca incluía `"target"`. Cualquier punto de entrada nuevo a un despacho ya resuelto en otro sitio debe llamar a su API pública, nunca reconstruir el mismo estado por su cuenta.
+- **El orden de conexión entre dos nodos distintos a la misma señal no está garantizado (Spike 8):** el auto-target de `PlayerCombatController._on_combat_started()` (emitido en el mismo instante que `combat_started`) se perdía visualmente si se ejecutaba antes que `CombatArenaViewModel._on_combat_started()` — las fichas aún no existían para recibir la marca de "objetivo". Un consumidor que necesita el estado ya resuelto de otro nodo en el mismo instante de un evento compartido debe consultarlo directamente (`get_current_target()`), no fiarse de recibir también su señal derivada a tiempo.
 - **`get_tree().reload_current_scene()` no destruye nodos añadidos directamente a `get_tree().root` (Spike 7):** `SceneOrchestrator` instancia `ExplorationScene` y todos sus overlays (`NarrativeScenePanel`, `CombatHud`...) como hermanos de `current_scene` bajo `root`, no como hijos suyos — un `reload_current_scene()` solo recrea `current_scene` (`MainMenuScreen`). Sin liberar esos nodos explícitamente antes de recargar, el guard de "ya existe, no instanciar otro" de `_ensure_exploration_scene_instantiated()` reutiliza el `ExplorationScene` viejo tal cual, con todo el estado de la sesión anterior — una recarga que parece "limpia" no lo es. Este hallazgo se confirmó y corrigió, pero no fue la causa raíz completa del bug que lo motivó (ver Spike 7 — bug de F9 sin resolver, en la sección "Input en exploración" más arriba).
 
 ---
 
-*Última actualización: Spike 7 — F9 quickload en EXPLORATION (cerrado sin
+*Última actualización: Spike 8 — UI/UX de combate (cinco puntos de alcance
+cerrados y validados en combate real contra un grupo de 6-8 lobos). Punto 1
+(ficha de `companion_mira` con `??`) y Punto 2 (log con IDs internos en vez
+de nombres localizados) resultaron compartir exactamente la misma causa,
+confirmada por código antes de tratarlos como un único arreglo:
+`_initials_for()`/`_display_name()` en `combat_arena_viewmodel.gd` solo
+leían `CharacterState.character_name` (vacío para toda entidad no-jugador
+por diseño) sin caer a `tr(CharacterDefinition.name_key)` como fallback —
+arreglado con esa jerarquía de resolución (nombre elegido > nombre fijo de
+definición). Punto 3 (los 8 botones del menú de acciones nunca mostraban
+nombre) resultó no ser un bug de código: `combat_hud_viewmodel.gd`/
+`combat_arena_panel.gd` leían fielmente un `LoadoutState` del jugador que
+nunca había sido asignado — confirmado con capturas de la propia pantalla
+de Loadout mostrando los 8 slots vacíos. De paso, un doble-`tr()` real (sin
+efecto visible) en `loadout_viewmodel.gd`. Punto 4 (columna de enemigos
+desbordada con 6-8 fichas): un primer intento de redimensionar
+`UICombatToken` directamente resultó incorrecto (su anclaje interno usa
+píxeles fijos calculados para 96×144 — confirmado en playtest por iconos
+descolocados) y se sustituyó por el patrón correcto de Control envoltorio +
+`.scale`, sin tocar el tamaño real del token. Punto 5, no listado en el spec
+original y añadido durante la sesión al bloquear la validación del Punto 4:
+"No target specified" al atacar — causa real, `combat_arena_panel.gd`
+duplicaba (incompleto, sin `"target"`) el despacho que
+`PlayerCombatController.request_skill()` ya resolvía bien; arreglado
+delegando en él. Expuso un segundo hallazgo encadenado: el auto-target de
+`PlayerCombatController` se perdía visualmente por orden de señales entre
+nodos distintos, corregido sincronizando el objetivo directamente en
+`CombatArenaViewModel._on_combat_started()`. Dos antipatrones nuevos de
+arquitectura UI documentados en `athelia_ui_architecture.md`. Ver
+`docs/spike_8_ui_ux_combate.md` para el detalle completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 7 — F9 quickload en EXPLORATION (cerrado sin
 arreglo, funcionalidad NO OPERATIVA). El síntoma original documentado (bloqueo
 total de input) no se reprodujo tras el pivote narrativo — resultó ser un bug
 distinto: F9 en sesión activa cargaba los datos del save pero no consumía

@@ -77,6 +77,7 @@ var input_enabled: bool = false
 # ============================================
 
 func _ready():
+	add_to_group("player_combat_controller")
 	if not game_loop:
 		push_error("[PlayerCombatController] GameLoopSystem not found at /root/GameLoop!")
 		return
@@ -96,7 +97,7 @@ func _ready():
 
 	if not InputMap.has_action("cycle_target"):
 		push_warning("[PlayerCombatController] InputMap action not found: 'cycle_target'")
-
+		
 	print("[PlayerCombatController] Initialized")
 
 

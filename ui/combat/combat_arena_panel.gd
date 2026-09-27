@@ -17,6 +17,12 @@ const SLOT_ORDER: Array[String] = [
 	"consumable_1", "consumable_2",
 ]
 
+## Spike 8, Punto 4 — con 6-8 enemigos el GridContainer de 2 columnas no
+## tiene alto real para todas las fichas a tamaño base y se desborda por
+## arriba (decisión de Fernando: encoger ficha, no scroll). Piso mínimo
+## de escala para que siga siendo legible con 8 enemigos a la vez.
+const TOKEN_MIN_SCALE: float = 0.6
+
 @onready var party_column: VBoxContainer = %PartyColumn
 @onready var enemy_column: Container = %EnemyColumn
 @onready var log_scroll: ScrollContainer = %LogScroll
@@ -32,9 +38,18 @@ var _vm: CombatArenaViewModel = null
 ## (fichas muertas se quedan a 0 PV, decisión ya tomada) — solo crece.
 var _tokens: Dictionary = {}
 
+## entity_id → Control envoltorio de un token ENEMIGO (ver
+## _instantiate_token). Solo enemigos lo tienen — party no se redimensiona.
+var _enemy_slots: Dictionary = {}
+
 ## slot_id → UIButton, uno de los 8 fijos del .tscn.
 var _slot_buttons: Dictionary = {}
 
+## Evita recalcular en cada tick de HP/EN — solo cuando cambia el número
+## de fichas enemigas (nueva, refuerzo). Las muertas se quedan en el
+## array (decisión ya tomada en Grupo 5), así que esto nunca decrece
+## salvo que entren refuerzos.
+var _last_enemy_count: int = -1
 
 func _ready() -> void:
 	visible = false
@@ -126,6 +141,50 @@ func _render_tokens() -> void:
 		if token == null:
 			token = _instantiate_token(data)
 		_apply_token_data(token, data)
+	_rescale_enemy_tokens()
+
+
+## Spike 8, Punto 4 — el TOKEN EN SÍ nunca cambia de tamaño: todo su
+## contenido interno (TokenVisual, HpValueLabel, etc.) está anclado con
+## desplazamientos en píxeles FIJOS calculados para un lienzo exacto de
+## 96×144 (UICombatToken.BASE_SIZE). Si se le redujera su propio
+## custom_minimum_size, esos offsets fijos dejarían de encajar y el
+## contenido (iconos incluidos) se descoloca — confirmado en playtest.
+## En vez de eso: el token vive dentro de un Control "slot" envoltorio,
+## y es ESE envoltorio el que el GridContainer redimensiona de verdad.
+## El token, dentro, se queda siempre a tamaño real y se encoge solo
+## visualmente con .scale (transform, no relayout) — todo su anclaje
+## interno sigue calculado sobre un lienzo de 96×144 válido.
+func _rescale_enemy_tokens() -> void:
+	var enemy_ids: Array[String] = []
+	for data in _vm.combat_tokens:
+		if not data.is_party:
+			enemy_ids.append(data.entity_id)
+
+	if enemy_ids.is_empty() or enemy_ids.size() == _last_enemy_count:
+		return
+	_last_enemy_count = enemy_ids.size()
+
+	var rows: int = int(ceil(float(enemy_ids.size()) / float(enemy_column.columns)))
+
+	var available_height: float = enemy_column.size.y
+	if available_height <= 0.0:
+		# Primer frame: el Container aún no ha calculado su tamaño real.
+		await get_tree().process_frame
+		available_height = enemy_column.size.y
+
+	var target_row_height: float = available_height / float(rows)
+	var scale_factor: float = clampf(target_row_height / UICombatToken.BASE_SIZE.y, TOKEN_MIN_SCALE, 1.0)
+	var target_size: Vector2 = UICombatToken.BASE_SIZE * scale_factor
+
+	for entity_id in enemy_ids:
+		var slot: Control = _enemy_slots.get(entity_id)
+		var token: UICombatToken = _tokens.get(entity_id)
+		if slot == null or token == null:
+			continue
+		slot.custom_minimum_size = target_size
+		slot.custom_maximum_size = target_size
+		token.scale = Vector2(scale_factor, scale_factor)
 
 
 func _instantiate_token(data: CombatTokenData) -> UICombatToken:
@@ -134,7 +193,13 @@ func _instantiate_token(data: CombatTokenData) -> UICombatToken:
 	if data.is_party:
 		party_column.add_child(token)
 	else:
-		enemy_column.add_child(token)
+		# Punto 4 — Control envoltorio: es lo único que _rescale_enemy_tokens()
+		# redimensiona de verdad. El token queda dentro a su tamaño nativo.
+		var slot := Control.new()
+		slot.custom_minimum_size = UICombatToken.BASE_SIZE
+		slot.add_child(token)
+		enemy_column.add_child(slot)
+		_enemy_slots[data.entity_id] = slot
 	# combat_system.gd localiza el nodo visual de una entidad por grupo
 	# (_get_entity_damage_number_position, VFX de buffs) — sin esto, los
 	# números de daño nunca encuentran dónde aparecer sobre la ficha.
@@ -212,9 +277,16 @@ func _label_for_slot(slot_data: CombatHudViewModel.ActionSlotData) -> String:
 	return slot_data.display_name
 
 
-## Réplica del dispatch que ya hace combat_hud.gd — mismo comportamiento,
-## no lo cambio sin que se pida, aunque resuelve el loadout aquí en la
-## View en vez de en el ViewModel (contrato roto ya en el original).
+## Spike 8, Punto 5 — antes este método construía su propio
+## action_data a mano y emitía player_action_requested directamente,
+## saltándose por completo a PlayerCombatController: el único sitio del
+## proyecto que sabe cuál es el target actual (auto-target al entrar en
+## combate, ciclado con Tab) y que ya distingue skills normales de
+## SPECIAL_ACTIONS (defend/flee, camino propio sin target). Ese dict a
+## mano nunca incluía "target" — de ahí el error "No target specified"
+## de combat_system.gd al pulsar cualquier botón de ataque. Ahora se
+## delega en request_skill(), que ya hace todo eso bien; sin duplicar
+## lógica de targeting aquí.
 func _on_slot_action_pressed(slot_id: String) -> void:
 	var slot_data: CombatHudViewModel.ActionSlotData = null
 	for s in _vm.action_menu.action_slots:
@@ -226,17 +298,17 @@ func _on_slot_action_pressed(slot_id: String) -> void:
 		return
 
 	if slot_data.slot_type == "skill":
+		var controller: Node = get_tree().get_first_node_in_group("player_combat_controller")
+		if controller == null:
+			push_error("[CombatArenaPanel] PlayerCombatController no encontrado — no se puede solicitar la skill")
+			return
 		var state: CharacterState = Characters.get_character_state("player")
 		if state == null:
 			return
 		var skill_id: String = state.loadout.get_skill(slot_id)
 		if skill_id == "":
 			return
-		EventBus.player_action_requested.emit({
-			"actor": "player",
-			"skill_id": skill_id,
-			"slot_id": slot_id,
-		})
+		controller.request_skill(skill_id)
 
 	elif slot_data.slot_type == "consumable":
 		var state: CharacterState = Characters.get_character_state("player")
@@ -256,6 +328,10 @@ func _render_combat_ended() -> void:
 	for token in _tokens.values():
 		token.queue_free()
 	_tokens.clear()
+	for slot in _enemy_slots.values():
+		slot.queue_free()
+	_enemy_slots.clear()
+	_last_enemy_count = -1
 	for child in log_list.get_children():
 		child.queue_free()
 	_render_background()  # _vm.background_texture ya es null en este punto

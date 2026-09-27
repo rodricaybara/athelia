@@ -835,6 +835,86 @@ hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
 
 ---
 
+### ❌ Redimensionar un Control cuyo contenido usa offsets fijos
+
+```gdscript
+# MAL — el token en sí encoge, pero sus hijos (TokenVisual, HpValueLabel,
+# TypeIcon...) están anclados con desplazamientos en píxeles ABSOLUTOS,
+# calculados para un lienzo exacto de 96×144 (offset_bottom = 112.0, con
+# anchor_bottom = 0 — medido desde arriba, no proporcional al alto real).
+# Al forzar un .size real menor vía custom_minimum_size, esos offsets fijos
+# ya no encajan — el contenido interno se descoloca, no se reescala junto
+# con el círculo. Confirmado en playtest: iconos quedando fuera de la ficha.
+token.custom_minimum_size = target_size
+token.custom_maximum_size = target_size
+```
+
+```gdscript
+# BIEN — el token NUNCA cambia de tamaño real (su anclaje interno sigue
+# siendo válido). Un Control envoltorio es lo único que el Container
+# redimensiona de verdad; el token, dentro, se encoge solo VISUALMENTE
+# con .scale (transform puro, no relayout) mientras su contenido sigue
+# posicionado sobre un lienzo de 96×144 perfectamente válido.
+var slot := Control.new()
+slot.custom_minimum_size = UICombatToken.BASE_SIZE
+slot.add_child(token)
+enemy_column.add_child(slot)
+# ...al recalcular el tamaño objetivo:
+slot.custom_minimum_size = target_size
+slot.custom_maximum_size = target_size
+token.scale = Vector2(scale_factor, scale_factor)
+```
+
+Encontrado en Spike 8 (Punto 4 — columna de enemigos desbordada con 6-8
+fichas) en `UICombatToken`/`combat_arena_panel.gd`. Cualquier componente del
+Design System cuyos hijos usen anclas + desplazamientos fijos en píxeles (en
+vez de proporciones) asume un lienzo de tamaño exacto. **Regla derivada:**
+para encoger un componente así dentro de un `Container`, envolver en un
+`Control` intermedio que el `Container` redimensiona, y aplicar `.scale` al
+componente en sí — nunca reducir directamente su propio `custom_minimum_size`.
+
+---
+
+### ❌ La View construye su propio payload de evento en vez de delegar en el dueño del estado
+
+```gdscript
+# MAL — combat_arena_panel.gd construía su propio action_data a mano, sin
+# pasar por PlayerCombatController: el único sitio del proyecto que sabe
+# cuál es el target actual (auto-target al entrar en combate, ciclado con
+# Tab). El campo "target" simplemente nunca se incluía.
+EventBus.player_action_requested.emit({
+    "actor": "player",
+    "skill_id": skill_id,
+    "slot_id": slot_id,
+})
+```
+
+```gdscript
+# BIEN — delega en el sistema que ya resuelve y trackea ese estado
+var controller: Node = get_tree().get_first_node_in_group("player_combat_controller")
+controller.request_skill(skill_id)
+```
+
+Encontrado en Spike 8 (Punto 5) — `combat_arena_panel.gd` y
+`PlayerCombatController` construían dos versiones distintas del mismo
+despacho `player_action_requested`, y la de los botones de UI era la
+incompleta (de ahí el error "No target specified" de `combat_system.gd` al
+atacar). **Regla derivada:** si un dato derivado (aquí, "el objetivo actual")
+ya tiene un dueño único en el proyecto, cualquier punto de entrada nuevo
+(aquí, la View del combate de producción) llama a su API pública — nunca
+reconstruye el mismo estado por su cuenta. Dos caminos para lo mismo
+divergen tarde o temprano.
+
+Lección relacionada, mismo Punto 5: el orden de conexión entre dos nodos
+distintos a la misma señal (`combat_started`) no está garantizado — el
+auto-target de `PlayerCombatController`, emitido antes de que
+`CombatArenaViewModel` hubiera construido las fichas, se perdía sin dejar
+rastro (ningún token existía todavía para recibir la marca de "objetivo").
+Corregido leyendo `PlayerCombatController.get_current_target()` directamente
+al construir las fichas, en vez de fiarse de recibir esa señal a tiempo.
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
@@ -848,7 +928,7 @@ hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
 | PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
 | NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). Spike 3, Grupo C reutilizó el contrato tal cual para el contenido de la guarida (4 escenas más, `combat_encounter` inline con refuerzos por primera vez) sin necesitar ningún cambio en el ViewModel ni en la View. **Spike 3, Grupo D** extendió `_apply_outcome()` con `grant_resource_*` ("otorgar recurso", análogo a `grant_item_*` vía `Resources.add_resource()`) — cambio interno del ViewModel, resuelto en el mismo bloque silencioso que `grant_item_*`, sin ninguna razón `changed()` nueva ni cambio en `narrative_scene_panel.gd` (a diferencia de `"streak_progress"` en Grupo B, esto no necesita renderizarse — es una entrega puntual, no un estado que la View deba mostrar). **Mejoras post-Spike 3, Grupo 3** añadió tres razones más de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`), emitidas por tres intenciones nuevas (`request_open_inventory/party/player_menu`) con el mismo guard que `request_option()` — no tocan `current_node` ni la racha, así que el estado del ViewModel no se entera de que hay un sub-overlay abierto encima. `narrative_scene_panel.gd` gana `_unhandled_input()` (antes no tenía ninguno) y gestión propia de sub-overlay (`_open_sub_overlay`/`_close_sub_overlay`, ver antipatrón "Overlay/subpantalla anidable sin señal `closed` propia" más arriba) para Inventory/Party/PlayerMenu, instanciados como hijos directos del panel — nunca vía `SceneOrchestrator`, precisamente para no pisar su `_current_overlay` de slot único (que en `NARRATIVE_SCENE` apunta al propio panel narrativo). **Mejoras post-Spike 3, Grupo 2** extendió el mismo mecanismo de sub-overlay a Diálogo: `NarrativeSceneOutcome.dialogue_id` (nuevo campo) abre `DialoguePanel` igual que Inventory/Party/PlayerMenu, pero con una diferencia deliberada — al cerrarse, si el outcome traía `next_scene_id`, la escena avanza (`resume_after_dialogue()`) en vez de quedarse en el mismo nodo como hacen los otros tres. La View distingue cuál de los cuatro sub-overlays se cerró (`_sub_overlay_is_dialogue`) para decidir si llama a ese método o no. `DialoguePanel` ganó su propia `signal closed` en este grupo (no la tenía, a diferencia de las cuatro pantallas ya arregladas en Grupo 3). **Mejoras post-Spike 3, Grupo 1** añadió `DialogueOptionDefinition.triggers_save` — sin ningún cambio al contrato MVVM ni a `DialoguePanel`/`NarrativeScenePanel`: la opción de diálogo marcada como savepoint guarda la partida desde `DialogueSystem.select_option()` (capa de sistemas, no de View), el sub-overlay de Diálogo se abre/cierra exactamente igual que antes. **Mejoras post-Spike 3, Grupo 4** cambió solo el `.tscn` (layout B1: `SceneImage` a pantalla completa detrás, `UIPanel` en el tercio inferior con texto y opciones en `HBoxContainer`) — el script no cambió porque los tres nodos se siguen resolviendo por nombre único (`%`). Ninguna razón de `changed()` nueva. |
-| CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` compuesto como `action_menu`) | `combat_arena_panel.gd` | **Mejoras post-Spike 3, Grupo 5** — sustituye a `combat_hud.tscn` como pantalla de combate de producción real (`SceneOrchestrator.OVERLAY_COMBAT_HUD`). Primer caso de composición de ViewModels del proyecto (ver "Composición de ViewModels" arriba): `CombatArenaViewModel` no sustituye a `combat_hub_viewmodel.gd` (menú de 8 acciones del jugador), lo compone tal cual como `action_menu`. Fichas de party/enemigos dinámicas (`combat_tokens: Array[CombatTokenData]`, instanciadas/actualizadas por `entity_id`, nunca reconstruidas enteras) porque companions/enemigos pueden unirse a mitad de combate — rescate narrativo (`EventBus.companion_joined`), refuerzos cronometrados (`EventBus.reinforcement_spawned`, con un frame de margen porque el registro de la entidad lo hace otro listener fuera de orden garantizado). Log narrado (`log_entries: Array[LogEntryData]`) con 4 categorías de `changed("log_entry")`, cada una con su propia fuente de señal: `ATTACK` vía `combat_action_executed` (siempre trae `roll_result`, graduado por `SkillRoller`), `DODGE`/`STAGGERED`/`DISARMED` vía `combat_action_completed` (sin roll), `DEFEND` vía señales propias de `DefenseModule` (`defense_activated`/`defense_expired`), `FLEE` vía señales propias de `EscapeModule` (`escape_attempted`/`escape_succeeded`/`escape_failed` — el intento y la resolución llegan en turnos distintos, no en el mismo evento). Se conecta a `Resources.resource_changed` directamente (la señal del autoload `ResourceSystem`, no `EventBus.resource_changed`). **Spike 5** cerró el bug de motor que esto documentaba: nada reenviaba `ResourceSystem.resource_changed` a `EventBus.resource_changed`, así que `combat_hub_viewmodel.gd` (y también `player_menu_viewmodel.gd`, segundo consumidor real confirmado por Find in Files) no actualizaban el HP/EN en vivo — arreglado con un reenvío en `ResourceSystem._emit_resource_changed()`, sin tocar la conexión directa de `CombatArenaViewModel` aquí descrita, que ya era correcta. **Spike 6** encontró que, pese al reenvío, `player_menu_viewmodel.gd` seguía mostrando un HP/EN desincronizado en pantalla real — bug distinto, no del bridge: leía el `current` desde `CharacterState.get_resource()`, un accesor fósil congelado desde la creación del personaje, en vez del estado vivo de `ResourceSystem` que sí recibía correctamente vía el bridge. Arreglado apuntando `_refresh_resources()` a `Resources.get_resource_amount()`. Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md`, `docs/spike_6_investigacion_motor_combate.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (componentes del Design System, integración real en `SceneOrchestrator`, hallazgos de motor). **Mejoras post-Spike 3, Grupo 4** añadió una razón de `changed()` (`"background"`) y `background_texture`, leída de `GameLoop.get_current_encounter().background_path` con `call_deferred()`; la View pone la imagen en `BackgroundImage` y usa `Background` como velo encima. Durante la validación se reprodujo el antipatrón "razón de `changed()` nueva sin consumidor en la View" por despliegue parcial (ViewModel nuevo con View antigua) — diagnosticado por número de línea del rastreo. |
+| CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` compuesto como `action_menu`) | `combat_arena_panel.gd` | **Mejoras post-Spike 3, Grupo 5** — sustituye a `combat_hud.tscn` como pantalla de combate de producción real (`SceneOrchestrator.OVERLAY_COMBAT_HUD`). Primer caso de composición de ViewModels del proyecto (ver "Composición de ViewModels" arriba): `CombatArenaViewModel` no sustituye a `combat_hub_viewmodel.gd` (menú de 8 acciones del jugador), lo compone tal cual como `action_menu`. Fichas de party/enemigos dinámicas (`combat_tokens: Array[CombatTokenData]`, instanciadas/actualizadas por `entity_id`, nunca reconstruidas enteras) porque companions/enemigos pueden unirse a mitad de combate — rescate narrativo (`EventBus.companion_joined`), refuerzos cronometrados (`EventBus.reinforcement_spawned`, con un frame de margen porque el registro de la entidad lo hace otro listener fuera de orden garantizado). Log narrado (`log_entries: Array[LogEntryData]`) con 4 categorías de `changed("log_entry")`, cada una con su propia fuente de señal: `ATTACK` vía `combat_action_executed` (siempre trae `roll_result`, graduado por `SkillRoller`), `DODGE`/`STAGGERED`/`DISARMED` vía `combat_action_completed` (sin roll), `DEFEND` vía señales propias de `DefenseModule` (`defense_activated`/`defense_expired`), `FLEE` vía señales propias de `EscapeModule` (`escape_attempted`/`escape_succeeded`/`escape_failed` — el intento y la resolución llegan en turnos distintos, no en el mismo evento). Se conecta a `Resources.resource_changed` directamente (la señal del autoload `ResourceSystem`, no `EventBus.resource_changed`). **Spike 5** cerró el bug de motor que esto documentaba: nada reenviaba `ResourceSystem.resource_changed` a `EventBus.resource_changed`, así que `combat_hub_viewmodel.gd` (y también `player_menu_viewmodel.gd`, segundo consumidor real confirmado por Find in Files) no actualizaban el HP/EN en vivo — arreglado con un reenvío en `ResourceSystem._emit_resource_changed()`, sin tocar la conexión directa de `CombatArenaViewModel` aquí descrita, que ya era correcta. **Spike 6** encontró que, pese al reenvío, `player_menu_viewmodel.gd` seguía mostrando un HP/EN desincronizado en pantalla real — bug distinto, no del bridge: leía el `current` desde `CharacterState.get_resource()`, un accesor fósil congelado desde la creación del personaje, en vez del estado vivo de `ResourceSystem` que sí recibía correctamente vía el bridge. Arreglado apuntando `_refresh_resources()` a `Resources.get_resource_amount()`. Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md`, `docs/spike_6_investigacion_motor_combate.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (componentes del Design System, integración real en `SceneOrchestrator`, hallazgos de motor). **Mejoras post-Spike 3, Grupo 4** añadió una razón de `changed()` (`"background"`) y `background_texture`, leída de `GameLoop.get_current_encounter().background_path` con `call_deferred()`; la View pone la imagen en `BackgroundImage` y usa `Background` como velo encima. Durante la validación se reprodujo el antipatrón "razón de `changed()` nueva sin consumidor en la View" por despliegue parcial (ViewModel nuevo con View antigua) — diagnosticado por número de línea del rastreo. **Spike 8** cerró cinco hallazgos de UI/UX preexistentes: (1) `_display_name()`/`_initials_for()` solo leían `CharacterState.character_name` (vacío para toda entidad no-jugador) sin caer a `tr(CharacterDefinition.name_key)` — arreglado con ese fallback, cierra a la vez el `??` de fichas de companion/enemigo y los IDs internos sin localizar en el log (misma causa exacta); (2) los 8 botones del menú de acciones no mostraban nombre porque el `LoadoutState` del jugador nunca había sido asignado desde la pantalla de Loadout — no era bug de este ViewModel/View, ambos leían fielmente un loadout vacío; (3) `EnemyColumn` (`GridContainer`) sin límite de altura se desbordaba con 6-8 fichas — resuelto con el patrón "Control envoltorio + `.scale`" (ver antipatrón nuevo arriba), nunca redimensionando `UICombatToken` directamente; (4) `_on_slot_action_pressed()` construía su propio `action_data` sin `target`, saltándose `PlayerCombatController` (ver antipatrón nuevo arriba) — causa real del error "No target specified" de `combat_system.gd` al atacar; (5) el auto-target de `PlayerCombatController` al entrar en combate se perdía visualmente por orden de señales entre nodos distintos — `CombatArenaViewModel._on_combat_started()` ahora sincroniza el objetivo leyendo `get_current_target()` directamente, sin depender de recibir `target_changed` a tiempo. Validado en combate real contra un grupo de 6-8 lobos. Ver `docs/spike_8_ui_ux_combate.md` para el detalle completo. |
 
 ### Pantallas sin ViewModel (casos especiales)
 
@@ -859,7 +939,23 @@ hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
 
 ---
 
-*Última actualización: Spike 7 — F9 quickload en EXPLORATION (cerrado sin arreglo, NO OPERATIVO) — ningún cambio al contrato MVVM en sí ni antipatrón nuevo de arquitectura UI confirmado: `NarrativeScenePanel`/`NarrativeSceneViewModel` se revisaron a fondo durante la investigación y no cambiaron — el bug que motivó el spike (botón sin respuesta a clics tras F9 en sesión activa) nunca se localizó dentro de este patrón pese a una investigación extensa, y quedó sin resolver. El único cambio real de esta capa es de sistemas, no de UI: `GameLoopSystem.enter_post_load_state()` (nuevo) centraliza la decisión `enter_narrative_scene()`/`enter_exploration()` tras cargar, usada por `MainMenuViewModel.request_load_game()` y por `ExplorationController._quickload()` (reenfocado a marcar intención + recargar escena, ya no carga en caliente). Ver `docs/spike_7_f9_quickload_exploration.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (incluida la lección de arquitectura sobre `ExplorationScene` como hermano de `current_scene` bajo `root`, invisible a `reload_current_scene()`). Godot 4.7.2.
+*Última actualización: Spike 8 — UI/UX de combate (cinco puntos de alcance
+cerrados y validados en combate real). Dos antipatrones nuevos, ambos
+encontrados en `combat_arena_panel.gd`/`UICombatToken`/`PlayerCombatController`
+durante la validación de Grupo 5, no en un spike de motor aislado:
+"Redimensionar un Control cuyo contenido usa offsets fijos" (Punto 4 — la
+ficha de combate nunca cambia de tamaño real, un `Control` envoltorio es lo
+que el `Container` redimensiona, el token se encoge solo con `.scale`) y "La
+View construye su propio payload de evento en vez de delegar en el dueño del
+estado" (Punto 5 — `combat_arena_panel.gd` duplicaba, incompleto, el
+despacho que `PlayerCombatController.request_skill()` ya hacía bien). Ningún
+cambio al contrato MVVM en sí — los cinco puntos son hallazgos dentro de
+`CombatArenaViewModel`/`combat_arena_panel.gd` ya documentados como fila
+`CombatArena` arriba, no un patrón nuevo de pantalla. Ver
+`docs/spike_8_ui_ux_combate.md` y `athelia_estructura_proyecto_actualizado.md`
+para el detalle técnico completo. Godot 4.7.2.
+
+*Última actualización anterior: Spike 7 — F9 quickload en EXPLORATION (cerrado sin arreglo, NO OPERATIVO) — ningún cambio al contrato MVVM en sí ni antipatrón nuevo de arquitectura UI confirmado: `NarrativeScenePanel`/`NarrativeSceneViewModel` se revisaron a fondo durante la investigación y no cambiaron — el bug que motivó el spike (botón sin respuesta a clics tras F9 en sesión activa) nunca se localizó dentro de este patrón pese a una investigación extensa, y quedó sin resolver. El único cambio real de esta capa es de sistemas, no de UI: `GameLoopSystem.enter_post_load_state()` (nuevo) centraliza la decisión `enter_narrative_scene()`/`enter_exploration()` tras cargar, usada por `MainMenuViewModel.request_load_game()` y por `ExplorationController._quickload()` (reenfocado a marcar intención + recargar escena, ya no carga en caliente). Ver `docs/spike_7_f9_quickload_exploration.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (incluida la lección de arquitectura sobre `ExplorationScene` como hermano de `current_scene` bajo `root`, invisible a `reload_current_scene()`). Godot 4.7.2.
 
 *Última actualización anterior: Spike 6 — Investigación de motor de combate — ningún cambio al contrato MVVM en sí ni antipatrón nuevo de arquitectura UI: el grupo fue de motor puro (`ResourceSystem`, `GameLoopSystem`, `CombatSystem`). Único punto que toca esta capa: `player_menu_viewmodel._refresh_resources()` cambia su fuente de datos del `current` (de un accesor fósil de `CharacterState` al estado vivo de `Resources`) — ver la fila de `CombatArena` arriba, actualizada con el detalle. Ver `docs/spike_6_investigacion_motor_combate.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (los hallazgos de este spike son de motor/sistemas, no de este patrón). Godot 4.7.2.
 

@@ -103,6 +103,20 @@ func _on_combat_started(_participants: Array) -> void:
 	for enemy_id in GameLoop.get_active_enemies():
 		combat_tokens.append(_build_token(enemy_id, false))
 
+	# Spike 8, Punto 5 — sincroniza el objetivo actual leyendo el estado
+	# ya resuelto de PlayerCombatController, en vez de depender de que su
+	# señal target_changed (auto-target al entrar en combate) llegue
+	# DESPUÉS de que estas fichas existan. El orden de conexión a
+	# combat_started entre nodos distintos no está garantizado — esto no
+	# depende de él.
+	var controller: Node = get_tree().get_first_node_in_group("player_combat_controller")
+	if controller:
+		var target_id: String = controller.get_current_target()
+		if not target_id.is_empty():
+			for token in combat_tokens:
+				if not token.is_party:
+					token.is_targeted = (token.entity_id == target_id)
+
 	changed.emit("tokens")
 
 	# Grupo 4 — diferido a propósito. combat_started no se emite desde
@@ -173,9 +187,12 @@ func _on_reinforcement_spawned(enemy_id: String, _definition_id: String) -> void
 
 func _initials_for(entity_id: String) -> String:
 	var state: CharacterState = Characters.get_character_state(entity_id)
-	if not state or state.character_name.is_empty():
+	if not state:
 		return "??"
-	var parts: PackedStringArray = state.character_name.split(" ", false)
+	var display_name: String = _resolve_name(state)
+	if display_name.is_empty():
+		return "??"
+	var parts: PackedStringArray = display_name.split(" ", false)
 	var initials: String = ""
 	for part in parts:
 		if not part.is_empty():
@@ -184,6 +201,14 @@ func _initials_for(entity_id: String) -> String:
 			break
 	return initials.to_upper()
 
+## Nombre elegido en Character Creation (jugador) si existe; si no,
+## el nombre fijo de su CharacterDefinition (enemigos/companions).
+func _resolve_name(state: CharacterState) -> String:
+	if not state.character_name.is_empty():
+		return state.character_name
+	if state.definition and not state.definition.name_key.is_empty():
+		return tr(state.definition.name_key)
+	return ""
 
 ## Lee CharacterDefinition.token_color. Color.BLACK es el centinela de
 ## "sin asignar" (ver character_definition.gd) y cae al color neutro.
@@ -404,9 +429,10 @@ func _display_name(entity_id: String) -> String:
 	if entity_id.is_empty():
 		return "?"
 	var state: CharacterState = Characters.get_character_state(entity_id)
-	if state and not state.character_name.is_empty():
-		return state.character_name
-	return entity_id
+	if not state:
+		return entity_id
+	var name: String = _resolve_name(state)
+	return name if not name.is_empty() else entity_id
 
 
 func _grade_key(grade: int) -> String:
