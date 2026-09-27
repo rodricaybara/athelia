@@ -39,6 +39,11 @@ var playtime_seconds: float = 0.0
 ## el dato disponible para quien orquesta la carga.
 var _pending_narrative_scene_id: String = ""
 
+## Spike 7 — true cuando ExplorationController._quickload() ha marcado una
+## carga pendiente y ha recargado la escena. Autoload → sobrevive a
+## get_tree().reload_current_scene(); MainMenuViewModel lo consume una sola
+## vez en su _ready() de la sesión recién arrancada.
+var _pending_quickload: bool = false
 
 ## Inicialización
 func _ready():
@@ -440,6 +445,23 @@ func _restore_party_state(save_data: SaveData) -> void:
 		party.load_save_state(party_data)
 		print("[SaveSystem] Party restored: %d companions" % party.get_party_members().size())
 		
+## Llamado por ExplorationController._quickload() justo antes de recargar
+## la escena. No carga nada todavía — solo dispara la intención para que la
+## nueva sesión, ya limpia, la resuelva por el camino que sabemos que
+## funciona (MainMenuViewModel.request_load_game()).
+func request_pending_quickload() -> void:
+	_pending_quickload = true
+ 
+ 
+## Consumido una única vez por MainMenuViewModel al arrancar. Devuelve true
+## solo la primera vez tras marcarse — una recarga posterior por cualquier
+## otro motivo (F5 normal, etc.) no debe volver a disparar una carga sola.
+func consume_pending_quickload() -> bool:
+	var was_pending := _pending_quickload
+	_pending_quickload = false
+	return was_pending
+ 
+
 # ============================================
 # UTILIDADES
 # ============================================

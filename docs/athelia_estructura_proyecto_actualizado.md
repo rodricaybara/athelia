@@ -1004,13 +1004,13 @@ El InputMap de combate usa estos nombres de action:
 
 Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4.7): `player.gd` (script de una fase muy temprana del proyecto) tenía la lógica de `quicksave`/`quickload` en `_input()`, pero ese script ya no está en el árbol de ninguna escena activa — el nodo `Player` real usa `PlayerExploration` (`scenes/exploration/player_exploration.gd`). La lógica se movió a `ExplorationController._unhandled_input()`, que ya gestionaba el resto del input de exploración (`interact`, `open_inventory`, `open_party`, `open_player_menu`) correctamente.
 
-**Mejoras post-Spike 3, Grupo 1 — F5 retirado por completo.** Guardar deja de ser una hotkey libre en `EXPLORATION`: la única vía es seleccionar una opción de diálogo marcada `triggers_save` en NPCs concretos, dentro de una escena narrativa (ver sección de Grupo 1 más abajo). F9 (quickload) se queda exactamente igual, sin restricción de estado de origen.
+**Mejoras post-Spike 3, Grupo 1 — F5 retirado por completo.** Guardar deja de ser una hotkey libre en `EXPLORATION`: la única vía es seleccionar una opción de diálogo marcada `triggers_save` en NPCs concretos, dentro de una escena narrativa (ver sección de Grupo 1 más abajo). F9 (quickload) sin restricción de estado de origen — comportamiento revisado en el Spike 7 (ver bug conocido más abajo): `ExplorationController._quickload()` ya no carga en caliente sobre la sesión activa; marca la intención en `SaveManager` (`request_pending_quickload()`, autoload, sobrevive a la recarga) y libera explícitamente el `ExplorationScene` viejo antes de `get_tree().reload_current_scene()`. `MainMenuViewModel._ready()` consume ese flag (`consume_pending_quickload()`) y dispara `request_load_game()` — el mismo camino que "Cargar Partida" desde el menú, sin ninguna rama de lógica nueva. Pese a este reenfoque, la funcionalidad queda NO OPERATIVA por un segundo bug sin resolver — ver más abajo.
 
 **Nuevo en el mismo grupo — atajo de desarrollo (F2).** Tecla de debug, keycode crudo (sin InputMap) detrás de `OS.is_debug_build()` desde el primer commit — misma disciplina que evitó que F1 (Spike 1) se quedara viva en producción. Lee `user://debug_shortcut.json` en cada pulsación (no cacheado en `_ready()`), aplica `Narrative.set_flag()` por cada entrada de `"flags"` y `Characters.set_skill_value("player", skill_id, value)` por cada entrada de `"skills"`. Se comprueba **antes** del guard `is_input_blocked()`, deliberadamente — funciona en cualquier `GameState`, para poder forzar un tramo concreto durante una prueba sin depender de dónde esté la partida. Mecanismo aparte del guardado real: nunca toca `SaveManager`/`SaveData`, es mutación directa en memoria de la sesión ya arrancada.
 
 `player.gd`/`player.tscn` (`scenes/player/`) no se usan en ninguna escena activa, pero **su limpieza queda aparcada**: `test/test_shop_ui.gd` sigue cargando `player.tscn` como andamiaje. No se tocan hasta una revisión general de la carpeta `test/`.
 
-**Bug conocido, sin resolver (sin relación con el Grupo 1 — no investigado en este grupo):** F9 (quickload) en una sesión activa ya en `EXPLORATION` (a diferencia de "Cargar Partida" desde el menú, que sí funciona) provoca un bloqueo total de input — ni movimiento ni menús responden, sin errores en Output/Debugger. Se descartaron como causa: bloqueo por `GameState` (`SAVE_TRANSITION` nunca se dispara en el proyecto), `get_tree().paused`, captura de input por `WorldObjectInteractionPanel`, y pérdida de foco de ventana. Causa raíz aún no confirmada — ver `docs/spike_produccion_post_character_creation_informe_cierre.md`.
+**Spike 7 — F9 (quickload) en sesión activa: cerrado sin arreglo, NO OPERATIVO.** El síntoma original de este párrafo (bloqueo total de input) no se reprodujo tal cual tras el pivote narrativo — resultó ser un bug distinto: F9 en `EXPLORATION` cargaba los datos del save pero no consumía `SaveManager.get_pending_narrative_scene_id()`, así que no llevaba al jugador al punto narrativo correcto (arreglado, ver más abajo). Ese arreglo destapó un segundo bug que sí quedó sin resolver: tras F9 en una sesión que acaba de pasar por combate, el panel narrativo correcto se abre con normalidad pero su botón de opción no responde a clics (ni hover, ni `_input()`, sin ningún rastro en Output) — solo ocurre viniendo de sesión activa, nunca desde "Cargar Partida" en el menú. Investigación extensa (GameState, árbol pausado, ratón capturado, `mouse_filter`, nodos residuales, `mouse_passthrough`, autoloads con `_input()`) descartó todo lo investigable sin dar con la causa. Hallazgo real y sólido de camino: `ExplorationScene` y sus overlays viven como hermanos de `current_scene` bajo `get_tree().root` (no como hijos) — `get_tree().reload_current_scene()` no los toca, así que una "recarga limpia" no lo era (el `ExplorationScene` viejo, con todo el estado de la sesión de combate, sobrevivía intacto). Corregido liberándolo explícitamente antes de recargar, pero el bug de fondo persistió incluso así. **Decisión: F9/quickload en sesión activa queda no operativo** (pendiente decidir si se retira la hotkey del todo); "Cargar Partida" desde el menú no está afectada. Ver `docs/spike_7_f9_quickload_exploration.md` para el detalle completo de la investigación.
 
 **Spike 1 Motor Narrativo añadió F1** como tecla de debug temporal en `_unhandled_input()` para disparar `GameLoop.enter_narrative_scene("test_intro")` — retirada en Spike 3, Grupo A junto con `_debug_test_narrative_scene()` y las escenas de prueba asociadas.
 
@@ -1050,10 +1050,42 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Una transición de `GameState` que nunca se había necesitado puede fallar en silencio (mejoras post-Spike 3, Grupo 1):** `enter_narrative_scene()` llamado desde `MENU` (camino nuevo, antes inexistente) caía en `_can_transition_state() == false` → `push_warning()`, no `push_error()` — fácil de perder en la consola, y sin ningún otro síntoma más que "no pasa nada" en el juego. Cualquier transición de `GameState` nueva (no solo las del código que se está escribiendo) debe verificarse contra `VALID_STATE_TRANSITIONS`, no darse por hecho porque el estado de destino ya existe.
 - **Instanciar una escena tarde puede desconectar listeners de continuación que dependen de que existan ANTES de un evento concreto (mejoras post-Spike 3, Grupo 1):** un `EventBus.combat_ended` (u otra señal cualquiera) emitido antes de que su listener se conecte se pierde sin rastro — no hay cola ni replay. Cualquier camino nuevo que permita llegar a un punto del juego (aquí, un combate) sin pasar por la instanciación habitual de una escena puede dejar huérfanos a listeners que esa escena registra en su propio `_ready()`.
 - **Corregir un orden de instanciación puede exponer una trampa de reentrada en código que llevaba tiempo sin tocarse (mejoras post-Spike 3, Grupo 1):** un guard de tipo `if current_game_state != X: transicionar_a(X)`, escrito pensando solo en "arrancar la escena sola", puede disparar una transición real e inesperada si esa misma escena se instancia ahora en un momento distinto al que el guard asumía — en este caso, en mitad de la apertura de otro estado (`NARRATIVE_SCENE`), cerrándolo justo después de abrirlo. La condición correcta era más estricta (`== MENU`, el único caso real que el guard necesitaba cubrir) que la que llevaba tiempo en el código (`!= EXPLORATION`).
+- **`get_tree().reload_current_scene()` no destruye nodos añadidos directamente a `get_tree().root` (Spike 7):** `SceneOrchestrator` instancia `ExplorationScene` y todos sus overlays (`NarrativeScenePanel`, `CombatHud`...) como hermanos de `current_scene` bajo `root`, no como hijos suyos — un `reload_current_scene()` solo recrea `current_scene` (`MainMenuScreen`). Sin liberar esos nodos explícitamente antes de recargar, el guard de "ya existe, no instanciar otro" de `_ensure_exploration_scene_instantiated()` reutiliza el `ExplorationScene` viejo tal cual, con todo el estado de la sesión anterior — una recarga que parece "limpia" no lo es. Este hallazgo se confirmó y corrigió, pero no fue la causa raíz completa del bug que lo motivó (ver Spike 7 — bug de F9 sin resolver, en la sección "Input en exploración" más arriba).
 
 ---
 
-*Última actualización: Spike 6 — Investigación de motor de combate (los dos
+*Última actualización: Spike 7 — F9 quickload en EXPLORATION (cerrado sin
+arreglo, funcionalidad NO OPERATIVA). El síntoma original documentado (bloqueo
+total de input) no se reprodujo tras el pivote narrativo — resultó ser un bug
+distinto: F9 en sesión activa cargaba los datos del save pero no consumía
+`SaveManager.get_pending_narrative_scene_id()`, dejando al jugador en
+`EXPLORATION` en vez de en el punto narrativo correcto. Arreglado
+centralizando la decisión en `GameLoopSystem.enter_post_load_state()`, usado
+tanto por `MainMenuViewModel.request_load_game()` como por
+`ExplorationController._quickload()`. Ese arreglo destapó un segundo bug que
+quedó sin resolver: el panel narrativo correcto se abre pero su botón no
+responde a clics, únicamente cuando la carga ocurre en sesión activa tras
+combate (nunca desde el menú principal). Investigación extensa sin causa raíz
+encontrada — descartados GameState, árbol pausado, ratón capturado,
+`mouse_filter`/`focus_mode`, nodos residuales de UI, `mouse_passthrough`, y
+cualquier autoload con `_input()`/`_unhandled_input()` (ninguno lo tiene).
+Hallazgo real y confirmado de camino (ver "Lecciones aprendidas" más abajo):
+`ExplorationScene` y sus overlays viven como hermanos de `current_scene` bajo
+`get_tree().root`, invisibles a `get_tree().reload_current_scene()` —
+corregido liberándolos explícitamente antes de recargar, pero el bug de fondo
+persistió incluso así. `_quickload()` se reenfocó por completo: ya no carga en
+caliente, marca la intención en `SaveManager` (`request_pending_quickload()`)
+y recarga la escena; `MainMenuViewModel._ready()` consume ese flag
+(`consume_pending_quickload()`) y dispara la carga real por el único camino
+que funciona de forma fiable. **Decisión: F9/quickload en sesión activa queda
+no operativo**, pendiente decidir si se retira la hotkey; "Cargar Partida"
+desde el menú no está afectada. Hallazgo colateral, no relacionado:
+`PartyManager` no limpia su lista de companions al cargar partida (warning
+`'companion_mira' already in party`, reproducido también desde el menú). Ver
+`docs/spike_7_f9_quickload_exploration.md` para el detalle completo. Godot
+4.7.2.
+
+*Última actualización anterior: Spike 6 — Investigación de motor de combate (los dos
 puntos de alcance investigados y cerrados, sin necesidad de spike aparte para
 ninguno). Punto 1: dos bugs independientes bajo el mismo síntoma (número
 mostrado ≠ número real). Sub-bug A, el desync `50/60`/`50/45` original —

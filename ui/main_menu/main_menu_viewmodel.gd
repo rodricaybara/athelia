@@ -61,6 +61,16 @@ func _ready() -> void:
 
 	print("[MainMenuViewModel] Initialized")
 
+	# Spike 7 — REENFOQUE FINAL: ExplorationController._quickload() ya no
+	# carga en caliente; marca la intención en SaveSystem (autoload,
+	# sobrevive a reload_current_scene()) y recarga la escena. Esta sesión
+	# recién arrancada consume ese flag una sola vez y dispara la carga real
+	# por el único camino que sabemos que funciona sin residuos de la
+	# partida anterior — el mismo request_load_game() de siempre, sin
+	# ninguna rama de lógica nueva.
+	if _save_manager and _save_manager.consume_pending_quickload():
+		call_deferred("request_load_game")
+
 
 ## Reacciona a cualquier cambio de GameState — incluidos los que NO originó
 ## este propio menú (ej: volver desde CharacterCreation, o salir hacia
@@ -120,16 +130,16 @@ func request_load_game() -> void:
 		if ok:
 			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 			if game_loop:
-				# Mejoras post-Spike 3, Grupo 1 — si el save se hizo desde una
-				# escena narrativa (vía NPC savepoint), volvemos ahí en vez de
-				# a EXPLORATION. El diálogo en sí no se reabre — el jugador
-				# vuelve a la escena y puede hablar de nuevo con el NPC si
-				# necesita guardar otra vez.
-				var narrative_scene_id: String = _save_manager.get_pending_narrative_scene_id()
-				if not narrative_scene_id.is_empty():
-					game_loop.enter_narrative_scene(narrative_scene_id)
-				else:
-					game_loop.enter_exploration()
+				# Spike 7 — centralizado en GameLoopSystem.enter_post_load_state():
+				# decide entre volver a la escena narrativa pendiente o a
+				# EXPLORATION. Mismo método que usa ahora
+				# ExplorationController._quickload(), para no duplicar este
+				# criterio en cada punto de carga.
+				game_loop.enter_post_load_state(_save_manager)
+			else:
+				push_error("[MainMenuViewModel] GameLoop not found")
+				state = MenuState.MAIN
+				changed.emit("main")
 		else:
 			push_error("[MainMenuViewModel] load_game() failed")
 			state = MenuState.MAIN

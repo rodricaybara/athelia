@@ -175,6 +175,24 @@ func enter_shop(shop_id: String) -> void:
 func enter_narrative_scene(scene_id: String) -> void:
 	request_state_change(GameState.NARRATIVE_SCENE, {"scene_id": scene_id})
 
+## Decide el estado de destino tras una carga completada (menú principal o
+## quickload en sesión activa), según si el save dejó pendiente una escena
+## narrativa. Centraliza la lógica que antes solo vivía en
+## MainMenuViewModel.request_load_game() — cualquier llamante nuevo que
+## necesite cargar una partida solo tiene que invocar este método, sin
+## reimplementar el criterio narrative_scene_id vacío/no vacío en cada sitio.
+##
+## Precondición: save_manager.load_game() ya se ejecutó y devolvió true.
+## GameLoopSystem sigue siendo el único responsable de transicionar
+## GameState — SaveSystem nunca lo hace (ver comentario de
+## _pending_narrative_scene_id en save_system.gd).
+func enter_post_load_state(save_manager: SaveSystem) -> void:
+	var narrative_scene_id: String = save_manager.get_pending_narrative_scene_id()
+	if not narrative_scene_id.is_empty():
+		enter_narrative_scene(narrative_scene_id)
+	else:
+		enter_exploration()
+
 func is_input_blocked() -> bool:
 	return current_game_state in [
 		GameState.DIALOGUE,

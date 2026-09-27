@@ -251,14 +251,44 @@ func _register_combat_enemies(enemy_ids: Array[String]) -> void:
 # guardado ya no es una hotkey libre, solo lo dispara una opción de diálogo
 # de NPC savepoint marcada con DialogueOptionDefinition.triggers_save (ver
 # DialogueSystem.select_option()). F9 (cargar) se queda igual que antes,
-# sin restricción de estado de origen.
+# sin restricción de estado de origen — salvo el guard genérico de
+# is_input_blocked() en _unhandled_input(), que se aplica por igual a
+# todas las acciones.
+#
+# Spike 7 — REENFOQUE FINAL: cargar en caliente sobre una sesión activa
+# (con historial de combate, modificadores recalculados, etc.) resultó
+# imposible de diagnosticar de forma fiable — el panel narrativo dejaba de
+# recibir input tras la carga sin ningún rastro localizable en el árbol de
+# escena, el estado del juego, ni el propio motor. En vez de seguir
+# persiguiéndolo, F9 deja de cargar en caliente: marca la intención en
+# SaveSystem (autoload, sobrevive a la recarga) y recarga la escena desde
+# cero. La sesión recién arrancada la resuelve MainMenuViewModel — el único
+# camino que sabemos que funciona sin residuos de la partida anterior.
 
 func _quickload() -> void:
-	var save_manager := get_node_or_null("/root/SaveManager")
-	if save_manager:
-		save_manager.load_game("quicksave")
-	else:
+	var save_manager := get_node_or_null("/root/SaveManager") as SaveSystem
+	if not save_manager:
 		push_warning("[ExplorationController] SaveManager not found")
+		return
+
+	if not save_manager.has_save("quicksave"):
+		push_warning("[ExplorationController] Quickload failed: no hay partida guardada")
+		return
+
+	save_manager.request_pending_quickload()
+
+	# ExplorationScene (y cualquier overlay como NarrativeScenePanel/CombatHud)
+	# se añaden directamente a get_tree().root, como hermanos de
+	# current_scene — reload_current_scene() NO los toca. Sin esto, la
+	# "recarga limpia" no lo era: _ensure_exploration_scene_instantiated()
+	# encontraba el ExplorationScene viejo ya presente (con todo el estado
+	# de la sesión que acaba de terminar: combate, modificadores, etc.) y lo
+	# reutilizaba tal cual, en vez de crear uno nuevo.
+	var old_exploration := get_tree().root.get_node_or_null("ExplorationScene")
+	if old_exploration:
+		old_exploration.queue_free()
+
+	get_tree().reload_current_scene()
 
 
 # ============================================
