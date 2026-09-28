@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ddh0oebgjmomd" path="res://ui/narrative_scene/narrative_scene_panel.gd" id="1_rns5p"]
 [ext_resource type="PackedScene" uid="uid://bkjn07uwfc3l0" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="2_v0mn2"]
+[ext_resource type="Texture2D" uid="uid://dbierylmfinfq" path="res://ui/design_system/assets/frames/frame_corner_64x64.png" id="3_v0mn2"]
 
 [node name="NarrativeScenePanel" type="CanvasLayer" unique_id=1876405702]
 layer = 10
@@ -36,6 +37,8 @@ anchor_right = 0.96
 anchor_bottom = 0.96
 grow_horizontal = 2
 grow_vertical = 0
+decorative_frame = true
+corner_texture = ExtResource("3_v0mn2")
 
 [node name="MarginContainer" type="MarginContainer" parent="Root/UIPanel" unique_id=222995964]
 layout_mode = 2

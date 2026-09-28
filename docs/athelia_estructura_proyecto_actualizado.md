@@ -454,7 +454,7 @@ athelia/
     │   │   ├── ui_button/
     │   │   │   ├── ui_button.gd
     │   │   │   └── ui_button.tscn
-    │   │   ├── ui_panel/
+    │   │   ├── ui_panel/           # Spike 9: + decorative_frame / corner_texture (marco ornamental opt-in, _draw() sobre el propio panel; con el marco activo anula borde y corner_radius del stylebox)
     │   │   │   ├── ui_panel.gd
     │   │   │   └── ui_panel.tscn
     │   │   ├── ui_slot/
@@ -472,10 +472,14 @@ athelia/
     │   │       ├── ui_combat_token_turn_triangle.gd
     │   │       ├── ui_combat_token_target_reticle.gd
     │   │       └── ui_combat_token.tscn
+    │   ├── assets/
+    │   │   └── frames/             # ← NUEVO (Spike 9)
+    │   │       ├── frame_corner_64x64.png   # en uso: esquinera única, se rota en las 4 esquinas
+    │   │       └── frame_corner_96x96.png   # reserva; invadía el texto del panel narrativo
     │   ├── theme/
     │   │   └── main_theme.tres     # Tema global de UI
     │   └── tokens/
-    │       └── ui_tokens.gd        # [Autoload: UITokens] Tokens de diseño — Grupo 5: + COLOR_GAUGE_HP_PARTY/EN_PARTY/HP_ENEMY, COLOR_TURN_INDICATOR, COLOR_TOKEN_FILL_DEFAULT, COLOR_LOG_FUMBLE/FAILURE/CRITICAL (SPECIAL reutiliza COLOR_TURN_INDICATOR, SUCCESS reutiliza el font_color normal del tema)
+    │       └── ui_tokens.gd        # [Autoload: UITokens] Tokens de diseño — Grupo 5: + COLOR_GAUGE_HP_PARTY/EN_PARTY/HP_ENEMY, COLOR_TURN_INDICATOR, COLOR_TOKEN_FILL_DEFAULT, COLOR_LOG_FUMBLE/FAILURE/CRITICAL (SPECIAL reutiliza COLOR_TURN_INDICATOR, SUCCESS reutiliza el font_color normal del tema). Spike 9: + COLOR_FRAME_OUTER/FILLET/INNER, FRAME_OUTER_WIDTH/FILLET_WIDTH/INNER_WIDTH/GAP (marco decorativo de UIPanel)
     │
     ├── dialogue/                   # Panel de diálogo (patrón MVVM)
     │   ├── dialogue_viewmodel.gd
@@ -520,7 +524,7 @@ athelia/
     ├── narrative_scene/             # Escena narrativa (patrón MVVM)
     │   ├── narrative_scene_viewmodel.gd  # enum PanelState (no SceneState) — Spike 3/B: _apply_outcome() resuelve grant_item_*/combat_encounter, registra enemigos antes de start_combat()
     │   ├── narrative_scene_panel.gd      # Spike 3/B: consume "streak_progress" (hueco abierto desde Spike 2); UIPanel anclado a tamaño fijo (bug de autowrap sin ancho)
-    │   └── narrative_scene_panel.tscn    # Grupo 4: layout B1 — SceneImage a pantalla completa detrás, UIPanel anclado al tercio inferior (anclas relativas, grow_vertical = BEGIN), texto y opciones en HBoxContainer. Cero cambios en el script
+    │   └── narrative_scene_panel.tscn    # Grupo 4: layout B1 — SceneImage a pantalla completa detrás, UIPanel anclado al tercio inferior (anclas relativas, grow_vertical = BEGIN), texto y opciones en HBoxContainer. Cero cambios en el script. Spike 9: nodo Root/UIPanel con decorative_frame = true y corner_texture = frame_corner_64x64.png (solo inspector, sin script)
     │
     ├── party/                      # Pantalla de party (patrón MVVM)
     │   ├── party_viewmodel.gd
@@ -767,7 +771,7 @@ Sigue el patrón MVVM estándar. Vive fuera de `core/narrative/` deliberadamente
 NarrativeScenePanel (CanvasLayer, layer 10)
 └── Root (Control, full rect)
     ├── SceneImage (TextureRect, %)          ← Grupo 4: fondo a pantalla completa, IGNORE_SIZE + KEEP_ASPECT_COVERED
-    └── UIPanel                              ← Grupo 4: tercio inferior (anclas 0.04/0.66/0.96/0.96), crece hacia arriba
+    └── UIPanel                              ← Grupo 4: tercio inferior (anclas 0.04/0.66/0.96/0.96), crece hacia arriba; Spike 9: decorative_frame = true + esquinera 64×64
         └── MarginContainer → HBoxContainer
             ├── SceneText (Label, %)         ← ratio 1.4
             └── OptionsContainer (VBoxContainer, %)   ← ratio 1.0, UIButton instanciado por opción
@@ -958,13 +962,13 @@ Los libros de aprendizaje (`learning_data` en `ItemDefinition`) crean una `Learn
 Todos los componentes de UI deben usar el Design System centralizado:
 
 - **UITokens** (autoload): Define colores, espaciado y tamaños centralizados
-- **UIPanel**: PanelContainer con estilos consistentes — **debe anclarse a un tamaño explícito** cuando contiene texto largo (ver antipatrón nuevo en `athelia_ui_architecture.md`, Spike 3/B); sin anclaje se dimensiona al contenido y puede desbordar la ventana
+- **UIPanel**: PanelContainer con estilos consistentes — **debe anclarse a un tamaño explícito** cuando contiene texto largo (ver antipatrón nuevo en `athelia_ui_architecture.md`, Spike 3/B); sin anclaje se dimensiona al contenido y puede desbordar la ventana. **Spike 9:** opción `decorative_frame` (false por defecto) que dibuja doble filete + esquineras con `_draw()`; ver sección propia en `athelia_ui_architecture.md`
 - **UIButton**: Button con variants (PRIMARY, SECONDARY, etc.) y tamaños
 - **UISlot**: Slot de inventario/equipo con drag & drop
 - **UIResourceBar**: Barra de recurso (vida, stamina) con valores actuales/máximos
 - **UIRadialGauge** (Grupo 5): Anillo de progreso radial parametrizable, un único anillo por instancia — primer componente con `_draw()`/arcos, sin precedente previo en el Design System
 - **UICombatToken** (Grupo 5): Ficha de combate (party o enemigo) — compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo. Grupo 4: contorno de texto desde tokens, para leerse sobre fondos de combate claros
-- **Spike aparcado — marco decorativo**: doble filete + esquineras (una única imagen de esquina reutilizada en las 4), como opción activable dentro de `UIPanel`. Surgido en Grupo 4, sin empezar
+- **Marco decorativo** (Spike 9, cerrado y validado): `UIPanel.decorative_frame` + `corner_texture` (doble filete + esquinera única rotada en las 4 esquinas), tokens `COLOR_FRAME_*`/`FRAME_*` en `UITokens`, arte en `ui/design_system/assets/frames/`. Activado solo en `NarrativeScenePanel`; el resto de pantallas siguen sin marco hasta decisión explícita por pantalla (opt-in)
 
 Ver `docs/athelia_ui_architecture.md` y `README.md` para documentación completa del Design System.
 
@@ -1058,7 +1062,9 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 
 ---
 
-*Última actualización: Spike 8 — UI/UX de combate (cinco puntos de alcance
+*Última actualización: Spike 9 — Marco decorativo de ventana en `UIPanel` (Design System). `decorative_frame` (false por defecto) + `corner_texture`: doble filete dibujado con `_draw()` sobre el propio panel (un `StyleBoxFlat` solo admite un borde de un color) y una única esquinera rotada 0°/90°/180°/270° con `draw_set_transform()`. Con el marco activo el panel anula su borde y `corner_radius`. Siete tokens nuevos en `UITokens` (`COLOR_FRAME_*`, `FRAME_*`) y arte en `ui/design_system/assets/frames/` (64×64 en uso; 96×96 de reserva por invadir el texto). Respuestas a las dos preguntas de integración de la spec: opt-in (ningún panel en producción cambia de aspecto) y `NarrativeScenePanel` ya usaba `UIPanel`, así que se activó solo desde el inspector, sin tocar su script. Validado: panel narrativo con marco correcto en las 4 esquinas; ventana de inventario sin cambios. Ver `docs/spike_9_marco_decorativo_ui_panel.md`. Godot 4.7.2.*
+
+*Última actualización anterior: Spike 8 — UI/UX de combate (cinco puntos de alcance
 cerrados y validados en combate real contra un grupo de 6-8 lobos). Punto 1
 (ficha de `companion_mira` con `??`) y Punto 2 (log con IDs internos en vez
 de nombres localizados) resultaron compartir exactamente la misma causa,

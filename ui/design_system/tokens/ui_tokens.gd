@@ -301,6 +301,21 @@ const COMBAT_BACKGROUND_SCRIM_ALPHA: float = 0.2
 const TEXT_OUTLINE_SIZE: int = 4
 const COLOR_TEXT_OUTLINE: Color = COLOR_BG
 
+# ============================================
+# marco decorativo de ventana — UIPanel.decorative_frame (Spike 9)
+# ============================================
+## Doble filete + esquineras. Valores iniciales, a ajustar en playtest
+## contra la esquinera real una vez exista el arte (mismo criterio que
+## COMBAT_BACKGROUND_SCRIM_ALPHA en Grupo 4).
+const COLOR_FRAME_OUTER: Color = Color("#100E0C")   ## Filete exterior oscuro
+const COLOR_FRAME_FILLET: Color = COLOR_PRIMARY     ## Filete bronce intermedio
+const COLOR_FRAME_INNER: Color = Color("#4A4030")   ## Línea interior tenue
+
+const FRAME_OUTER_WIDTH: int = 2
+const FRAME_FILLET_WIDTH: int = 2
+const FRAME_INNER_WIDTH: int = 1
+const FRAME_GAP: int = 2  ## Separación entre cada par de filetes concéntricos
+
 # ============================================================
 # UTILIDADES
 # ============================================================

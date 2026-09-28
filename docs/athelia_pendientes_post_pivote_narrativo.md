@@ -2,7 +2,8 @@
 
 *Recopilación para arrancar nuevos spikes. Estado a fecha de cierre del
 Grupo 4 de mejoras post-Spike 3 — "Los Telmori" jugable de principio a fin,
-con arte real, guardado real y pantalla de combate de producción.*
+con arte real, guardado real y pantalla de combate de producción.
+Actualizado tras el Spike 9: el punto 6 (marco decorativo) queda hecho.*
 
 ---
 
@@ -104,24 +105,25 @@ con arte real, guardado real y pantalla de combate de producción.*
 
 ---
 
-## 6. Spike aparcado: marco decorativo de ventanas (Design System)
+## 6. Marco decorativo de ventanas (Design System) — HECHO (Spike 9)
 
 Surgido al ver el panel narrativo con fondo real por primera vez (Grupo 4).
-Fernando quiere un marco decorativo para las ventanas del juego, empezando
-por el panel narrativo pero reutilizable en cualquier pantalla.
+Cerrado y validado en el Spike 9.
 
-- **Variante ya elegida** (de tres maquetadas): doble filete (borde oscuro
-  exterior + filete bronce + línea interior tenue) con esquineras
-  ornamentales — una única imagen pequeña de esquina reutilizada en las 4,
-  sin estirarse. Descartadas: solo doble filete (sin esquineras), y marco
-  ilustrado completo estilo 9-slice.
-- Va en el Design System, como opción activable dentro de `UIPanel` — no
-  específico de `NarrativeScenePanel`.
-- Para empezarlo hacen falta tocar `ui_panel.gd`, `ui_panel.tscn` y
-  `make_stylebox()` de `ui_tokens.gd`.
-- Es contenido de diseño visual ya cerrado — la sesión que lo aborde puede
-  ir directa a implementación sin necesidad de maquetar de nuevo, salvo
-  para el propio recurso de la esquinera (arte, no decisión).
+- **Resultado:** `UIPanel.decorative_frame` (opt-in, `false` por defecto) +
+  `corner_texture`. Doble filete dibujado con `_draw()` y una única
+  esquinera rotada en las 4 esquinas. Tokens `COLOR_FRAME_*`/`FRAME_*` en
+  `UITokens`. Arte en `res://ui/design_system/assets/frames/`
+  (`frame_corner_64x64.png` en uso, `frame_corner_96x96.png` de reserva).
+- **Integración:** `NarrativeScenePanel` ya usaba `UIPanel`, así que se
+  activó desde el inspector sin tocar su script. La ventana de inventario
+  no cambia (el opt-in funciona).
+- **Único trabajo que queda abierto:** activar el marco en otras pantallas
+  (diálogo — Spike 11 —, etc.), pantalla a pantalla. Si `DialoguePanel`
+  usa `UIPanel` como base, basta con marcar el flag y asignar la esquinera;
+  vigilar el `padding`, porque la esquinera de 64 px es mayor que el margen
+  por defecto (16).
+- Detalle completo en `docs/spike_9_marco_decorativo_ui_panel.md`.
 
 ---
 
