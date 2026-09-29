@@ -8,6 +8,15 @@ extends Resource
 ## Identificador único del diálogo
 @export var id: String = ""
 
+## Subcarpeta de retratos para esta aventura, bajo data/characters/portrait/.
+## Vacío (default) = data/characters/portrait/ directamente — compatible
+## con diálogos existentes sin este campo.
+@export var portrait_folder: String = ""
+
+## Identificador de la escena de fondo dentro de esta aventura (Spike 11).
+## Vacío = usa el fondo genérico de la aventura (portrait_folder.png).
+@export var background_id: String = ""
+
 ## Nodos del diálogo
 var nodes: Array[DialogueNodeDefinition] = []
 

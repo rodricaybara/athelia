@@ -69,14 +69,16 @@ var grant_resource_amount: float = 0.0
 var grant_resource_target: String = "player"
 
 ## Spike 4 Grupo 2 (mejoras post-Spike 3) — "abrir diálogo": en vez de cerrar la
-## escena o encadenar a next_scene_id, abre Diálogo como sub-overlay encima
-## del panel narrativo (ver NarrativeSceneViewModel.request_open_dialogue()).
-## Vacío = no abre ningún diálogo, comportamiento idéntico a antes de este
-## campo. Al cerrarse el diálogo, la escena narrativa vuelve exactamente al
-## mismo nodo — este outcome NO encadena a next_scene_id ni cierra el panel;
-## si la escena necesita avanzar tras la conversación, la propia opción del
-## diálogo que la cierra debe marcar el flag que gatee el siguiente paso
-## (igual que cualquier otro flag_to_set del proyecto).
+## escena o encadenar al instante a next_scene_id, abre Diálogo como sub-overlay
+## encima del panel narrativo (ver NarrativeSceneViewModel._apply_outcome()).
+## Vacío = no abre ningún diálogo, comportamiento idéntico a antes de este campo.
+##
+## Con dialogue_id relleno, next_scene_id cambia de significado: deja de
+## aplicarse al instante y pasa a ser la escena a la que avanzar CUANDO SE CIERRE
+## el diálogo (NarrativeSceneViewModel.resume_after_dialogue()). Vacío = al cerrar
+## el diálogo la escena vuelve al mismo nodo. flag_to_set y grant_item_*/
+## grant_resource_* se aplican igualmente, al pulsar la opción (antes del diálogo).
+## No se combina con combat_enemy_ids en el mismo outcome.
 var dialogue_id: String = ""
 
 static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:

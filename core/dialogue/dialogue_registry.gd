@@ -80,6 +80,8 @@ func _load_dialogue_from_file(file_path: String):
 func _load_dialogue_from_dict(data: Dictionary):
 	var dialogue = DialogueDefinition.new()
 	dialogue.id = data.get("id", "")
+	dialogue.portrait_folder = data.get("portrait_folder", "")
+	dialogue.background_id = data.get("background_id", "")
 	
 	# Cargar nodos
 	var nodes_data = data.get("nodes", [])
@@ -111,6 +113,7 @@ func _load_node_from_dict(data: Dictionary) -> DialogueNodeDefinition:
 	node.speaker_id = data.get("speaker_id", "")
 	node.text_key = data.get("text_key", "")
 	node.portrait_id = data.get("portrait_id", "")
+	node.mood = data.get("mood", "neutral")
 	
 	# Cargar opciones
 	var options_data = data.get("options", [])

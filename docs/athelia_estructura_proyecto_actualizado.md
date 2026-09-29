@@ -24,7 +24,7 @@ Estos sistemas están disponibles globalmente en todo el proyecto sin necesidad 
 | `Characters` | `core/characters/character_system.gd` | Gestión de personajes: creación, acceso y ciclo de vida. |
 | `Modifiers` | `core/characters/modifier_applicator.gd` | Aplicación de modificadores sobre atributos de personajes. |
 | `Resources` | `core/resources/resource_system.gd` | Gestión de recursos vitales (vida, stamina, oro). **Desde Spike 6**: `register_entity()` depende de `Characters`/`AttributeResolver` (llama a `AttributeResolver.resolve_resource_max()` para sincronizar `max_effective` de cualquier entidad) — requiere que `Characters.register_entity()` ya se haya llamado antes para esa entidad, o se queda sin sincronizar (con warning). Primera dependencia real de `ResourceSystem` hacia otro sistema; antes era autocontenido. |
-| `Skills` | `core/skills/skill_system.gd` | Sistema de habilidades: registro, acceso y uso. `SkillRoller` (no autoload, `class_name` estático) resuelve las tiradas D100: 5 grados desde Spike 2 (`FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL`), con `CRITICAL`/`SPECIAL` dinámicos (skill/20, skill/5) y `FUMBLE` absoluto (≥98). |
+| `Skills` | `core/skills/skill_system.gd` | Sistema de habilidades: registro, acceso y uso. `SkillRoller` (no autoload, `class_name` estático) resuelve las tiradas D100: 5 grados desde Spike 2 (`FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL`), con `CRITICAL`/`SPECIAL` dinámicos (skill/20, skill/5) y `FUMBLE` absoluto (≥98). `learn_skill()` (Spike 10) enseña a una entidad una skill fuera de su kit inicial (p. ej. desde un libro). |
 | `SkillProgression` | `core/skills/skill_progression_service.gd` | Progresión y aprendizaje de habilidades. |
 | `SkillEventHandler` | `core/skills/skill_event_handler.gd` | Manejo de eventos relacionados con habilidades. |
 | `Stress` | `core/skills/stress_system.gd` | Sistema de estrés del personaje. |
@@ -35,7 +35,7 @@ Estos sistemas están disponibles globalmente en todo el proyecto sin necesidad 
 | `Items` | `core/items/item_registry.gd` | Registro global de definiciones de ítems. |
 | `Inventory` | `core/items/inventory_system.gd` | Gestión del inventario del jugador. |
 | `Equipment` | `core/items/equipment_manager.gd` | Gestión del equipo equipado por el personaje. |
-| `Bridge` | `core/items/item_character_bridge.gd` | Adaptador puro entre el sistema de ítems y los sistemas de personaje/recursos. Escucha `item_use_requested` y aplica los modificadores del ítem sobre `Characters`, `Resources` o `Skills` según el tipo (`CONSUMABLE` / `EQUIPMENT`). También gestiona libros de aprendizaje delegando a `SkillProgression`. No modifica `ItemSystem`, `CharacterSystem` ni `InventorySystem` directamente. |
+| `Bridge` | `core/items/item_character_bridge.gd` | Adaptador puro entre el sistema de ítems y los sistemas de personaje/recursos. Escucha `item_use_requested` y aplica los modificadores del ítem sobre `Characters`, `Resources` o `Skills` según el tipo (`CONSUMABLE` / `EQUIPMENT`). También gestiona libros de aprendizaje: mejora la skill vía `SkillProgression` si la entidad ya la tiene, o la enseña vía `Skills.learn_skill()` si no (Spike 10); el libro solo se consume si el aprendizaje se aplicó. No modifica `ItemSystem`, `CharacterSystem` ni `InventorySystem` directamente. |
 
 ### Sistemas de mundo y combate
 | Singleton | Script | Descripción |
@@ -122,7 +122,7 @@ athelia/
 │   │   ├── item_registry.gd        # [Autoload: Items]
 │   │   ├── inventory_system.gd     # [Autoload: Inventory]
 │   │   ├── equipment_manager.gd    # [Autoload: Equipment]
-│   │   ├── item_character_bridge.gd        # [Autoload: Bridge] Adaptador entre ítems y Character/Resources/Skills
+│   │   ├── item_character_bridge.gd        # [Autoload: Bridge] Adaptador entre ítems y Character/Resources/Skills — Spike 10: _apply_learning() devuelve bool; skill fuera del kit → Skills.learn_skill() + valor inicial; el libro solo se consume si el aprendizaje se aplicó
 │   │   ├── item_character_integration.gd   # Integración ítems-personaje
 │   │   ├── item_definition.gd      # Resource: definición de ítem
 │   │   ├── item_instance.gd        # Resource: instancia de ítem en juego
@@ -155,7 +155,7 @@ athelia/
 │   │   └── save_data.gd            # Resource: datos serializados de partida
 │   │
 │   ├── skills/                     # Sistema de habilidades
-│   │   ├── skill_system.gd         # [Autoload: Skills]
+│   │   ├── skill_system.gd         # [Autoload: Skills] — Spike 10: + learn_skill(); load_save_state() recrea instancias aprendidas en runtime
 │   │   ├── skill_progression_service.gd  # [Autoload: SkillProgression] — notify_skill_outcome() solo combate (ticks + roll al cerrar combate); execute_learning_session() es el camino fuera de combate (libros/entrenadores; candidato de enganche para progresión narrativa en Spike 2)
 │   │   ├── skill_event_handler.gd  # [Autoload: SkillEventHandler]
 │   │   ├── stress_system.gd        # [Autoload: Stress]
@@ -195,7 +195,8 @@ athelia/
 │   │       ├── merchant.png
 │   │       ├── mira.png
 │   │       ├── orco.png
-│   │       └── [otros portraits...]
+│   │       ├── [otros portraits...]
+│   │       └── telmori/            # ← NUEVO (Spike 11) — retratos de "Los Telmori", por aventura (portrait_folder): guard.png (neutral) + guard_<mood>.png (serious/happy/worried/angry)
 │   │
 │   ├── combat/                     # ← NUEVO (mejoras post-Spike 3, Grupo 4)
 │   │   └── backgrounds/
@@ -206,7 +207,15 @@ athelia/
 │   │   ├── dlg_companion_mira_01.json
 │   │   ├── dlg_maestro_01.json
 │   │   ├── dlg_trainer_01.json
-│   │   └── [otros diálogos...]
+│   │   ├── [otros diálogos...]
+│   │   ├── telmori/                # Diálogos de "Los Telmori" (Grupo 2, Spike 10) — DialogueRegistry escanea subcarpetas de forma recursiva desde Grupo 2
+│   │   │   ├── [briefing del sheriff — Grupo 2, DLG_TELMORI_SHERIFF_BRIEFING]
+│   │   │   ├── dlg_telmori_sheriff_reward.json     # ← NUEVO (Spike 10) — DLG_TELMORI_SHERIFF_REWARD: hub de 2 ramas (trofeo, pueblo) + cierre; solo conversa, sin entregas
+│   │   │   └── dlg_telmori_sheriff_training.json   # ← NUEVO (Spike 10) — DLG_TELMORI_SHERIFF_TRAINING: hub de 2 ramas (pieles, libro) + cierre; solo conversa, sin entregas
+│   │   └── backgrounds/            # ← NUEVO (Spike 11) — fondo de ambiente del DialoguePanel, pre-difuminado en la generación
+│   │       ├── telmori.png         # Fondo genérico de la aventura (respaldo si no hay background_id o no existe el fichero de escena)
+│   │       └── telmori/
+│   │           └── sheriff_office.png  # Fondo de escena concreto (background_id = "sheriff_office")
 │   │
 │   ├── formulas/
 │   │   └── derived_attributes.json # Fórmulas de atributos derivados
@@ -271,6 +280,11 @@ athelia/
 │   │   # (4 fondos: pueblo, camino, entrada de la guarida, interior). Ojo:
 │   │   # telmori_lair_loot_obsidian está como .json.json en el proyecto —
 │   │   # carga igual, pendiente de renombrar.
+│   │   # Spike 10 — telmori_sheriff_reward_intro y telmori_sheriff_training abren
+│   │   # un diálogo (dialogue_id → DLG_TELMORI_SHERIFF_REWARD / _TRAINING) con las
+│   │   # entregas (oro, trofeo, tomo) en ese mismo outcome, y siguen encadenando a
+│   │   # training / pelts al cerrarse el diálogo. telmori_sheriff_pelts (tirada de
+│   │   # Curtido, no convertible a diálogo) y telmori_epilogue_hook no cambian.
 │   │   └── images/
 │   │       └── telmori/            # ← NUEVO (Grupo 4): fondos de escena 16:9, catálogo reutilizable por TIPO de escenario, no por escena (telmori_bg_village.jpg y demás)
 │   │
@@ -350,7 +364,10 @@ athelia/
 │   ├── dialogues.csv               # Textos de diálogos
 │   ├── dialogues.en.translation
 │   ├── dialogues.es.translation
-│   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B)
+│   ├── dialogues_scenes_telmori.csv    # Grupo 2 (briefing del sheriff) + Spike 10 (+12 claves: los dos diálogos de recompensa y entrenamiento) — CSV propio por aventura
+│   ├── dialogues_scenes_telmori.en.translation
+│   ├── dialogues_scenes_telmori.es.translation
+│   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
 │   ├── items.en.translation
 │   ├── items.es.translation
 │   ├── world_objects.csv           # Textos de objetos del mundo
@@ -365,13 +382,13 @@ athelia/
 │   ├── narrative_scenes.csv        # Textos de escenas narrativas (solo cabecera hasta Spike 3/B — claves de test de Spike 1/2 retiradas en Grupo A)
 │   ├── narrative_scenes.en.translation
 │   ├── narrative_scenes.es.translation
-│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B (22 claves) + Grupo C (7 más, 29 en total) + Grupo D (6 escenas + prompt del interactuable del sheriff) — CSV propio por aventura
+│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B (22 claves) + Grupo C (7 más, 29 en total) + Grupo D (6 escenas + prompt del interactuable del sheriff) + Spike 10 (+11 claves: textos de reward_intro/training/pelts/epílogo, el prompt `UI_TELMORI_SHERIFF_REWARD_INTERACT` y la escena `telmori_lair_loot_obsidian`, que Grupo D daba por localizados pero no lo estaban) — CSV propio por aventura
 │   ├── narrative_scenes_telmori.en.translation
 │   ├── narrative_scenes_telmori.es.translation
 │   ├── characters_telmori.csv          # Spike 3, Grupo B — nombre/desc de telmori_warrior/wolf
 │   ├── characters_telmori.en.translation
 │   ├── characters_telmori.es.translation
-│   ├── items_telmori.csv               # ← NUEVO (Spike 3, Grupo D) — nombre/desc de telmori_magic_bag, obsidian_spearhead, wolf_tail_trophy (botín/trofeo, sin ranura). Requiere alta manual en Project Settings → Localization → Translations, igual que narrative_scenes_telmori.csv en su momento
+│   ├── items_telmori.csv               # ← NUEVO (Spike 3, Grupo D) — nombre/desc de telmori_magic_bag, obsidian_spearhead, wolf_tail_trophy (botín/trofeo, sin ranura). Requiere alta manual en Project Settings → Localization → Translations, igual que narrative_scenes_telmori.csv en su momento. Spike 10: el alta NO se había hecho — hasta entonces los tres ítems mostraban la clave cruda; además dos descripciones con comas iban sin entrecomillar (fila con columnas de más)
 │   ├── items_telmori.en.translation
 │   ├── items_telmori.es.translation
 │   ├── combat.csv                      # ← NUEVO (Grupo 5) — 13 claves del log de combate: ATTACK graduado por SkillRoller (5 claves: FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL), DODGE/DEFEND(x2)/FLEE(x3)/STAGGERED/DISARMED sin grado. Requiere alta manual en Project Settings → Localization → Translations
@@ -522,7 +539,7 @@ athelia/
     │   └── main_menu_screen.tscn   # ← Main Scene del proyecto
     │
     ├── narrative_scene/             # Escena narrativa (patrón MVVM)
-    │   ├── narrative_scene_viewmodel.gd  # enum PanelState (no SceneState) — Spike 3/B: _apply_outcome() resuelve grant_item_*/combat_encounter, registra enemigos antes de start_combat()
+    │   ├── narrative_scene_viewmodel.gd  # enum PanelState (no SceneState) — Spike 3/B: _apply_outcome() resuelve grant_item_*/combat_encounter, registra enemigos antes de start_combat() — Spike 10: orden real flag → ítem → recurso → dialogue_id (retorno temprano) → combate → next_scene_id; bloque grant_item_* RESTAURADO (se había perdido) con log de cada entrega
     │   ├── narrative_scene_panel.gd      # Spike 3/B: consume "streak_progress" (hueco abierto desde Spike 2); UIPanel anclado a tamaño fijo (bug de autowrap sin ancho)
     │   └── narrative_scene_panel.tscn    # Grupo 4: layout B1 — SceneImage a pantalla completa detrás, UIPanel anclado al tercio inferior (anclas relativas, grow_vertical = BEGIN), texto y opciones en HBoxContainer. Cero cambios en el script. Spike 9: nodo Root/UIPanel con decorative_frame = true y corner_texture = frame_corner_64x64.png (solo inspector, sin script)
     │
@@ -695,6 +712,8 @@ Dos accesores distintos para lo que parece "lo mismo", sin relación entre sí:
 
 Si el registro de `SkillSystem` no incluye una skill que sí aparece en `list_known_skills()` (porque se pasó una lista distinta a `register_entity_skills()`), el síntoma es un aviso de `SkillSystem` ("Skill not found for entity") al terminar combate, sin que las tiradas en sí se vean afectadas — fácil de pasar por alto. Tanto `CharacterCreationViewModel` (jugador) como `PartyManager._register_in_systems()` (companions) deben pasar `definition.skills` explícitamente a `register_entity_skills()`, nunca una lista propia ni el array vacío por defecto (que registra el catálogo entero).
 
+**Skills fuera del kit inicial (Spike 10).** Un libro (o cualquier fuente futura) puede enseñar una skill que la entidad no tiene registrada. `SkillSystem.learn_skill(entity_id, skill_id)` crea la instancia si falta y la desbloquea reutilizando `unlock_skill()` — se siguen comprobando `prerequisite_requirements`; `requires_unlock` no bloquea, porque aprenderla es lo que resuelve ese bloqueo. Si el desbloqueo falla, retira la instancia (nunca quedan skills a medias); con una skill ya registrada no salta su bloqueo. El **valor inicial** (`CharacterState.skill_values`) no lo fija `SkillSystem` sino `ItemCharacterBridge` (que ya conecta ambos sistemas): clave opcional `initial_value` en `learning_data`, por defecto el `base_success_rate` de la skill, y solo si la entidad no tenía ya un valor > 0. Persistencia: `CharacterState` guarda y restaura `skill_values` entero, y `SkillSystem.load_save_state()` recrea desde su definición las instancias que no están en el kit — sin eso una skill aprendida en runtime se perdía al cargar. Curtido (`skill.exploration.tanning`) es el primer caso real.
+
 ### Exploration Tutorial — Arquitectura (OBSOLETA desde Spike 3, Grupo B)
 
 ```
@@ -804,7 +823,7 @@ Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `Na
 
 **Restricción real de `reinforcement_definition_id` (Grupo C):** es un único string, no un diccionario por entidad — todo un refuerzo sale de la misma `CharacterDefinition`, no admite mezclar tipos de enemigo en la misma oleada (a diferencia del roster *inicial*, que sí admite tipos mixtos vía `combat_enemy_definitions` normal). Si un contenido necesita refuerzo de tipos mixtos, hay que elegir entre extender el recurso a un diccionario (cambio de motor, no hecho todavía) o simplificar el contenido a un refuerzo homogéneo (la opción que tomó Grupo C).
 
-`_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
+`_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → otorgar recurso → si hay `dialogue_id`, abrir el diálogo y retorno temprano (`grant_*` ya se aplicaron; `next_scene_id` queda pendiente hasta cerrar el diálogo) → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
 
 Cierre desacoplado: `NarrativeSceneViewModel` no llama a `GameLoop` directamente al terminar una rama — emite `EventBus.narrative_scene_closed(scene_id)`, y `SceneOrchestrator._on_narrative_scene_closed()` decide volver a `EXPLORATION`. Mismo patrón que `dialogue_ended`/`shop_closed`. Cuando el outcome dispara combate, no hay paso intermedio por `EXPLORATION`: `GameLoop.start_combat()` acepta `NARRATIVE_SCENE` como estado de origen directamente.
 
@@ -868,7 +887,7 @@ Segundo tramo de contenido real del pivote narrativo: la aproximación sigilosa 
 - Nuevo patrón de reconexión narrativa **sin combate de por medio** (`EventBus.narrative_flag_set` directo, sin `combat_ended`) — ver "Reconexión narrativa sin combate" más arriba, con su propio riesgo identificado (exploit económico por interactuable de recompensa sin limpiar) y su propia solución (segundo listener de flag para la limpieza).
 - **Camino de Curtidor resuelto sin gating de visibilidad de opción nuevo** — `Characters.get_skill_value()` devuelve 0 para una skill fuera del kit inicial, así que una tirada normal contra `skill.exploration.tanning` ya da la probabilidad casi nula buscada sin construir nada. Confirmado en playtest: `SkillRoller` registró `vs 0% → FAILURE` para el jugador sin el tomo leído.
 - **Mini-acertijo de la bolsa mágica, decidido explícitamente NO implementarlo** — mismo criterio que el modificador multiplicativo de combate descartado en Grupo C: sin un segundo caso de uso de "interacción objeto sobre objeto" en el proyecto, se resuelve como flavor narrativo puro. El mecanismo de "otorgar ítem" existente entrega la bolsa sin más.
-- **Reflavor del entrenamiento de magia** — el tomo (`book_tanning_basics.tres`) enseña Curtidor directamente vía `learning_data`, reutilizando el mecanismo de libro de aprendizaje ya existente desde `book_combat_basic.tres`, sin sistema de magia nuevo (sigue aparcado). Orden de las escenas del sheriff decidido para que el tomo se entregue **antes** de la venta de pieles, así el jugador puede usar la skill recién aprendida en la misma sesión de recompensa.
+- **Reflavor del entrenamiento de magia** — el tomo (`book_tanning_basics.tres`) enseña Curtidor directamente vía `learning_data`, reutilizando el mecanismo de libro de aprendizaje ya existente desde `book_combat_basic.tres`, sin sistema de magia nuevo (sigue aparcado). Orden de las escenas del sheriff decidido para que el tomo se entregue **antes** de la venta de pieles, así el jugador puede usar la skill recién aprendida en la misma sesión de recompensa. **Corrección (Spike 10):** en la práctica este camino no funcionaba — el jugador no tenía la skill registrada, así que la lectura del tomo fallaba y consumía el libro sin enseñar nada (ver "Spike 10" más abajo); además `grant_item_*` no se ejecutaba en el ViewModel, por lo que el tomo ni llegaba al inventario.
 - `ItemDefinition.item_type` confirmado como enum cerrado (`CONSUMABLE`/`EQUIPMENT`/`MISC`, sin tipo "genérico decorativo") — los tres ítems de botín/trofeo sin mecánica (`telmori_magic_bag`, `obsidian_spearhead`, `wolf_tail_trophy`) usan `MISC`.
 - `SkillSystem`/`ItemRegistry` confirmados como escaneo recursivo real de `data/skills/`/`data/items/` (sin lista hardcodeada, a diferencia de `ResourceSystem._load_resource_definitions()`, que sí tiene una lista fija pero no se ve afectada porque `gold` ya estaba en ella) — la skill y los ítems nuevos de este grupo se cargaron sin tocar ningún registro de motor.
 - Un bug real de contenido (no de motor): `telmori_lair_victory.json` se quedó con el contenido original en el proyecto tras diseñar la cadena de botín en conversación — el flag se marcaba igual, así que el fallo (botín nunca entregado) no producía ningún error visible. Detectado revisando qué `scene_id` traía `narrative_scene_closed` en el log: si una cadena multi-escena se corta antes de tiempo, el `scene_id` de cierre delata en qué nodo se quedó de verdad.
@@ -944,6 +963,99 @@ Fondos de escena, fondos de combate reales (Grupo 5 los había dejado como `Colo
 - **Hallazgos preexistentes fuera de alcance, sin corregir**: los 8 botones de acción de la arena no muestran nombre; la columna enemiga se desborda por arriba con 6-8 enemigos; el log muestra IDs internos en vez de nombres localizados; el desajuste PV actual/máximo de Grupo 5 (visible como `50/45`).
 - Validado en partida completa de "Los Telmori": las 21 escenas con fondo, los dos combates con su mapa, iconos reales en todas las variantes de enemigo.
 
+### Spike 10 — Diálogos restantes del sheriff (Los Telmori)
+
+Aplica a `telmori_sheriff_reward_intro` y `telmori_sheriff_training` el patrón de Grupo 2 (sub-overlay de diálogo desde `NarrativeScenePanel`, `dialogue_id` en el outcome, `resume_after_dialogue()`). `telmori_sheriff_pelts` no se convierte (tirada real de Curtido, `DialogueOptionDefinition` no soporta tiradas) y `telmori_epilogue_hook` no se toca. Con esto el **Grupo 2 queda completo**. Ver `docs/spike_10_dialogos_sheriff.md` para el detalle completo.
+
+- **Decisión de diseño (camino A):** el diálogo solo conversa; las entregas se quedan en el outcome narrativo que abre el diálogo (`grant_resource_*`/`grant_item_*` + `dialogue_id` + `next_scene_id`). Comprobado con el código real que `DialogueOptionDefinition`/`DialogueSystem` no tienen mecanismo de entrega (solo `narrative_events`, `triggers_save` y navegación) — no se añadió, porque no hacía falta. Las entregas ocurren al pulsar la opción, **antes** del diálogo; el texto de la escena narra el traspaso.
+- **Exploit cubierto por diseño:** la entrega vive fuera del hub, así que volver a una rama del diálogo no puede reclamarla dos veces; la protección contra reentrada de la cadena sigue siendo la limpieza del interactuable con `flag.telmori_adventure_completed`.
+- **Hallazgo 1 — `grant_item_*` no se ejecutaba.** El bloque de entrega de ítems se había perdido de `NarrativeSceneViewModel._apply_outcome()` (quedaba el comentario con la entrega de recurso debajo), sin ningún error visible: ningún ítem de ningún outcome llegaba al inventario, incluidos la bolsa mágica y la punta de obsidiana de Grupo D. Con toda probabilidad se perdió al parchear el método en el Grupo 2. Restaurado antes del retorno temprano de `dialogue_id`, con `print` por entrega y `push_warning` si `Inventory.add_item()` devuelve `false`.
+- **Hallazgo 2 — un libro no podía enseñar una skill fuera del kit.** `register_entity_skills()` solo crea instancias del kit; `execute_learning_session()` no encontraba la de Curtido (`skill_locked`) y `_apply_consumable()` emitía `item_use_success` incondicionalmente, consumiendo el libro sin efecto. Los libros anteriores solo mejoraban skills ya poseídas. Arreglo: `SkillSystem.learn_skill()`, `initial_value` en `learning_data`, `_apply_learning()` devuelve `bool` y el libro solo se consume si el aprendizaje se aplicó (`item_use_failed` en caso contrario; una tirada de mejora fallida sigue consumiéndolo). Detalle en "Skills — dos sistemas paralelos de valores" arriba.
+- **Localización:** faltaban textos de cuatro escenas del Grupo D, la escena de botín y las flechas/lanza de Grupo B. Un `.csv` nuevo necesita alta manual en Project Settings (`items_telmori.csv` no la tenía).
+- **Validado en partida real** (F2 con `flag.telmori_lair_cleared`): entregas una sola vez cada una, ambos diálogos como sub-overlay con reenganche automático, tomo leído desde el inventario en pleno `NARRATIVE_SCENE` → `APRENDIDA (valor inicial 15%)`, Curtido visible y entrenable desde el panel de habilidades, tirada de venta contra el valor real, `flag.telmori_adventure_completed` marcado e interactuable retirado.
+- **Sin probar en partida:** el camino de fallo del libro (`item_use_failed`, libro no consumido) y el guardado/carga con Curtido aprendido (solo comprobado por código).
+
+### Spike 11 — Rediseño de la ventana de diálogo (fondo, retrato, estado de ánimo)
+
+Rediseña `DialoguePanel`, mínimo y sin decoración desde su creación: fondo
+propio, marco decorativo del Spike 9 y un único retrato del NPC (se
+descarta definitivamente el layout de dos retratos original — el jugador
+ya "habla" a través de las opciones). Ver `spike_11_ventana_dialogo.md`
+para la maqueta y el detalle completo de la Fase 1.
+
+- **Comprobación de código previa (Fase 0):** `portrait_id` ya existía y se
+  consumía de verdad (JSON → `DialogueRegistry` → `DialogueNodeDefinition`
+  → `DialogueSystem` → `EventBus.dialogue_node_shown` →
+  `DialogueViewModel` → `DialoguePanel`) — no era un campo huérfano como
+  `grant_item_*` en Spike 10. No existía ningún campo de estado de ánimo.
+  Las dos claves crudas vistas en captura (`SPEAKER_SHERIFF`,
+  `DLG_SHERIFF_OPT_SAVE`) eran huecos reales en
+  `dialogues_scenes_telmori.csv`, no un problema de alta del `.csv` en
+  Project Settings (ya estaba dado de alta desde Spike 10) — corregidas
+  añadiendo las dos filas.
+- **`DialogueNodeDefinition` gana `mood: String = "neutral"`** (por nodo,
+  no por diálogo: cambia a mitad de conversación). Resuelto en
+  `DialogueViewModel._resolve_portrait()` con cascada de respaldo:
+  `"<portrait_id>_<mood>.png"` → `"<portrait_id>.png"` (neutral) → sin
+  retrato, con `push_warning` en cada salto — nunca falla en silencio como
+  hacía antes la resolución de `portrait_id`.
+- **`DialogueDefinition` gana `portrait_folder: String = ""`** (subcarpeta
+  de retratos por aventura, bajo `res://data/characters/portrait/`) **y
+  `background_id: String = ""`** (escena de fondo dentro de la aventura).
+  Ambos opcionales y con respaldo — vacíos, el comportamiento es el de
+  antes de este spike, ningún diálogo existente necesitó tocarse.
+  `background_id` cae al fondo genérico de la aventura
+  (`res://data/dialogue/backgrounds/<portrait_folder>.png`) si está vacío
+  o el fichero de escena no existe.
+- **`EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos** (`portrait_id`,
+  `mood`, `portrait_folder`, `background_id`). Los oyentes existentes que
+  declaraban menos parámetros —incluidos los tests— siguieron compilando
+  sin tocarlos: GDScript descarta los argumentos de más al emitir una
+  señal si el callback conectado acepta menos. `DialogueSystem` expone
+  `mood` en `get_current_node_info()` y en el nuevo getter
+  `get_current_mood()`.
+- **Base de `DialoguePanel` migrada de `PanelContainer` plano a `UIPanel`**
+  (`decorative_frame = true`, marco del Spike 9) — pendiente que dejó
+  abierto el propio Spike 9 ("activar el marco en otras pantallas,
+  pantalla a pantalla"). Exports de configuración visual declarados sin
+  efecto real, retirados: `background_texture`, `portrait_frame_texture`,
+  `text_color`, `text_font_size`, `speaker_name_color`,
+  `speaker_name_font_size`.
+- **Antipatrón nuevo, mismo patrón que "Panel sin tamaño fijo con texto
+  largo" pero por número de hijos en vez de longitud de texto:** un
+  `PanelContainer` no se encoge por debajo del mínimo de sus hijos: con 5
+  opciones, el panel de diálogo crecía y, por `grow_vertical = BEGIN`,
+  "subía" invadiendo pantalla en vez de quedarse en su franja. Arreglo:
+  `OptionsContainer` envuelto en un `ScrollContainer` — no impone el
+  mínimo de su contenido al padre, hace scroll en su lugar. Con la altura
+  de panel definitiva (anclas `0.57`–`0.96`, corregidas desde un `0.66`
+  copiado por error de la convención de `NarrativeScenePanel`, que no
+  encajaba con el contenido real de este panel) caben 3 opciones sin
+  scroll.
+- **Fondo de ambiente:** mismo patrón que `CombatArenaViewModel`/Grupo 4
+  (`BackgroundImage` detrás + `Background` como velo semitransparente
+  encima, razón `"background"` de `changed()`, solo emitida cuando el path
+  cambia). Imagen pre-difuminada en la generación, no blur en tiempo real
+  (evita `SubViewport`+shader). `SCRIM_ALPHA_WITH_IMAGE = 0.55`, validado
+  contra el arte real de Los Telmori.
+- **Retrato como hermano del panel, no hijo** — layout C de la maqueta
+  (franja inferior, retrato grande sobresaliendo por el borde superior del
+  marco), elegida sobre las variantes A ("retrato lateral") y B ("panel
+  centrado") para dar protagonismo a la imagen del NPC. Sin retrato
+  disponible, el panel de texto ocupa todo el ancho.
+- **Validado en partida real**, aventura completa de "Los Telmori" de
+  principio a fin: apertura como sub-overlay desde escena narrativa y
+  desde `EXPLORATION` vía interactuable; cambio de expresión a mitad de
+  conversación; hablante sin retrato; contrato de sub-overlay de Grupo 2
+  (`signal closed`, `resume_after_dialogue()`) intacto tras el rediseño.
+- **Deuda técnica anotada, fuera de alcance de este spike:** tests de
+  `dialogue_node_shown` (`dialogue_panel_test.gd`, `test_dialogue_system.gd`,
+  `test_eventbus.gd`) no adaptados a la firma de 7 argumentos; resolución
+  de ventana (afecta a toda pantalla con posiciones en píxeles fijos, no
+  solo a este panel — decisión de proyecto, no de spike); documentación de
+  `UIPanel.Variant.OVERLAY` como semitransparente, con stylebox opaco en
+  la práctica.
+
 ### ItemCharacterBridge — Aplicación de modificadores
 
 El target de un modificador sigue el formato `tipo.id`:
@@ -955,7 +1067,7 @@ Operaciones soportadas: `add`, `mul`, `override`.
 
 Los ítems de tipo `EQUIPMENT` delegan a `EquipmentManager.toggle_equipment()` (equipa si no está equipado, desequipa si lo está) — este es el camino para cuando el **jugador** usa un ítem desde la UI. Para equipar por código (setup inicial, NPCs, etc.), `Equipment.equip_item(entity_id, item_id)` es directo y no exige que el ítem esté en el inventario (aunque añadirlo también, vía `Inventory.add_item()`, mantiene la coherencia si se desequipa más tarde).
 
-Los libros de aprendizaje (`learning_data` en `ItemDefinition`) crean una `LearningSession` y delegan a `SkillProgression`. Pueden tener también modificadores de recurso adicionales.
+Los libros de aprendizaje (`learning_data` en `ItemDefinition`: `skill_id`, `source_level`, `source_type`, y desde Spike 10 `initial_value` opcional) tienen dos caminos según si la entidad ya tiene la skill registrada: si la tiene, crean una `LearningSession` y delegan a `SkillProgression` (tirada de mejora); si no, la **primera lectura la enseña** (`Skills.learn_skill()` + valor inicial, sin tirada de mejora en esa lectura). `_apply_learning()` devuelve `bool`: si el aprendizaje no se pudo aplicar (`invalid_session`, `skill_locked`, `no_progression`, prerrequisitos sin cumplir) el ítem **no se consume** (`item_use_failed`); una tirada de mejora fallida sí lo consume, y `challenge_too_low` también (comportamiento previo, no tocado). Pueden tener también modificadores de recurso adicionales.
 
 ### Design System — Componentes reutilizables de UI
 
@@ -1059,10 +1171,18 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Dos caminos para construir el mismo evento divergen — uno gana, el otro se queda incompleto (Spike 8):** `combat_arena_panel.gd` construía su propio `action_data` para `player_action_requested` en vez de llamar a `PlayerCombatController.request_skill()`, el único sitio del proyecto que resuelve el target actual — la copia manual nunca incluía `"target"`. Cualquier punto de entrada nuevo a un despacho ya resuelto en otro sitio debe llamar a su API pública, nunca reconstruir el mismo estado por su cuenta.
 - **El orden de conexión entre dos nodos distintos a la misma señal no está garantizado (Spike 8):** el auto-target de `PlayerCombatController._on_combat_started()` (emitido en el mismo instante que `combat_started`) se perdía visualmente si se ejecutaba antes que `CombatArenaViewModel._on_combat_started()` — las fichas aún no existían para recibir la marca de "objetivo". Un consumidor que necesita el estado ya resuelto de otro nodo en el mismo instante de un evento compartido debe consultarlo directamente (`get_current_target()`), no fiarse de recibir también su señal derivada a tiempo.
 - **`get_tree().reload_current_scene()` no destruye nodos añadidos directamente a `get_tree().root` (Spike 7):** `SceneOrchestrator` instancia `ExplorationScene` y todos sus overlays (`NarrativeScenePanel`, `CombatHud`...) como hermanos de `current_scene` bajo `root`, no como hijos suyos — un `reload_current_scene()` solo recrea `current_scene` (`MainMenuScreen`). Sin liberar esos nodos explícitamente antes de recargar, el guard de "ya existe, no instanciar otro" de `_ensure_exploration_scene_instantiated()` reutiliza el `ExplorationScene` viejo tal cual, con todo el estado de la sesión anterior — una recarga que parece "limpia" no lo es. Este hallazgo se confirmó y corrigió, pero no fue la causa raíz completa del bug que lo motivó (ver Spike 7 — bug de F9 sin resolver, en la sección "Input en exploración" más arriba).
+- **Un bloque perdido al parchear un método grande puede fallar en silencio (Spike 10):** `grant_item_*` desapareció de `_apply_outcome()` sin ningún error — el resto de la cadena funcionaba y solo el inventario vacío lo delataba. Todo efecto de un outcome debe dejar una línea de log al aplicarse, y tras parchear `_apply_outcome()` conviene comprobar por log que cada tipo de entrega sigue apareciendo.
+- **Un `.csv` de localización nuevo necesita alta manual en Project Settings → Localization → Translations (Spike 10):** sin ella todas sus claves salen crudas aunque los datos y las claves sean correctos (`items_telmori.csv`). Y todo campo con comas debe ir entrecomillado, o la fila tiene más columnas de las declaradas.
+- **Un consumible con efecto condicional no debe emitir `item_use_success` incondicionalmente (Spike 10):** el consumo del ítem cuelga de esa señal. `_apply_consumable()` consumía el libro aunque `execute_learning_session()` hubiera devuelto `skill_locked`; ahora emite `item_use_failed` si el aprendizaje no se aplicó.
+- **Un sistema que solo mejora lo que ya existe no cubre "aprender lo nuevo" (Spike 10):** los libros previos solo subían skills ya poseídas, así que `register_entity_skills()` (solo el kit) nunca había fallado. Cualquier fuente que dé algo que la entidad no tiene necesita su propio camino de alta (`learn_skill()`), con persistencia incluida (`load_save_state()` debe poder recrear lo aprendido en runtime).
 
 ---
 
-*Última actualización: Spike 9 — Marco decorativo de ventana en `UIPanel` (Design System). `decorative_frame` (false por defecto) + `corner_texture`: doble filete dibujado con `_draw()` sobre el propio panel (un `StyleBoxFlat` solo admite un borde de un color) y una única esquinera rotada 0°/90°/180°/270° con `draw_set_transform()`. Con el marco activo el panel anula su borde y `corner_radius`. Siete tokens nuevos en `UITokens` (`COLOR_FRAME_*`, `FRAME_*`) y arte en `ui/design_system/assets/frames/` (64×64 en uso; 96×96 de reserva por invadir el texto). Respuestas a las dos preguntas de integración de la spec: opt-in (ningún panel en producción cambia de aspecto) y `NarrativeScenePanel` ya usaba `UIPanel`, así que se activó solo desde el inspector, sin tocar su script. Validado: panel narrativo con marco correcto en las 4 esquinas; ventana de inventario sin cambios. Ver `docs/spike_9_marco_decorativo_ui_panel.md`. Godot 4.7.2.*
+*Última actualización: Spike 11 — Rediseño de la ventana de diálogo (fondo, retrato, estado de ánimo) — cerrado y validado en partida real de principio a fin, apertura desde escena narrativa y desde `EXPLORATION`. `DialogueNodeDefinition` gana `mood`; `DialogueDefinition` gana `portrait_folder` y `background_id`; `EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos. `DialoguePanel` migra de `PanelContainer` plano a `UIPanel` (marco del Spike 9) — cierra el pendiente que dejó abierto ese spike para esta pantalla. Antipatrón nuevo: un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, así que las opciones de diálogo necesitan `ScrollContainer` si su número puede variar — mismo problema de fondo que "Panel sin tamaño fijo con texto largo", por número de hijos en vez de longitud de texto. Ver `spike_11_ventana_dialogo.md` para el detalle técnico completo (maqueta de layout, catálogo de estados de ánimo, cascadas de respaldo). Godot 4.7.2.*
+
+*Última actualización anterior: Spike 10 — Diálogos restantes del sheriff (cerrado, camino A, validado en partida real). `telmori_sheriff_reward_intro` y `telmori_sheriff_training` abren `DLG_TELMORI_SHERIFF_REWARD`/`_TRAINING` como sub-overlay con las entregas en el mismo outcome (el diálogo solo conversa; `DialogueOptionDefinition`/`DialogueSystem` no tienen entregas y no se ampliaron); Grupo 2 completo. Dos fallos de motor previos destapados por la validación: `grant_item_*` se había perdido de `NarrativeSceneViewModel._apply_outcome()` (ningún ítem llegaba al inventario, sin error visible) y un libro no podía enseñar una skill fuera del kit inicial, consumiéndose sin efecto — nuevo `SkillSystem.learn_skill()`, `initial_value` en `learning_data`, `load_save_state()` que recrea skills aprendidas y consumo del libro condicionado a que el aprendizaje se aplique. Localización completada (escenas del Grupo D, escena de botín, flechas/lanza de Grupo B) y alta de `items_telmori.csv`. Sin probar en partida: camino de fallo del libro y guardado/carga con Curtido. Ver `docs/spike_10_dialogos_sheriff.md`. Godot 4.7.2.*
+
+*Última actualización anterior: Spike 9 — Marco decorativo de ventana en `UIPanel` (Design System). `decorative_frame` (false por defecto) + `corner_texture`: doble filete dibujado con `_draw()` sobre el propio panel (un `StyleBoxFlat` solo admite un borde de un color) y una única esquinera rotada 0°/90°/180°/270° con `draw_set_transform()`. Con el marco activo el panel anula su borde y `corner_radius`. Siete tokens nuevos en `UITokens` (`COLOR_FRAME_*`, `FRAME_*`) y arte en `ui/design_system/assets/frames/` (64×64 en uso; 96×96 de reserva por invadir el texto). Respuestas a las dos preguntas de integración de la spec: opt-in (ningún panel en producción cambia de aspecto) y `NarrativeScenePanel` ya usaba `UIPanel`, así que se activó solo desde el inspector, sin tocar su script. Validado: panel narrativo con marco correcto en las 4 esquinas; ventana de inventario sin cambios. Ver `docs/spike_9_marco_decorativo_ui_panel.md`. Godot 4.7.2.*
 
 *Última actualización anterior: Spike 8 — UI/UX de combate (cinco puntos de alcance
 cerrados y validados en combate real contra un grupo de 6-8 lobos). Punto 1

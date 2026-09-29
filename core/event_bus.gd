@@ -103,7 +103,7 @@ signal narrative_state_changed()
 # ==============================================
 
 signal dialogue_started(dialogue_id: String)
-signal dialogue_node_shown(node_id: String, speaker_id: String, text_key: String, portrait_id: String)
+signal dialogue_node_shown(node_id: String, speaker_id: String, text_key: String, portrait_id: String, mood: String, portrait_folder: String, background_id: String)
 signal dialogue_option_selected(node_id: String, option_id: String)
 signal dialogue_ended(dialogue_id: String)
 signal dialogue_options_updated(options: Array)
@@ -398,9 +398,9 @@ func _on_dialogue_started_debug(dialogue_id: String):
 	if _should_log("dialogue_started"):
 		print("[EventBus] dialogue_started ← %s" % dialogue_id)
 
-func _on_dialogue_node_shown_debug(node_id: String, speaker_id: String, text_key: String, portrait_id: String = ""):
+func _on_dialogue_node_shown_debug(node_id: String, speaker_id: String, text_key: String, portrait_id: String = "", mood: String = "", portrait_folder: String = "", background_id: String = ""):
 	if _should_log("dialogue_node_shown"):
-		print("[EventBus] dialogue_node_shown ← node=%s, speaker=%s, text=%s, portrait=%s" % [node_id, speaker_id, text_key, portrait_id])
+		print("[EventBus] dialogue_node_shown ← node=%s, speaker=%s, text=%s, portrait=%s, mood=%s, folder=%s, background=%s" % [node_id, speaker_id, text_key, portrait_id, mood, portrait_folder, background_id])
 
 func _on_dialogue_option_selected_debug(node_id: String, option_id: String):
 	if _should_log("dialogue_option_selected"):

@@ -1,5 +1,7 @@
 id,en,es
+SPEAKER_SHERIFF,Sheriff,Sheriff
 DLG_SHERIFF_01_GREET,"Ah, you're the one they sent about the wolf trouble. Good — we need every hand we can get. What do you want to know before you head out?","Ah, tú eres quien enviaron por el asunto de los lobos. Bien — necesitamos toda la ayuda posible. ¿Qué quieres saber antes de partir?"
+DLG_SHERIFF_OPT_SAVE,"Save my progress.","Guardar partida."
 DLG_SHERIFF_OPT_ASK_PROBLEM,"Tell me about the problem.","Cuéntame el problema."
 DLG_SHERIFF_OPT_ASK_REWARD,"What's the reward?","¿Cuál es la recompensa?"
 DLG_SHERIFF_OPT_ASK_WEAPONS,"What about weapons?","¿Qué hay de las armas?"
@@ -8,3 +10,15 @@ DLG_SHERIFF_02_PROBLEM,"Wolves have been raiding the hills north of the village 
 DLG_SHERIFF_03_REWARD,"Clear out whatever's denned up in those hills and there's good coin in it for you, plus first pick of anything worth keeping from the den. Do it well, and the village won't forget it.","Limpia lo que sea que anide en esas colinas y habrá buena paga para ti, además de primera elección de lo que valga la pena de la guarida. Hazlo bien y el pueblo no lo olvidará."
 DLG_SHERIFF_04_WEAPONS,"Ordinary steel might not be enough if what I suspect is true. I can lend you a few silver arrows, and there's a spear in the armory you're welcome to borrow — return it in one piece.","El acero corriente podría no bastar si lo que sospecho es cierto. Puedo prestarte algunas flechas de plata, y hay una lanza en el armero que puedes tomar prestada — devuélvemela de una pieza."
 DLG_OPT_BACK,"Ask something else.","Preguntar otra cosa."
+DLG_SHERIFF_REWARD_01_GREET,So it's done. I can see it on your faces. Take the silver and the tail — the village owes you more than fits in a purse. Anything you want to ask before we go on?,Así que está hecho. Se os ve en la cara. Toma la plata y el rabo — el pueblo te debe más de lo que cabe en una bolsa. ¿Quieres preguntarme algo antes de seguir?
+DLG_SHERIFF_REWARD_OPT_ASK_TROPHY,About this wolf tail...,Sobre este rabo de lobo...
+DLG_SHERIFF_REWARD_OPT_ASK_VILLAGE,How is the village taking it?,¿Cómo se lo ha tomado el pueblo?
+DLG_SHERIFF_REWARD_OPT_DONE,That's all for now.,Eso es todo por ahora.
+DLG_SHERIFF_REWARD_02_TROPHY,"It's the custom in these hills: whoever ends a threat takes a trophy from it. Hang it wherever you like, or stuff it in your pack and forget it — but anyone who sees it will know what you did.","Es la costumbre en estas colinas: quien acaba con una amenaza se lleva un trofeo de ella. Cuélgalo donde quieras, o métetelo en la mochila y olvídalo — pero cualquiera que lo vea sabrá lo que hiciste."
+DLG_SHERIFF_REWARD_03_VILLAGE,"A weight's been lifted, though no one will say it out loud — talking about luck brings bad luck around here. But the shepherds will take their flocks back up to the high pasture, and in these parts that's the greatest thanks you'll hear.","Se les ha quitado un peso de encima, aunque nadie lo dirá en voz alta — por aquí hablar de suerte trae mala suerte. Pero los pastores volverán a subir el ganado al prado alto, y en estas tierras ese es el mayor agradecimiento que oirás."
+DLG_SHERIFF_TRAINING_01_GREET,"It's an old manual, but an honest one. It won't work miracles: it'll tell you how to open a hide without ruining it, how to salt it and how to stretch it. The rest is patience and hands. What do you want to know?","Es un manual viejo, pero honesto. No hace milagros: te dirá cómo abrir una piel sin arruinarla, cómo salarla y cómo tensarla. El resto es paciencia y manos. ¿Qué quieres saber?"
+DLG_SHERIFF_TRAINING_OPT_ASK_PELTS,Why are the pelts worth anything?,¿Por qué valen algo las pieles?
+DLG_SHERIFF_TRAINING_OPT_ASK_BOOK,How do I learn from it?,¿Cómo se aprende de esto?
+DLG_SHERIFF_TRAINING_OPT_DONE,I'll give it a try.,Lo intentaré.
+DLG_SHERIFF_TRAINING_02_PELTS,"A big wolf's hide, well tanned, keeps you warmer than two blankets and lasts ten winters. The merchants on the road pay for them — but only if they're properly worked. A badly tanned hide rots in a month and nobody wants it.","Una piel de lobo grande, bien curtida, abriga más que dos mantas y aguanta diez inviernos. Los mercaderes del camino las pagan — pero solo si están bien trabajadas. Una piel mal curtida se pudre en un mes y no la quiere nadie."
+DLG_SHERIFF_TRAINING_03_BOOK,"Read it carefully, and read it before you go to sell those hides, if you want the best price for them. Once you've finished it, you'll know the essentials; after that, the more you practice, the better it'll turn out.","Léelo con calma, y léelo antes de ir a vender esas pieles, si quieres sacarles el mejor precio. Cuando lo hayas terminado sabrás lo esencial; después, cuanto más practiques, mejor te saldrá."

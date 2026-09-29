@@ -1,0 +1,73 @@
+{
+	"dialogue": {
+		"id": "DLG_TELMORI_SHERIFF_REWARD",
+		"portrait_folder": "telmori",
+		"background_id": "sheriff_office",
+		"nodes": [
+			{
+				"id": "N1",
+				"speaker_id": "sheriff",
+				"text_key": "DLG_SHERIFF_REWARD_01_GREET",
+				"portrait_id": "guard",
+				"options": [
+					{
+						"id": "O1",
+						"text_key": "DLG_SHERIFF_REWARD_OPT_ASK_TROPHY",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N2"
+					},
+					{
+						"id": "O2",
+						"text_key": "DLG_SHERIFF_REWARD_OPT_ASK_VILLAGE",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N3"
+					},
+					{
+						"id": "O3",
+						"text_key": "DLG_SHERIFF_REWARD_OPT_DONE",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": ""
+					}
+				]
+			},
+			{
+				"id": "N2",
+				"speaker_id": "sheriff",
+				"text_key": "DLG_SHERIFF_REWARD_02_TROPHY",
+				"portrait_id": "guard",
+				"options": [
+					{
+						"id": "O4",
+						"text_key": "DLG_OPT_BACK",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N1"
+					}
+				]
+			},
+			{
+				"id": "N3",
+				"speaker_id": "sheriff",
+				"text_key": "DLG_SHERIFF_REWARD_03_VILLAGE",
+				"portrait_id": "guard",
+				"options": [
+					{
+						"id": "O5",
+						"text_key": "DLG_OPT_BACK",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N1"
+					}
+				]
+			}
+		]
+	}
+}

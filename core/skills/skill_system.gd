@@ -346,6 +346,48 @@ func unlock_skill(entity_id: String, skill_id: String) -> bool:
 	EventBus.skill_unlocked.emit(entity_id, skill_id)
 	return true
 
+## Spike 10 — Enseña una skill a una entidad que NO la tiene registrada.
+## Caso de uso: libro de aprendizaje de una skill fuera del kit inicial
+## (ItemCharacterBridge). register_entity_skills() solo crea instancias para
+## las skills del kit, así que sin esto un libro de una skill nueva no tenía
+## instancia sobre la que actuar (get_skill_instance() → null).
+##
+## Reglas:
+##   - Solo crea la instancia si falta. Si ya existe, NO se salta el bloqueo:
+##     devuelve su is_unlocked tal cual (desbloquear una skill ya registrada
+##     sigue siendo asunto de unlock_skill()/narrativa).
+##   - requires_unlock NO bloquea aquí — aprenderla es justo lo que la
+##     desbloquea —, pero prerequisite_requirements SÍ se comprueban, vía
+##     unlock_skill() (mismas señales: skill_unlocked / skill_unlock_failed).
+##   - Si falla el desbloqueo, la instancia recién creada se retira: no
+##     quedan skills a medias.
+## El valor inicial del porcentaje NO se fija aquí (vive en CharacterSystem);
+## lo fija quien llama.
+## Devuelve true si tras la llamada la entidad tiene la skill desbloqueada.
+func learn_skill(entity_id: String, skill_id: String) -> bool:
+	if not _entity_skills.has(entity_id):
+		push_warning("[SkillSystem] learn_skill: entity not registered: %s" % entity_id)
+		return false
+
+	if _entity_skills[entity_id].has(skill_id):
+		var existing: SkillInstance = _entity_skills[entity_id][skill_id]
+		return existing.is_unlocked
+
+	var definition: SkillDefinition = get_skill_definition(skill_id)
+	if not definition:
+		return false
+
+	var instance := SkillInstance.new(definition)
+	instance.is_unlocked = false
+	_entity_skills[entity_id][skill_id] = instance
+
+	if not unlock_skill(entity_id, skill_id):
+		_entity_skills[entity_id].erase(skill_id)
+		return false
+
+	print("[SkillSystem] Learned '%s' for '%s'" % [skill_id, entity_id])
+	return true
+
 ## ¿Está desbloqueada esta skill?
 func is_skill_unlocked(entity_id: String, skill_id: String) -> bool:
 	var instance = get_skill_instance(entity_id, skill_id)
@@ -456,6 +498,13 @@ func load_save_state(entity_id: String, save_data: Dictionary):
 		return
 
 	for skill_id in save_data.keys():
+		# Spike 10 — skills aprendidas en runtime (learn_skill) no están en el
+		# kit con el que se registra la entidad al cargar: se recrean aquí a
+		# partir de su definición, o se perderían al cargar la partida.
+		if not _entity_skills[entity_id].has(skill_id):
+			var learned_definition: SkillDefinition = get_skill_definition(skill_id)
+			if learned_definition:
+				_entity_skills[entity_id][skill_id] = SkillInstance.new(learned_definition)
 		var instance = get_skill_instance(entity_id, skill_id)
 		if instance:
 			instance.current_cooldown = save_data[skill_id].get("current_cooldown", 0.0)

@@ -1,12 +1,15 @@
 {
   "dialogue": {
 	"id": "DLG_TELMORI_SHERIFF_BRIEFING",
+	"portrait_folder": "telmori",
+	"background_id": "sheriff_office",
 	"nodes": [
 	  {
 		"id": "N1",
 		"speaker_id": "sheriff",
 		"text_key": "DLG_SHERIFF_01_GREET",
 		"portrait_id": "guard",
+		"mood": "serious",
 		"options": [
 			{
 			  "id": "O_SAVE",
@@ -56,6 +59,7 @@
 		"speaker_id": "sheriff",
 		"text_key": "DLG_SHERIFF_02_PROBLEM",
 		"portrait_id": "guard",
+		"mood": "happy",
 		"options": [
 		  {
 			"id": "O5",
@@ -72,6 +76,7 @@
 		"speaker_id": "sheriff",
 		"text_key": "DLG_SHERIFF_03_REWARD",
 		"portrait_id": "guard",
+		"mood": "angry",
 		"options": [
 		  {
 			"id": "O6",
@@ -88,6 +93,7 @@
 		"speaker_id": "sheriff",
 		"text_key": "DLG_SHERIFF_04_WEAPONS",
 		"portrait_id": "guard",
+		"mood": "worried",
 		"options": [
 		  {
 			"id": "O7",

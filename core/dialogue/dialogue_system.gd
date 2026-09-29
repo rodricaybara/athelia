@@ -103,7 +103,10 @@ func _show_current_node() -> void:
 		_current_node.id,
 		_current_node.speaker_id,
 		_current_node.text_key,
-		_current_node.portrait_id
+		_current_node.portrait_id,
+		_current_node.mood,
+		_current_dialogue.portrait_folder,
+		_current_dialogue.background_id
 	)
 	
 	print("[DialogueSystem] Showing node: %s (speaker: %s)" % [
@@ -233,6 +236,7 @@ func get_current_node_info() -> Dictionary:
 		"speaker_id": _current_node.speaker_id,
 		"text_key": _current_node.text_key,
 		"portrait_id": _current_node.portrait_id,
+		"mood": _current_node.mood,
 		"options_count": _current_node.options.size()
 	}
 
@@ -255,6 +259,12 @@ func get_current_portrait_id() -> String:
 	if _current_node:
 		return _current_node.portrait_id
 	return ""
+
+## Obtiene el estado de ánimo del nodo actual
+func get_current_mood() -> String:
+	if _current_node:
+		return _current_node.mood
+	return "neutral"
 
 # ==============================================
 # DEBUG

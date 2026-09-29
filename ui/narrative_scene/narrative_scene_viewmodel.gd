@@ -345,9 +345,24 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 		Narrative.set_flag(outcome.flag_to_set)
  
 	# Spike 3, Grupo B — otorgar ítem: entrega puntual, independiente de si
-	# el outcome además dispara combate o encadena a otra escena.
+	# el outcome además dispara combate, abre un diálogo o encadena a otra
+	# escena. Spike 10: bloque RESTAURADO — se había perdido al parchear
+	# _apply_outcome() (queda solo el comentario y la entrega de recurso),
+	# con lo que ningún ítem de ningún outcome llegaba al inventario, sin
+	# ningún error visible. Ahora deja rastro en el log y avisa si falla.
+	# Debe ir ANTES del retorno temprano de dialogue_id: la entrega ocurre al
+	# pulsar la opción, no al cerrar el diálogo.
+	if not outcome.grant_item_id.is_empty():
+		var item_granted: bool = Inventory.add_item(outcome.grant_item_target, outcome.grant_item_id, outcome.grant_item_quantity)
+		if item_granted:
+			print("[NarrativeSceneViewModel] Item granted: %s x%d → %s" % [outcome.grant_item_id, outcome.grant_item_quantity, outcome.grant_item_target])
+		else:
+			push_warning("[NarrativeSceneViewModel] Inventory.add_item() falló: %s x%d → %s" % [outcome.grant_item_id, outcome.grant_item_quantity, outcome.grant_item_target])
+
+	# Spike 3, Grupo D — otorgar recurso: mismo criterio que otorgar ítem.
 	if not outcome.grant_resource_id.is_empty():
 		Resources.add_resource(outcome.grant_resource_target, outcome.grant_resource_id, outcome.grant_resource_amount)
+		print("[NarrativeSceneViewModel] Resource granted: %s %s → %s" % [outcome.grant_resource_id, str(outcome.grant_resource_amount), outcome.grant_resource_target])
  
 	# Spike 4 Grupo 2 — "abrir diálogo": retorno temprano deliberado. A diferencia de
 	# combat_enemy_ids (que SÍ cierra el panel, porque GameState cambia a

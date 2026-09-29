@@ -2,12 +2,34 @@
 
 [ext_resource type="Script" uid="uid://bqcpvo36n47d3" path="res://ui/dialogue/dialogue_panel.gd" id="1_bvw28"]
 [ext_resource type="PackedScene" uid="uid://c6xfpdj2h4yb8" path="res://ui/dialogue/option_button.tscn" id="2_optbtn"]
+[ext_resource type="PackedScene" uid="uid://bkjn07uwfc3l0" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="3_uipanel"]
 
-[node name="DialoguePanel" type="CanvasLayer"]
+[node name="DialoguePanel" type="CanvasLayer" unique_id=1192424188]
 script = ExtResource("1_bvw28")
 option_button_scene = ExtResource("2_optbtn")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="BackgroundImage" type="TextureRect" parent="." unique_id=2089948962]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Background" type="ColorRect" parent="." unique_id=1962959965]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Root" type="Control" parent="." unique_id=2085026156]
 unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 15
@@ -15,94 +37,63 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.6)
+mouse_filter = 2
 
-[node name="PanelContainer" type="PanelContainer" parent="."]
-unique_name_in_owner = true
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -400.0
-offset_top = -250.0
-offset_right = 400.0
-offset_bottom = 250.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
-
-[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer"]
-layout_mode = 2
-
-[node name="PortraitsHBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer"]
-layout_mode = 2
-size_flags_vertical = 0
-alignment = 1
-
-[node name="PortraitLeftFrame" type="Panel" parent="PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 160)
-layout_mode = 2
-size_flags_horizontal = 0
-
-[node name="PortraitLeft" type="TextureRect" parent="PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer/PortraitLeftFrame"]
+[node name="Panel" parent="Root" unique_id=252906002 instance=ExtResource("3_uipanel")]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = -1
+anchor_left = 0.04
+anchor_top = 0.57
+anchor_right = 0.96
+anchor_bottom = 0.96
 grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 0
-stretch_mode = 5
+grow_vertical = 0
+decorative_frame = true
 
-[node name="Spacer" type="Control" parent="PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer"]
-custom_minimum_size = Vector2(0, 0)
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel" unique_id=903748435]
 layout_mode = 2
-size_flags_horizontal = 3
+theme_override_constants/margin_left = 240
 
-[node name="PortraitRightFrame" type="Panel" parent="PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 160)
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/Panel/MarginContainer" unique_id=561515046]
 layout_mode = 2
-size_flags_horizontal = 0
+theme_override_constants/separation = 6
 
-[node name="PortraitRight" type="TextureRect" parent="PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer/PortraitRightFrame"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 0
-stretch_mode = 5
-
-[node name="SpeakerNameLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer"]
+[node name="SpeakerNameLabel" type="Label" parent="Root/Panel/MarginContainer/VBoxContainer" unique_id=1550590614]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 20
 text = "Speaker Name"
 
-[node name="DialogueText" type="RichTextLabel" parent="PanelContainer/MarginContainer/VBoxContainer"]
+[node name="DialogueText" type="RichTextLabel" parent="Root/Panel/MarginContainer/VBoxContainer" unique_id=832580777]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 80)
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_vertical = 3
 text = "Dialogue text will appear here..."
-fit_content = false
 scroll_active = false
 
-[node name="OptionsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer"]
+[node name="OptionsScroll" type="ScrollContainer" parent="Root/Panel/MarginContainer/VBoxContainer" unique_id=312976940]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="OptionsContainer" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBoxContainer/OptionsScroll" unique_id=1380334128]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 0
+size_flags_horizontal = 3
 theme_override_constants/separation = 4
+
+[node name="Portrait" type="TextureRect" parent="Root" unique_id=1086761138]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.06
+anchor_top = 0.42
+anchor_right = 0.26
+anchor_bottom = 0.96
+grow_vertical = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5

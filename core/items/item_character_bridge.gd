@@ -97,15 +97,21 @@ func _handle_equipment(entity_id: String, item_def: ItemDefinition):
 ## Si el ítem tiene learning_data, ejecuta una LearningSession además.
 func _apply_consumable(entity_id: String, item_def: ItemDefinition):
 	# ── Ruta A: Libro de aprendizaje ──────────────────────────────────────────
-	# Si el ítem declara learning_data, construimos y ejecutamos una LearningSession.
-	# El ítem se consume igualmente al final (item_use_success lo gestiona).
+	# Si el ítem declara learning_data, aprendemos la skill (si la entidad no la
+	# tiene) o ejecutamos una LearningSession de mejora (si ya la tiene).
+	# Spike 10: si el aprendizaje NO se pudo aplicar (skill bloqueada, prerrequisitos
+	# sin cumplir, sesión inválida), el ítem NO se consume — item_use_failed en vez
+	# de item_use_success. Una tirada de mejora fallida SÍ cuenta como aplicada
+	# y consume el libro, igual que antes.
 	if not item_def.learning_data.is_empty():
-		_apply_learning(entity_id, item_def)
+		if not _apply_learning(entity_id, item_def):
+			EventBus.item_use_failed.emit(entity_id, item_def.id, "Learning could not be applied")
+			return
 		# Un libro puede tener también modificadores de recurso (por ejemplo +stamina).
 		# Si los tiene, los aplicamos también. Si no, simplemente consumimos.
-		var modifiers = item_def.get_modifiers_for_condition("on_use")
-		if not modifiers.is_empty():
-			for mod in modifiers:
+		var book_modifiers = item_def.get_modifiers_for_condition("on_use")
+		if not book_modifiers.is_empty():
+			for mod in book_modifiers:
 				_apply_single_modifier(entity_id, mod, item_def.id)
 		EventBus.item_use_success.emit(entity_id, item_def.id)
 		return
@@ -130,38 +136,88 @@ func _apply_consumable(entity_id: String, item_def: ItemDefinition):
 	])
 
 
-## Construye y ejecuta una LearningSession a partir del learning_data del ítem.
-func _apply_learning(entity_id: String, item_def: ItemDefinition) -> void:
-	var data        = item_def.learning_data
-	var skill_id    = data.get("skill_id", "")
-	var src_level   = data.get("source_level", 30)
-	var src_type    = data.get("source_type", "BOOK")
+## Aplica el learning_data del ítem. Devuelve true si el aprendizaje SE APLICÓ
+## (skill aprendida, o tirada de mejora realizada — con o sin mejora) y por
+## tanto el ítem debe consumirse; false si no se pudo aplicar y el ítem debe
+## quedarse en el inventario.
+##
+## Dos caminos según si la entidad ya tiene la skill registrada:
+##   - NO la tiene (skill fuera del kit inicial): la primera lectura la ENSEÑA
+##     (SkillSystem.learn_skill) y le da su valor inicial. Sin tirada de mejora
+##     en esa misma lectura.
+##   - SÍ la tiene: LearningSession de mejora, como antes de Spike 10.
+## learning_data admite una clave opcional "initial_value" para el valor con el
+## que se aprende; por defecto, el base_success_rate de la skill.
+func _apply_learning(entity_id: String, item_def: ItemDefinition) -> bool:
+	var data: Dictionary = item_def.learning_data
+	var skill_id: String = data.get("skill_id", "")
+	var src_level: int = data.get("source_level", 30)
+	var src_type: String = data.get("source_type", "BOOK")
 
 	if skill_id.is_empty():
 		push_error("[ItemCharacterBridge] learning_data missing 'skill_id' in item '%s'" % item_def.id)
-		return
+		return false
+
+	var skills: Node = get_node_or_null("/root/Skills")
+	if not skills:
+		push_error("[ItemCharacterBridge] SkillSystem not found at /root/Skills")
+		return false
+
+	if not skills.has_skill(entity_id, skill_id):
+		return _learn_new_skill(entity_id, item_def, skills, skill_id, data)
 
 	var session = LearningSession.create(entity_id, skill_id, src_level, src_type)
 
 	var progression = get_node_or_null("/root/SkillProgression")
 	if not progression:
 		push_error("[ItemCharacterBridge] SkillProgressionService not found at /root/SkillProgression")
-		return
+		return false
 
 	var result: Dictionary = progression.execute_learning_session(session)
 
-	if result["reason"] == "challenge_too_low":
-		print("[ItemCharacterBridge] 📖 '%s': fuente demasiado básica para mejorar '%s'" % [
+	match result["reason"]:
+		"invalid_session", "skill_locked", "no_progression":
+			print("[ItemCharacterBridge] 📖 '%s': no se pudo aplicar sobre '%s' (%s) — ítem no consumido" % [
+				item_def.id, skill_id, result["reason"]
+			])
+			return false
+		"challenge_too_low":
+			print("[ItemCharacterBridge] 📖 '%s': fuente demasiado básica para mejorar '%s'" % [
+				item_def.id, skill_id
+			])
+		_:
+			if result["improved"]:
+				print("[ItemCharacterBridge] 📖 '%s': '%s' mejorada %d → %d" % [
+					item_def.id, skill_id, result["old_value"], result["new_value"]
+				])
+			else:
+				print("[ItemCharacterBridge] 📖 '%s': '%s' sin mejora (roll %d vs %d)" % [
+					item_def.id, skill_id, result["roll"], result["threshold"]
+				])
+	return true
+
+
+## Spike 10 — primera lectura de una skill que la entidad no tenía. La instancia
+## la crea SkillSystem; el valor inicial (porcentaje) vive en CharacterSystem y lo
+## fija este puente, que ya es quien conecta ambos sistemas. Si la entidad ya
+## tuviera un valor > 0 para esa skill, no se pisa.
+func _learn_new_skill(entity_id: String, item_def: ItemDefinition, skills: Node, skill_id: String, data: Dictionary) -> bool:
+	if not skills.learn_skill(entity_id, skill_id):
+		print("[ItemCharacterBridge] 📖 '%s': '%s' no se pudo aprender (prerrequisitos o definición) — ítem no consumido" % [
 			item_def.id, skill_id
 		])
-	elif result["improved"]:
-		print("[ItemCharacterBridge] 📖 '%s': '%s' mejorada %d → %d" % [
-			item_def.id, skill_id, result["old_value"], result["new_value"]
-		])
-	else:
-		print("[ItemCharacterBridge] 📖 '%s': '%s' sin mejora (roll %d vs %d)" % [
-			item_def.id, skill_id, result["roll"], result["threshold"]
-		])
+		return false
+
+	if Characters.get_skill_value(entity_id, skill_id) <= 0:
+		var definition: SkillDefinition = skills.get_skill_definition(skill_id)
+		var default_value: int = definition.base_success_rate if definition else 0
+		var initial_value: int = data.get("initial_value", default_value)
+		Characters.set_skill_value(entity_id, skill_id, initial_value)
+
+	print("[ItemCharacterBridge] 📖 '%s': '%s' APRENDIDA por '%s' (valor inicial %d%%)" % [
+		item_def.id, skill_id, entity_id, Characters.get_skill_value(entity_id, skill_id)
+	])
+	return true
 
 
 ## Aplica un modificador individual.
@@ -197,7 +253,7 @@ func _apply_single_modifier(entity_id: String, mod: ModifierDefinition, item_id:
 
 ## Aplica modificador a un RECURSO (health, stamina, etc.)
 ## IMPORTANTE: Afecta el valor ACTUAL, NO el máximo
-func _apply_to_resource(entity_id: String, resource_id: String, mod: ModifierDefinition, item_id: String) -> bool:
+func _apply_to_resource(entity_id: String, resource_id: String, mod: ModifierDefinition, _item_id: String) -> bool:
 	# Verificar que el recurso existe
 	var resource_state = Resources.get_resource_state(entity_id, resource_id)
 	if not resource_state:
@@ -235,7 +291,7 @@ func _apply_to_resource(entity_id: String, resource_id: String, mod: ModifierDef
 ## Aplica modificador a un ATRIBUTO BASE (strength, dexterity, etc.)
 ## IMPORTANTE: Esto modifica el atributo BASE, no un derivado
 ## Para buffs temporales → usar FASE 5 (temporary states)
-func _apply_to_attribute(entity_id: String, attr_id: String, mod: ModifierDefinition, item_id: String) -> bool:
+func _apply_to_attribute(entity_id: String, attr_id: String, mod: ModifierDefinition, _item_id: String) -> bool:
 	# Aplicar según operación
 	match mod.operation:
 		"add":

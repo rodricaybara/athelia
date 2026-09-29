@@ -17,6 +17,11 @@ extends Resource
 ## ID del portrait a mostrar
 @export var portrait_id: String = ""
 
+## Estado de ánimo del hablante en este nodo. Se combina con portrait_id
+## para resolver "<portrait_id>_<mood>.png"; con "neutral" (o vacío) se
+## resuelve directamente "<portrait_id>.png". Ver DialogueViewModel._resolve_portrait().
+@export var mood: String = "neutral"
+
 ## Opciones disponibles en este nodo
 var options: Array[DialogueOptionDefinition] = []
 
