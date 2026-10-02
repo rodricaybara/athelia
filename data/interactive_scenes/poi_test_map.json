@@ -1,0 +1,86 @@
+{
+  "scene_id": "poi_test_map",
+  "image_path": "",
+  "hotspots": [
+	{
+	  "hotspot_id": "test_dialogue",
+	  "position": [
+		0.2,
+		0.4
+	  ],
+	  "label_key": "POI_TEST_DIALOGUE",
+	  "interaction_type": "dialogue",
+	  "target_id": "DLG_TRAINER_01"
+	},
+	{
+	  "hotspot_id": "test_shop",
+	  "position": [
+		0.5,
+		0.4
+	  ],
+	  "label_key": "POI_TEST_SHOP",
+	  "interaction_type": "shop",
+	  "target_id": "blacksmith_01"
+	},
+	{
+	  "hotspot_id": "test_narrative",
+	  "position": [
+		0.8,
+		0.4
+	  ],
+	  "label_key": "POI_TEST_NARRATIVE",
+	  "interaction_type": "narrative_scene",
+	  "target_id": "telmori_village_arrival"
+	},
+	{
+	  "hotspot_id": "test_combat",
+	  "position": [
+		0.35,
+		0.7
+	  ],
+	  "label_key": "POI_TEST_COMBAT",
+	  "interaction_type": "combat",
+	  "enemy_ids_override": [
+		"poi_test_wolf_1",
+        "poi_test_wolf_2"
+	  ],
+	  "enemy_definitions": {
+		"poi_test_wolf_1": "wolf_test",
+		"poi_test_wolf_2": "wolf_test"
+	  }
+	},
+	{
+	  "hotspot_id": "test_flag_gated",
+	  "position": [
+		0.65,
+		0.7
+	  ],
+	  "label_key": "POI_TEST_GATED",
+	  "interaction_type": "dialogue",
+	  "target_id": "DLG_TRAINER_01",
+	  "required_flags": [
+        "flag.poi_test_unlock"
+	  ]
+	},
+	{
+	  "hotspot_id": "test_flag_blocked",
+	  "position": [
+		0.5,
+		0.15
+	  ],
+	  "label_key": "POI_TEST_BLOCKED",
+	  "interaction_type": "dialogue",
+	  "target_id": "DLG_TRAINER_01",
+	  "blocked_flags": [
+        "flag.poi_test_unlock"
+	  ]
+	},
+	{
+	  "hotspot_id": "test_victory_chain",
+	  "position": [0.12, 0.7],
+	  "label_key": "POI_TEST_VICTORY_CHAIN",
+	  "interaction_type": "narrative_scene",
+	  "target_id": "poi_test_combat_victory"
+	}
+  ]
+}

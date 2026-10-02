@@ -359,6 +359,20 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 		else:
 			push_warning("[NarrativeSceneViewModel] Inventory.add_item() falló: %s x%d → %s" % [outcome.grant_item_id, outcome.grant_item_quantity, outcome.grant_item_target])
 
+	# Spike 13 — quitar ítem (devolver un préstamo). Mismo criterio que grant_*:
+	# al pulsar la opción, antes del retorno temprano de dialogue_id. Se desequipa
+	# primero y luego se retira del inventario; si no lo tiene, no es un error.
+	if not outcome.take_item_id.is_empty():
+		Equipment.unequip_item(outcome.take_item_target, outcome.take_item_id)
+		if Inventory.has_item(outcome.take_item_target, outcome.take_item_id, 1):
+			var item_taken: bool = Inventory.remove_item(outcome.take_item_target, outcome.take_item_id, outcome.take_item_quantity)
+			if item_taken:
+				print("[NarrativeSceneViewModel] Item taken: %s x%d ← %s" % [outcome.take_item_id, outcome.take_item_quantity, outcome.take_item_target])
+			else:
+				push_warning("[NarrativeSceneViewModel] Inventory.remove_item() falló: %s x%d ← %s" % [outcome.take_item_id, outcome.take_item_quantity, outcome.take_item_target])
+		else:
+			print("[NarrativeSceneViewModel] take_item: %s no está en el inventario de %s — nada que quitar" % [outcome.take_item_id, outcome.take_item_target])
+
 	# Spike 3, Grupo D — otorgar recurso: mismo criterio que otorgar ítem.
 	if not outcome.grant_resource_id.is_empty():
 		Resources.add_resource(outcome.grant_resource_target, outcome.grant_resource_id, outcome.grant_resource_amount)
@@ -396,7 +410,11 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
  
 		# Spike 3, Grupo B — combat_encounter es opcional (null = comportamiento
 		# idéntico a antes de este punto, sin moral/refuerzos/sorpresa).
-		GameLoop.start_combat(outcome.combat_enemy_ids, outcome.combat_encounter)
+		if not outcome.combat_victory_scene_id.is_empty():
+			var narrative_db := get_node_or_null("/root/NarrativeSceneDB") as NarrativeSceneRegistry
+			if narrative_db and not narrative_db.has_scene(outcome.combat_victory_scene_id):
+				push_warning("[NarrativeSceneViewModel] combat_victory_scene_id inexistente: %s" % outcome.combat_victory_scene_id)
+		GameLoop.start_combat(outcome.combat_enemy_ids, outcome.combat_encounter, outcome.combat_victory_scene_id)
 		return
  
 	if outcome.next_scene_id.is_empty():

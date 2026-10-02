@@ -23,7 +23,10 @@
 				"grant_item_quantity": 1,
 				"grant_item_target": "player",
 				"combat_enemy_ids": [],
-				"combat_enemy_definitions": {}
+				"combat_enemy_definitions": {},
+				"take_item_id": "enchanted_spear",
+				"take_item_quantity": 1,
+				"take_item_target": "player"
 			}
 		}
 	]

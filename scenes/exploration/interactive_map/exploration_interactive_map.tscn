@@ -1,0 +1,98 @@
+[gd_scene format=3 uid="uid://c78ujc703jtg6"]
+
+[ext_resource type="Script" uid="uid://coue74487puom" path="res://scenes/exploration/interactive_map/exploration_interactive_map.gd" id="1_xmij0"]
+[ext_resource type="Script" uid="uid://dadcx7potxl5c" path="res://scenes/exploration/exploration_controller.gd" id="2_kvlng"]
+[ext_resource type="Script" uid="uid://h4ojab1vgp2b" path="res://scenes/exploration/exploration_hud.gd" id="3_gnapj"]
+[ext_resource type="Script" uid="uid://wtbk17lopjl7" path="res://ui/interactive_scene/interactive_scene_view.gd" id="4_67tcn"]
+
+[node name="ExplorationInteractiveMap" type="Node" unique_id=1404325424]
+script = ExtResource("1_xmij0")
+interactive_scene_id = "telmori_village"
+
+[node name="ExplorationController" type="Node" parent="." unique_id=2052336605]
+script = ExtResource("2_kvlng")
+
+[node name="ExplorationHUD" type="CanvasLayer" parent="." unique_id=2047494775]
+layer = 5
+script = ExtResource("3_gnapj")
+
+[node name="InteractPrompt" type="Label" parent="ExplorationHUD" unique_id=1189174773]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -56.0
+offset_top = -23.0
+offset_right = 56.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "[E] Interactuar"
+
+[node name="ResourcesPanel" type="HBoxContainer" parent="ExplorationHUD" unique_id=1438890059]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="HP" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1066023713]
+layout_mode = 2
+text = "HP: --"
+
+[node name="Stamina" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1864775279]
+layout_mode = 2
+text = "ST: --"
+
+[node name="Gold" type="Label" parent="ExplorationHUD/ResourcesPanel" unique_id=1249056361]
+layout_mode = 2
+text = "G: --"
+
+[node name="StateDebugLabel" type="Label" parent="ExplorationHUD" unique_id=675995909]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -117.0
+offset_bottom = 23.0
+grow_horizontal = 0
+text = "EXPLORATION"
+
+[node name="MapLayer" type="CanvasLayer" parent="." unique_id=1496630201]
+layer = -1
+
+[node name="InteractiveSceneView" type="Control" parent="MapLayer" unique_id=2112023051]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_67tcn")
+
+[node name="Fallback" type="ColorRect" parent="MapLayer/InteractiveSceneView" unique_id=916769923]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.21568628, 0.1764706, 0.11372549, 1)
+
+[node name="Background" type="TextureRect" parent="MapLayer/InteractiveSceneView" unique_id=1508593390]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HotspotLayer" type="Control" parent="MapLayer/InteractiveSceneView" unique_id=1682099566]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

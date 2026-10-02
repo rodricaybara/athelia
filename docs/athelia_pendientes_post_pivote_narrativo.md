@@ -6,7 +6,15 @@ con arte real, guardado real y pantalla de combate de producción.
 Actualizado tras el Spike 10: el punto 1 (Grupo 2, diálogo con NPCs) queda completo; antes, tras el Spike 9, el punto 6 (marco decorativo) quedó hecho.
 Actualizado tras el Spike 11: el punto 6 (marco decorativo) activa
 `DialoguePanel` además de `NarrativeScenePanel`; nuevo punto 8 con el
-rediseño de la ventana de diálogo y su deuda técnica.*
+rediseño de la ventana de diálogo y su deuda técnica.
+Actualizado tras el Spike 12: nuevo punto 9 (motor de escenas interactivas /
+mapa de puntos de interés, cerrado) con el trabajo que deja abierto para el
+Spike 13; el punto 5 gana una nota (`SaveSystem` ya no exige nodo `Player`).
+Actualizado tras el Spike 13: el punto 9 queda HECHO (el pueblo de "Los Telmori"
+está migrado al motor de escenas interactivas y se juega completo); nuevo punto 10
+con lo que el spike deja abierto — sobre todo limpieza de `Interactable` y del
+pueblo antiguo, una guarda general de ids narrativos inexistentes, marcadores de
+contenido y validaciones sin confirmar.*
 
 ---
 
@@ -108,6 +116,13 @@ rediseño de la ventana de diálogo y su deuda técnica.*
   pivote a RPG narrativo por eventos/flags — se sigue guardando/
   restaurando sin ningún efecto observable en el juego. Candidato a
   limpieza futura del schema de guardado, sin fecha decidida.
+- **Actualizado en el Spike 12:** `SaveSystem._collect_player_state()` ya no
+  exige un nodo `Player` — si falta (mapa de puntos de interés, sin jugador
+  físico) guarda sin la clave `position` y sigue guardando; antes abortaba
+  con `Player node not found`. La restauración ya toleraba `Player` ausente.
+  `position` sigue vestigial, pero ahora es una clave OPCIONAL: retirarla del
+  schema ya no bloquea nada, solo requiere quitar escritura/lectura y decidir
+  si hace falta migración de `SAVE_VERSION`.
 
 ---
 
@@ -198,6 +213,144 @@ partida real de principio a fin, apertura desde escena narrativa y desde
   detectada en la comprobación de código previa (Fase 0) de este spike,
   sin corregir.
 - **Marco decorativo activado en `DialoguePanel`** — ver punto 6, arriba.
+
+## 9. Motor de escenas interactivas (Spike 12) — HECHO; contenido real hecho en el Spike 13 (ver punto 10)
+
+Mapa de puntos de interés: fondo + hotspots clicables posicionados por datos
++ visibilidad por flags, sin jugador ni física. Cerrado y validado en partida
+real con `poi_test_map` (dialogue, shop, narrative_scene, combat con
+`enemy_definitions`, `required_flags`/`blocked_flags`, guardado y carga sin
+`Player`). Detalle en `docs/spike_12_motor_mapa_poi.md`.
+
+**Estado actual (tras el Spike 13):** `SceneOrchestrator.SCENE_EXPLORATION` apunta a
+`exploration_interactive_map.tscn`, que ahora carga `telmori_village`; el mapa de PRUEBA
+(`poi_test_map`) queda disponible cambiando `interactive_scene_id`.
+
+**Spike 13 — HECHO (ver punto 10).** Lo que dejó abierto el Spike 12 y cómo se resolvió:
+inicialización de partida → `AdventureStarter` + `on_first_visit`; spawns por evento →
+hotspots declarativos (en realidad un hub completo con sheriff, herrería, taberna y salida);
+flag de victoria → escena de victoria de combate; arte, `UIButton` y localización → hechos;
+pueblo antiguo → obsoleto. Texto original del trabajo pendiente, conservado como historia:
+
+- **Inicialización de partida que vivía en `TelmoriVillage._ready()`:**
+  `Party.join_party("companion_mira")`, equipo inicial de `player` y
+  `companion_mira`, y la primera entrada narrativa
+  (`telmori_village_arrival`, guard `flag.telmori_village_visited`). El mapa de
+  prueba las omite (por eso el guardado muestra `Equipment 0 slots` /
+  `Party 0 companions`). Decidir dónde viven — fuera de la escena y
+  data-driven.
+- **Los 3 spawns por evento del pueblo → hotspots declarativos**, con sus
+  `required_flags`/`blocked_flags`:
+  rastro (`flag.telmori_ambush_triggered` / `flag.telmori_tracked_to_lair`),
+  aftermath de la guarida (`flag.telmori_lair_combat_won` /
+  `flag.telmori_lair_cleared`) y recompensa del sheriff
+  (`flag.telmori_lair_cleared` / `flag.telmori_adventure_completed`). Los 5
+  listeners de `combat_ended`/`narrative_flag_set` de `TelmoriVillage` se
+  eliminan con la escena.
+- **Flag de victoria de la emboscada:** hoy el rastro solo aparece tras
+  *ganar* (`combat_ended "victory"`), pero `flag.telmori_ambush_triggered` se
+  pone al *disparar* el combate — como hotspot, el rastro aparecería también
+  tras una derrota. Hace falta un flag puesto al ganar.
+- **Arte y UI:** fondo e iconos reales; sustituir los `Button` estándar por
+  `UIButton`/componente del Design System; claves de localización reales (las
+  `POI_TEST_*` son solo de prueba y hay que darlas de alta en un `.csv`
+  registrado en Project Settings → Localization).
+- **Retirar o migrar** `exploration_telmori_village.*` y decidir el estado
+  final de `SCENE_EXPLORATION`. `exploration_tutorial` y `exploration_test` (que
+  también instancian `Interactable`) siguen obsoletos y sin retirar.
+
+**Sin verificar en partida:**
+
+- El camino físico de `Interactable` tras el refactor de `ExplorationController`
+  (`_on_interaction_requested()` delega ahora en `request_interaction()`).
+  Revisado por inspección, comportamiento idéntico por diseño, pero no jugado de
+  extremo a extremo — se cubrirá naturalmente si se rehace el arco de la
+  emboscada sobre el pueblo antiguo o al migrar en Spike 13. **Spike 13: descartado** — el pueblo no usa `Interactable` y se descartaron el tutorial y el test; no se validará (ver punto 10).
+- Sin cambios respecto al punto 4: F9 sigue sin operar.
+
+**Pequeñas notas de deuda:**
+
+- El `@export_enum` de `interactable.gd` no lista `"narrative_scene"` (solo
+  `dialogue`/`shop`/`combat`/`item`); funciona porque el valor se asigna con
+  `set()` desde código. Cosmético; corregible añadiendo el valor al enum.
+- `ExplorationHUD` exige su jerarquía de hijos exacta (`InteractPrompt`,
+  `ResourcesPanel/HP|Stamina|Gold`, `StateDebugLabel`, todos con `$` en
+  `@onready`) — cualquier escena de exploración nueva debe copiarla tal cual.
+- El atajo F2 (`user://debug_shortcut.json`) NO lee la raíz del proyecto: en
+  Windows `user://` es `%APPDATA%\Godot\app_userdata\<nombre del proyecto>\`
+  (o Proyecto → Abrir carpeta de datos de usuario). Un fichero junto a
+  `project.godot` da `file not found` — el warning prueba que la tecla sí llega.
+- Los tests de Spike 12 fueron todos manuales (log + captura); no hay test
+
+## 10. Pendientes surgidos en el Spike 13
+
+El pueblo de "Los Telmori" está migrado y la aventura se juega completa sobre el motor
+nuevo (ver `docs/spike_13_reautoria_pueblo_telmori.md`). Lo que deja abierto:
+
+**Limpieza (sin urgencia; acción de la recopilación final, no de un spike de contenido):**
+
+- **`Interactable` vestigial.** Sin consumidores en el camino jugable: el pueblo es
+  declarativo y Fernando descartó `exploration_tutorial` y `exploration_test`. Candidatos a
+  borrar: `exploration_tutorial.*`, `exploration_test.*`, `exploration_test_bak.tscn`,
+  `interactable.gd` y sus referencias tipadas en `ExplorationController`
+  (`_current_interactable`, `register_interactable`...); los comentarios que lo mencionan en
+  `narrative_scene_outcome.gd`, `interactive_hotspot_definition.gd`, `scene_orchestrator.gd` y
+  `exploration_interactive_map.gd`; y las líneas comentadas de `SCENE_EXPLORATION`. **Antes de
+  borrar, buscar referencias** (escena principal, runners de test, otros `.tscn`). El camino
+  físico refactorizado en Spike 12 (`request_interaction()`) nunca se validó en partida real y
+  no se va a validar.
+- **Pueblo antiguo:** `exploration_telmori_village.gd/.tscn` (obsoleto desde el Spike 13).
+- **Escenas narrativas sin uso:** `telmori_equipment_arrows`, `telmori_equipment_spear` y su
+  flag huérfano `flag.telmori_equipped`; cualquier resto de la escena envoltorio
+  `telmori_sheriff_briefing`. Los flags `flag.telmori_mission_accepted`,
+  `flag.telmori_ambush_triggered` y `flag.telmori_lair_combat_won` ya no los pone ni lee
+  nadie (pueden quedar en saves antiguos o en atajos de `debug_shortcut.json`).
+- **Escenas de prueba del motor** (`poi_test_combat_victory`, `poi_test_victory` y el hotspot
+  `test_victory_chain` de `poi_test_map`): decidir si se quedan como fixture de pruebas.
+
+**Motor / código:**
+
+- **Guarda general de ids narrativos inexistentes** en
+  `SceneOrchestrator._handle_narrative_scene()`: abrir una escena con un id que no existe deja
+  un panel vacío sin salida desde cualquier origen. Solo se protegió la ruta de victoria de
+  combate.
+- **`take_item_target` cubre una sola entidad** (`"player"` por defecto): valorar `"party"` si
+  la lanza prestada puede pasar a un companion.
+- Un hotspot de tipo `combat` no puede dar una `victory_scene_id` (`request_interaction()` llama
+  a `start_combat()` sin ella; hoy solo la usan los combates lanzados desde narrativa).
+  Ampliar el vocabulario del hotspot si hace falta.
+
+**Contenido y arte:**
+
+- **`telmori_village_departure`** es un MARCADOR de una opción: decidir qué ocurre al salir del
+  pueblo con la aventura completada.
+- **Posadero:** esqueleto con retrato (`guard`), fondo (`sheriff_office`) y hablante
+  (`innkeeper`) provisionales. Faltan arte propio, alta del hablante si procede y los textos
+  definitivos (los de rumores y sheriff son una propuesta).
+- **Etapa 4 sin guardado (deliberado):** la cadena de recompensa entrega oro y trofeo al
+  pulsar; un guardado dentro permitiría cobrar dos veces. No abrir uno sin cerrar antes la
+  reentrada.
+- **Iconos:** primera tanda de 4 medallones. Pulido posible (interior más oscuro en futuras
+  generaciones, un pulso en reposo). Un hotspot sin icono cae a botón de texto.
+- **Escena de rastros interactiva / "buscar algo oculto en la imagen":** sigue sin decidir ni
+  construir; hoy `telmori_post_ambush_tracking` es una escena narrativa con tirada de Rastrear.
+
+**Validación sin confirmar (marcada así en el cierre del spike):** un segundo punto de
+guardado distinto (la spec pedía dos); ganar un combate sin escena de victoria y la derrota
+(solo comprobables con `poi_test_map`); lanza equipada frente a vendida; que "Salir" del
+sheriff no marque `flag.telmori_sheriff_briefed`.
+
+**Documentación:** el árbol de `docs/` de `athelia_estructura_proyecto_actualizado.md` no
+lista los informes de los Spikes 10–12. Renombrar el diálogo del briefing a
+`dlg_telmori_sheriff_briefing.json` (opcional: el cargador usa el `id` interno, pero la
+colisión de nombres con la escena narrativa ya se sufrió).
+
+**Sin cambios:** F9 (quickload) sigue no operativo desde el Spike 7. Los tests del Spike 13
+fueron manuales (log y captura), sin test automatizado.
+
+  automatizado del motor.
+
+---
 
 ---
 

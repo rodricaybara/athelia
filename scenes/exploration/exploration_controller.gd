@@ -80,6 +80,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_apply_debug_shortcut()
 		return
 
+	if event is InputEventKey and event.pressed and not event.echo:
+		print("[DBG] tecla: ", event.as_text_keycode())
+
 	# Bloquear todo input si el GameLoop no está en EXPLORATION
 	if game_loop.is_input_blocked():
 		return
@@ -129,19 +132,42 @@ func _try_interact() -> void:
 # Única lógica de routing: qué tipo de interacción va a qué sistema
 # ============================================
 
+## Callback del camino físico (Interactable → EventBus). Sin cambios de
+## comportamiento: solo delega en request_interaction() con el mapeo
+## enemy_definitions del Interactable que disparó la señal
+## (_current_interactable sigue válido porque interact() emite síncronamente).
 func _on_interaction_requested(interaction_type: String, target_id: String) -> void:
+	var enemy_definitions: Dictionary = {}
+	if _current_interactable and is_instance_valid(_current_interactable):
+		enemy_definitions = _current_interactable.enemy_definitions
+ 
+	request_interaction(interaction_type, target_id, enemy_definitions)
+ 
+ 
+## ÚNICO punto de routing de interacciones (Spike 12). Lo usan:
+##   - _on_interaction_requested()  → Interactable físico (enemy_definitions
+##     leído del nodo).
+##   - Escenas interactivas (mapa de puntos de interés) → sin nodo físico,
+##     por eso enemy_definitions viaja como parámetro: la señal
+##     interaction_requested(type, target_id) no puede llevarlo.
+## target_id de combate puede ser un ID único o varios separados por coma.
+func request_interaction(interaction_type: String, target_id: String, enemy_definitions: Dictionary = {}) -> void:
+	# Guard propio: request_interaction() es API pública, no puede fiarse de
+	# que el llamador ya comprobó el estado.
+	if game_loop.is_input_blocked():
+		print("[ExplorationController] request_interaction ignorado — estado: %s" % game_loop.get_state_name())
+		return
+ 
 	print("[ExplorationController] Interaction: %s → %s" % [interaction_type, target_id])
-	
+ 
 	match interaction_type:
 		"dialogue":
 			game_loop.enter_dialogue(target_id)
-		
+ 
 		"shop":
 			game_loop.enter_shop(target_id)
-		
+ 
 		"combat":
-			# target_id puede ser un único ID ("enemy_1") o varios separados
-			# por coma ("enemy_1,enemy_2,enemy_3") si Interactable usa enemy_ids_override.
 			var enemy_ids: Array[String] = []
 			if "," in target_id:
 				for part in target_id.split(","):
@@ -150,42 +176,30 @@ func _on_interaction_requested(interaction_type: String, target_id: String) -> v
 						enemy_ids.append(trimmed)
 			else:
 				enemy_ids.append(target_id)
-			
-			# Leer el mapeo enemy_id → definition_id del Interactable que disparó la señal.
-			# _current_interactable sigue válido aquí porque interact() lo emite síncronamente.
+ 
 			_pending_enemy_definitions.clear()
-			if _current_interactable and not _current_interactable.enemy_definitions.is_empty():
-				_pending_enemy_definitions = _current_interactable.enemy_definitions.duplicate()
+			if not enemy_definitions.is_empty():
+				_pending_enemy_definitions = enemy_definitions.duplicate()
 				print("[ExplorationController] Enemy definitions loaded: %s" % str(_pending_enemy_definitions))
 			else:
-				print("[ExplorationController] No enemy_definitions on interactable — all will use fallback")
-			
-			# Informar al CombatLootSpawner qué definitions participan en este encuentro
+				print("[ExplorationController] No enemy_definitions — all will use fallback")
+ 
 			var loot_spawner = get_node_or_null("/root/CombatLootSpawner")
 			if loot_spawner:
 				loot_spawner.register_combat_enemies(_pending_enemy_definitions)
-
-			# Registrar enemigos ANTES de start_combat() para que
-			# _calculate_initiative() los encuentre en CharacterSystem.
+ 
 			_register_combat_enemies(enemy_ids)
 			game_loop.start_combat(enemy_ids)
-		
+ 
 		"item":
-			# WorldObject interactuable (cofre, pergamino, etc.)
-			# target_id es el instance_id registrado en WorldObjectSystem.
-			# El panel escucha world_object_interaction_requested y muestra las opciones.
-			# No hay cambio de GameState — la interacción se resuelve como overlay.
 			EventBus.world_object_interaction_requested.emit("player", target_id)
 			print("[ExplorationController] WorldObject interaction: %s" % target_id)
-			
+ 
 		"narrative_scene":
-			# target_id es el scene_id de una NarrativeSceneDefinition.
 			game_loop.enter_narrative_scene(target_id)
-		
+ 
 		_:
 			push_warning("[ExplorationController] Unknown interaction_type: %s" % interaction_type)
-
-
 # ============================================
 # RESPUESTA A CAMBIOS DE ESTADO
 # ============================================

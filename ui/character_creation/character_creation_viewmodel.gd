@@ -41,10 +41,10 @@ const MAX_NAME_LENGTH: int = 20
 
 const STARTING_GOLD: float = 50.0
 
-const STARTING_ITEMS: Dictionary = {
-	"iron_sword": 1,
-	"leather_armor": 1,
-}
+## Única aventura hoy. Punto de selección futuro si hay más de una.
+const DEFAULT_ADVENTURE_ID: String = "telmori"
+
+const STARTING_ITEMS: Dictionary = {}
 
 # ============================================
 # ESTADO PÚBLICO — leído por la View
@@ -204,7 +204,7 @@ func request_confirm_character() -> void:
 	changed.emit("transitioning")
 
 	_create_player_entity()
-
+	AdventureStarter.apply(DEFAULT_ADVENTURE_ID)
 	await get_tree().process_frame
 	GameLoop.enter_exploration()
 

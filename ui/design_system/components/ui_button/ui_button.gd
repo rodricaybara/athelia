@@ -19,7 +19,11 @@ enum Size    { SM, MD, LG }
 
 @export var variant:  Variant = Variant.PRIMARY
 @export var btn_size: Size   = Size.MD
-
+## >0 = botón de solo icono, cuadrado de este lado en px. 0 = comportamiento normal.
+@export var min_square: int = 0
+## Solo con min_square > 0: disco oscuro semitransparente tras el icono, para que
+## se lea sobre fondos claros o recargados. Apagado por defecto.
+@export var icon_backdrop: bool = false
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
@@ -29,11 +33,15 @@ func _ready() -> void:
 
 func _apply_style() -> void:
 	# Altura mínima según btn_size
-	var min_h := _min_height()
-	custom_minimum_size.y = min_h
+	if min_square > 0:
+		custom_minimum_size = Vector2(min_square, min_square)
+	else:
+		custom_minimum_size.y = _min_height()
+	var pad_h := UITokens.SPACE_XS if min_square > 0 else _padding_h()
 
-	# Padding horizontal
-	var pad_h := _padding_h()
+	if min_square > 0 and icon_backdrop:
+		_apply_icon_backdrop_style()
+		return
 
 	# Colores según variante
 	var colors := _colors()
@@ -54,6 +62,22 @@ func _apply_style() -> void:
 	# Tamaño de fuente
 	add_theme_font_size_override("font_size", _font_size())
 
+# Funciones nuevas:
+func _apply_icon_backdrop_style() -> void:
+	var radius: int = int(min_square / 2.0)
+	var border: Color = UITokens.COLOR_BORDER_FOCUS
+	add_theme_stylebox_override("normal",   _make_backdrop_style(Color(UITokens.COLOR_BG, 0.72), border, radius))
+	add_theme_stylebox_override("hover",    _make_backdrop_style(Color(UITokens.COLOR_BG, 0.92), border, radius))
+	add_theme_stylebox_override("pressed",  _make_backdrop_style(Color(UITokens.COLOR_BG, 1.0), border, radius))
+	add_theme_stylebox_override("disabled", _make_backdrop_style(Color(UITokens.COLOR_BG, 0.4), border, radius))
+	add_theme_stylebox_override("focus", UITokens.make_stylebox_outline(
+		UITokens.COLOR_ACCENT, UITokens.BORDER_WIDTH_FOCUS, radius))
+
+
+func _make_backdrop_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
+	var style := _make_btn_style(bg, border, UITokens.SPACE_XS)
+	style.set_corner_radius_all(radius)
+	return style
 
 func _make_btn_style(bg: Color, border: Color, pad_h: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()

@@ -1,0 +1,175 @@
+{
+	"scene_id": "telmori_village",
+	"image_path": "res://data/interactive_scenes/images/mapa_aldea_telmori.jpg",
+	"on_first_visit": {
+		"interaction_type": "narrative_scene",
+		"target_id": "telmori_village_arrival",
+		"once_flag": "flag.telmori_village_visited"
+	},
+	"hotspots": [
+		{
+			"hotspot_id": "sheriff_dialogue",
+			"position": [
+				0.76,
+				0.27
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_sheriff.png",
+			"label_key": "TELMORI_HOTSPOT_SHERIFF",
+			"interaction_type": "dialogue",
+			"target_id": "DLG_TELMORI_SHERIFF_BRIEFING",
+			"blocked_flags": [
+				"flag.telmori_lair_cleared"
+			]
+		},
+		{
+			"hotspot_id": "sheriff_reward",
+			"position": [
+				0.76,
+				0.27
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_sheriff.png",
+			"label_key": "TELMORI_HOTSPOT_SHERIFF",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_sheriff_reward_intro",
+			"required_flags": [
+				"flag.telmori_lair_cleared"
+			],
+			"blocked_flags": [
+				"flag.telmori_adventure_completed"
+			]
+		},
+		{
+			"hotspot_id": "sheriff_dialogue_final",
+			"position": [
+				0.76,
+				0.27
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_sheriff.png",
+			"label_key": "TELMORI_HOTSPOT_SHERIFF",
+			"interaction_type": "dialogue",
+			"target_id": "DLG_TELMORI_SHERIFF_BRIEFING",
+			"required_flags": [
+				"flag.telmori_adventure_completed"
+			]
+		},
+		{
+			"hotspot_id": "blacksmith",
+			"position": [
+				0.24,
+				0.4
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_blacksmith.png",
+			"label_key": "TELMORI_HOTSPOT_BLACKSMITH",
+			"interaction_type": "shop",
+			"target_id": "blacksmith_telmori"
+		},
+		{
+			"hotspot_id": "tavern",
+			"position": [
+				0.5,
+				0.22
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_tavern.png",
+			"label_key": "TELMORI_HOTSPOT_TAVERN",
+			"interaction_type": "dialogue",
+			"target_id": "DLG_TELMORI_TAVERN_KEEPER"
+		},
+		{
+			"hotspot_id": "exit_locked_briefing",
+			"position": [
+				0.5,
+				0.81
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_exit.png",
+			"label_key": "TELMORI_HOTSPOT_EXIT",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_exit_locked_briefing",
+			"blocked_flags": [
+				"flag.telmori_sheriff_briefed"
+			]
+		},
+		{
+			"hotspot_id": "exit_hills",
+			"position": [
+				0.5,
+				0.81
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_exit.png",
+			"label_key": "TELMORI_HOTSPOT_EXIT",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_hills_search_day1",
+			"required_flags": [
+				"flag.telmori_sheriff_briefed"
+			],
+			"blocked_flags": [
+				"flag.telmori_ambush_won",
+				"flag.telmori_tracked_to_lair"
+			]
+		},
+		{
+			"hotspot_id": "exit_tracking",
+			"position": [
+				0.5,
+				0.81
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_exit.png",
+			"label_key": "TELMORI_HOTSPOT_EXIT",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_post_ambush_tracking",
+			"required_flags": [
+				"flag.telmori_ambush_won"
+			],
+			"blocked_flags": [
+				"flag.telmori_tracked_to_lair"
+			]
+		},
+		{
+			"hotspot_id": "exit_lair",
+			"position": [
+				0.5,
+				0.81
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_exit.png",
+			"label_key": "TELMORI_HOTSPOT_EXIT",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_guarida_door",
+			"required_flags": [
+				"flag.telmori_tracked_to_lair"
+			],
+			"blocked_flags": [
+				"flag.telmori_lair_cleared"
+			]
+		},
+		{
+			"hotspot_id": "exit_locked_reward",
+			"position": [
+				0.5,
+				0.81
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_exit.png",
+			"label_key": "TELMORI_HOTSPOT_EXIT",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_exit_locked_reward",
+			"required_flags": [
+				"flag.telmori_lair_cleared"
+			],
+			"blocked_flags": [
+				"flag.telmori_adventure_completed"
+			]
+		},
+		{
+			"hotspot_id": "exit_final",
+			"position": [
+				0.5,
+				0.81
+			],
+			"icon_path": "res://data/interactive_scenes/icons/telmori/icon_exit.png",
+			"label_key": "TELMORI_HOTSPOT_EXIT",
+			"interaction_type": "narrative_scene",
+			"target_id": "telmori_village_departure",
+			"required_flags": [
+				"flag.telmori_adventure_completed"
+			]
+		}
+	]
+}

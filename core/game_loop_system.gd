@@ -43,7 +43,7 @@ const VALID_STATE_TRANSITIONS: Dictionary = {
 	GameState.SHOP:               [GameState.EXPLORATION],
 	GameState.NARRATIVE_SCENE:    [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
 	GameState.COMBAT_ACTIVE:      [GameState.VICTORY, GameState.DEFEAT, GameState.EXPLORATION],
-	GameState.VICTORY:            [GameState.EXPLORATION],
+	GameState.VICTORY:            [GameState.EXPLORATION, GameState.NARRATIVE_SCENE],
 	GameState.DEFEAT:             [GameState.MENU, GameState.EXPLORATION],
 	GameState.PAUSE:              [GameState.EXPLORATION, GameState.COMBAT_ACTIVE],
 	GameState.SAVE_TRANSITION:    [GameState.EXPLORATION],
@@ -98,6 +98,11 @@ var _current_encounter: CombatEncounterDefinition = null
 ## un refuerzo (ver _group_morale_base_dirty). Renombrada desde
 ## _group_initial_max_hp porque ese nombre ya no describía el campo.
 var _group_morale_base_hp: float = 0.0
+
+## Spike 13 — escena narrativa a abrir tras ganar el combate en curso.
+## Vive aquí y no en CombatEncounterDefinition porque ese recurso puede
+## ser null y el dato se perdería en silencio.
+var _pending_victory_scene_id: String = ""
 
 ## Spike 3, Grupo A — true tras _spawn_reinforcements(), hasta que
 ## _check_group_morale() recalcula _group_morale_base_hp en su siguiente
@@ -223,7 +228,7 @@ func get_state_name() -> String:
 # (para añadir companions a `participants`) — no la vuelvas a declarar con
 # `var party :=` una segunda vez o GDScript dará error de redeclaración.
 
-func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition = null) -> void:
+func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition = null, victory_scene_id: String = "") -> void:
 	if current_game_state != GameState.EXPLORATION and current_game_state != GameState.DIALOGUE and current_game_state != GameState.MENU and current_game_state != GameState.NARRATIVE_SCENE:
 		push_warning("[GameLoopSystem] Cannot start combat: wrong state %s" % GameState.keys()[current_game_state])
 		return
@@ -260,6 +265,8 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 	_reinforcement_rounds_elapsed = 0
 	_reinforcement_spawned = false
 	_reinforcement_countdown_active = false
+	_current_encounter = encounter
+	_pending_victory_scene_id = victory_scene_id
  
 	if _current_encounter:
 		if _current_encounter.morale_threshold_pct > 0.0:
@@ -320,6 +327,7 @@ func end_combat(result: String) -> void:
 	_reinforcement_spawned = false
 
 	EventBus.emit_signal("combat_ended", result)
+	_pending_victory_scene_id = ""
 
 
 func is_in_combat() -> bool:
@@ -347,6 +355,12 @@ func get_active_enemies() -> Array[String]:
 ## durante todo el combate.
 func get_current_encounter() -> CombatEncounterDefinition:
 	return _current_encounter
+
+## Devuelve y vacía la escena narrativa pendiente tras una victoria.
+func consume_pending_victory_scene() -> String:
+	var scene_id := _pending_victory_scene_id
+	_pending_victory_scene_id = ""
+	return scene_id
 
 func get_current_phase() -> TurnPhase:
 	return current_phase
@@ -623,6 +637,10 @@ func _start_player_turn() -> void:
 		return
 
 	EventBus.emit_signal("player_turn_started")
+	# El combate puede terminar DENTRO de la señal (p. ej. huida resuelta al inicio
+	# del turno): no seguir con el turno ni transicionar de fase.
+	if current_game_state != GameState.COMBAT_ACTIVE:
+		return
 	print("[GameLoopSystem] 👤 Player turn started")
 	_transition_to_phase(TurnPhase.PLAYER_ACTION_SELECT)
 

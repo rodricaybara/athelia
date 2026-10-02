@@ -28,7 +28,8 @@ const SCENE_MAIN_MENU          := "res://ui/main_menu/main_menu_screen.tscn"
 const SCENE_CHARACTER_CREATION := "res://ui/character_creation/character_creation_screen.tscn"
 const SCENE_COMBAT             := "res://scenes/combat/combat_production_scene.tscn"
 #const SCENE_EXPLORATION        := "res://scenes/exploration/tutorial/exploration_tutorial.tscn"
-const SCENE_EXPLORATION        := "res://scenes/exploration/telmori_village/exploration_telmori_village.tscn"
+const SCENE_EXPLORATION        := "res://scenes/exploration/interactive_map/exploration_interactive_map.tscn"
+#const SCENE_EXPLORATION        := "res://scenes/exploration/telmori_village/exploration_telmori_village.tscn"
 
 const OVERLAY_SHOP       := "res://ui/shop/shop_ui.tscn"
 const OVERLAY_INVENTORY  := "res://ui/inventory/inventory_ui.tscn"
@@ -564,7 +565,24 @@ func _on_combat_ended(result: String) -> void:
 		"victory", "escaped":
 			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 			if game_loop:
-				game_loop.enter_exploration()
+				var victory_scene_id := ""
+				if result == "victory":
+					victory_scene_id = game_loop.consume_pending_victory_scene()
+
+				# Un id mal escrito abriría un panel vacío sin salida (softlock
+				# justo tras el combate). Si la escena no existe, degradamos
+				# al comportamiento de siempre.
+				if not victory_scene_id.is_empty():
+					var narrative_db := get_node_or_null("/root/NarrativeSceneDB") as NarrativeSceneRegistry
+					if narrative_db and not narrative_db.has_scene(victory_scene_id):
+						push_error("[SceneOrchestrator] Escena de victoria inexistente '%s' — vuelvo a EXPLORATION" % victory_scene_id)
+						victory_scene_id = ""
+				if victory_scene_id.is_empty():
+					# En "escaped", end_combat() ya transicionó a EXPLORATION.
+					if game_loop.current_game_state != GameLoopSystem.GameState.EXPLORATION:
+						game_loop.enter_exploration()
+				else:
+					game_loop.enter_narrative_scene(victory_scene_id)
 		"defeat":
 			_show_game_over()
 

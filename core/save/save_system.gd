@@ -140,16 +140,20 @@ func save_game(slot_id: String = "quicksave") -> bool:
 
 ## Recopila el estado del jugador
 func _collect_player_state(save_data: SaveData) -> bool:
+	# Spike 12: la posición solo existe si la escena de exploración tiene un
+	# nodo "Player". Las escenas sin jugador físico (mapa de puntos de
+	# interés) guardan sin posición. Antes esto abortaba el guardado entero,
+	# lo que habría bloqueado cualquier savepoint (triggers_save).
+	# La restauración ya tolera un Player ausente, así que es simétrico.
+	# SAVE_VERSION no cambia: la clave "position" pasa a ser opcional.
 	var player = _find_player()
-	if not player:
-		push_error("[SaveSystem] Player node not found")
-		return false
-
-	# Posición
-	save_data.player_state["position"] = {
-		"x": player.position.x,
-		"y": player.position.y
-	}
+	if player:
+		save_data.player_state["position"] = {
+			"x": player.position.x,
+			"y": player.position.y
+		}
+	else:
+		print("[SaveSystem] No Player node in exploration scene — position not saved")
 
 	# Recursos (HP, stamina, gold actuales)
 	save_data.player_state["resources"] = resource_system.get_save_state("player")

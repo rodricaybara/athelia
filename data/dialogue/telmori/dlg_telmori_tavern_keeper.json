@@ -1,0 +1,76 @@
+{
+	"dialogue": {
+		"id": "DLG_TELMORI_TAVERN_KEEPER",
+		"portrait_folder": "telmori",
+		"background_id": "sheriff_office",
+		"nodes": [
+			{
+				"id": "N1",
+				"speaker_id": "innkeeper",
+				"text_key": "DLG_TAVERN_01_GREET",
+				"portrait_id": "guard",
+				"mood": "neutral",
+				"options": [
+					{
+						"id": "O1",
+						"text_key": "DLG_TAVERN_OPT_RUMORS",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N2"
+					},
+					{
+						"id": "O2",
+						"text_key": "DLG_TAVERN_OPT_SHERIFF",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N3"
+					},
+					{
+						"id": "O_LEAVE",
+						"text_key": "DLG_TAVERN_OPT_LEAVE",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": ""
+					}
+				]
+			},
+			{
+				"id": "N2",
+				"speaker_id": "innkeeper",
+				"text_key": "DLG_TAVERN_02_RUMORS",
+				"portrait_id": "guard",
+				"mood": "neutral",
+				"options": [
+					{
+						"id": "O3",
+						"text_key": "DLG_OPT_BACK",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N1"
+					}
+				]
+			},
+			{
+				"id": "N3",
+				"speaker_id": "innkeeper",
+				"text_key": "DLG_TAVERN_03_SHERIFF",
+				"portrait_id": "guard",
+				"mood": "neutral",
+				"options": [
+					{
+						"id": "O4",
+						"text_key": "DLG_OPT_BACK",
+						"required_flags": [],
+						"blocked_flags": [],
+						"narrative_events": [],
+						"next_node_id": "N1"
+					}
+				]
+			}
+		]
+	}
+}

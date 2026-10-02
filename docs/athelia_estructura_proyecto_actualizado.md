@@ -57,6 +57,7 @@ Estos sistemas están disponibles globalmente en todo el proyecto sin necesidad 
 | `Checkpoints` | `core/narrative/checkpoint_system.gd` | Sistema de checkpoints narrativos. Consolida/limpia vectores narrativos en transiciones de acto — no es el almacén de flags de uso general (eso es `Narrative`). |
 | `CheckpointDB` | `core/narrative/checkpoint_registry.gd` | Base de datos de checkpoints. |
 | `NarrativeSceneDB` | `core/narrative_scenes/narrative_scene_registry.gd` | **[Spike 1]** Registro de escenas narrativas (imagen + texto + opciones), cargadas desde JSON. Sin estado runtime — consulta local síncrona por `scene_id`. El estado de progreso por una escena vive en `NarrativeSceneViewModel`, no aquí. |
+| `InteractiveSceneDB` | `core/interactive_scenes/interactive_scene_registry.gd` | **[Spike 12]** Registro de escenas interactivas (imagen de fondo + puntos clicables con visibilidad por flags), cargadas desde `data/interactive_scenes/*.json` (escaneo SIN recursión). Sin estado runtime — mismo patrón que `NarrativeSceneDB`. |
 
 ### Companions y party
 | Singleton | Script | Descripción |
@@ -76,8 +77,8 @@ athelia/
 │
 ├── core/                           # Núcleo del juego — sistemas puros sin UI
 │   ├── event_bus.gd                # [Autoload: EventBus] Bus de eventos
-│   ├── game_loop_system.gd         # [Autoload: GameLoop] Máquina de estados global + fases de turno
-│   ├── scene_orchestrator.gd       # [Autoload: SceneOrchestrator] Gestión de overlays y escenas
+│   ├── game_loop_system.gd         # [Autoload: GameLoop] Máquina de estados global + fases de turno — **Spike 13:** `VALID_STATE_TRANSITIONS`: `VICTORY → NARRATIVE_SCENE`; `start_combat(enemy_ids, encounter, victory_scene_id = "")` + `consume_pending_victory_scene()`; `_start_player_turn()` sale si el combate terminó dentro de `player_turn_started` (huida)
+│   ├── scene_orchestrator.gd       # [Autoload: SceneOrchestrator] Gestión de overlays y escenas — **Spike 13:** `_on_combat_ended` abre la escena de victoria pendiente (valida que exista; si no, `push_error` y vuelve a `EXPLORATION`) y no repite `enter_exploration()` tras una huida
 │   │
 │   ├── characters/                 # Sistema de personajes
 │   │   ├── character_system.gd     # [Autoload: Characters]
@@ -142,7 +143,15 @@ athelia/
 │   │   ├── narrative_scene_registry.gd     # [Autoload: NarrativeSceneDB] carga JSON → Resource, sin estado runtime
 │   │   ├── narrative_scene_definition.gd   # Resource: escena (imagen, texto, opciones) — mejoras post-Spike 3, Grupo 4: validate() avisa (push_warning, no error) si image_path apunta a un fichero inexistente
 │   │   ├── narrative_scene_option.gd       # Resource: opción (tirada opcional, referencias a outcomes por grado)
-│   │   └── narrative_scene_outcome.gd      # Resource: destino/consecuencias — Spike 3/B: + combat_encounter (CombatEncounterDefinition opcional), combat_enemy_definitions (mapeo enemy_id→definition_id, necesario porque combate disparado desde narrativa no tiene Interactable del que leerlo), grant_item_id/quantity/target
+│   │   └── narrative_scene_outcome.gd      # Resource: destino/consecuencias — Spike 3/B: + combat_encounter (CombatEncounterDefinition opcional), combat_enemy_definitions (mapeo enemy_id→definition_id, necesario porque combate disparado desde narrativa no tiene Interactable del que leerlo), grant_item_id/quantity/target — **Spike 13:** + `combat_victory_scene_id` (escena a abrir al GANAR el combate del outcome) y `take_item_id`/`take_item_quantity`/`take_item_target` (quitar un ítem; desequipa antes)
+│   │
+│   ├── interactive_scenes/         # ← NUEVO (Spike 12): motor de escenas interactivas (mapa de puntos de interés). Naming genérico a propósito — el mismo primitivo sirve para "buscar algo en la imagen"
+│   │   ├── interactive_scene_registry.gd     # [Autoload: InteractiveSceneDB] carga JSON → Resource, sin estado runtime, sin recursión
+│   │   ├── interactive_scene_definition.gd   # Resource: scene_id, image_path, hotspots[]; validate() (hotspot_id duplicado = error) — **Spike 13:** + `on_first_visit_type`/`_target_id`/`_flag` y `has_first_visit()` (acción de una sola vez al entrar por primera vez; `validate()` rechaza tipo inválido, destino vacío o flag vacío)
+│   │   └── interactive_hotspot_definition.gd # Resource: hotspot_id, map_position (normalizada 0–1), icon_path, label_key, interaction_type (dialogue/shop/combat/narrative_scene), target_id, enemy_ids_override, enemy_definitions, required_flags, blocked_flags — get_effective_target_id() une IDs de combate por comas
+│   │
+│   ├── adventures/                 # ← NUEVO (Spike 13): arranque de partida data-driven
+│   │   └── adventure_starter.gd    # `class_name AdventureStarter` (RefCounted, solo `static func apply(adventure_id)`): lee `data/adventures/<id>.json`, une companions (`Party.join_party`) y da+equipa el kit (`Inventory.add_item` + `Equipment.equip_item`). Se llama UNA vez desde `CharacterCreationViewModel.request_confirm_character()`; NO es idempotente a propósito (`add_item` suma)
 │   │
 │   ├── resources/                  # Sistema de recursos vitales
 │   │   ├── resource_system.gd      # [Autoload: Resources]
@@ -202,6 +211,9 @@ athelia/
 │   │   └── backgrounds/
 │   │       └── telmori/            # Mapas de batalla cenitales (tinta y aguada sobre pergamino, sin cuadrícula), uno por encuentro, referenciados por combat_encounter.background_path: telmori_battle_forest (emboscada), telmori_battle_lair (guarida)
 │   │
+│   ├── adventures/                 # ← NUEVO (Spike 13): arranque de partida por aventura
+│   │   └── telmori.json            # `schema_version` 1: `companions` (["companion_mira"]) + `starting_gear` por entidad (player y companion_mira: casco, armadura de cuero, botas, escudo y espada de hierro; un ejemplar de cada uno)
+│   │
 │   ├── dialogue/                   # Ficheros JSON de diálogos
 │   │   ├── dialogue_prince_intro.json
 │   │   ├── dlg_companion_mira_01.json
@@ -209,9 +221,10 @@ athelia/
 │   │   ├── dlg_trainer_01.json
 │   │   ├── [otros diálogos...]
 │   │   ├── telmori/                # Diálogos de "Los Telmori" (Grupo 2, Spike 10) — DialogueRegistry escanea subcarpetas de forma recursiva desde Grupo 2
-│   │   │   ├── [briefing del sheriff — Grupo 2, DLG_TELMORI_SHERIFF_BRIEFING]
+│   │   │   ├── [briefing del sheriff — Grupo 2, DLG_TELMORI_SHERIFF_BRIEFING] — **Spike 13:** es ahora el diálogo del hotspot del sheriff (hub con guardado, `triggers_save`): + opción `O_LEAVE` ("Salir"); `O4` (aceptar) con `blocked_flags: [flag.telmori_sheriff_briefed]`; `O1`–`O3` con `blocked_flags: [flag.telmori_adventure_completed]`
 │   │   │   ├── dlg_telmori_sheriff_reward.json     # ← NUEVO (Spike 10) — DLG_TELMORI_SHERIFF_REWARD: hub de 2 ramas (trofeo, pueblo) + cierre; solo conversa, sin entregas
-│   │   │   └── dlg_telmori_sheriff_training.json   # ← NUEVO (Spike 10) — DLG_TELMORI_SHERIFF_TRAINING: hub de 2 ramas (pieles, libro) + cierre; solo conversa, sin entregas
+│   │   │   ├── dlg_telmori_sheriff_training.json   # ← NUEVO (Spike 10) — DLG_TELMORI_SHERIFF_TRAINING: hub de 2 ramas (pieles, libro) + cierre; solo conversa, sin entregas
+│   │   │   └── dlg_telmori_tavern_keeper.json      # ← NUEVO (Spike 13) — DLG_TELMORI_TAVERN_KEEPER: esqueleto del posadero (rumores, sobre el sheriff, salir); retrato (`guard`), fondo (`sheriff_office`) y hablante (`innkeeper`) PROVISIONALES
 │   │   └── backgrounds/            # ← NUEVO (Spike 11) — fondo de ambiente del DialoguePanel, pre-difuminado en la generación
 │   │       ├── telmori.png         # Fondo genérico de la aventura (respaldo si no hay background_id o no existe el fichero de escena)
 │   │       └── telmori/
@@ -254,6 +267,13 @@ athelia/
 │   │   ├── checkpoints.json
 │   │   └── narrative_events.json
 │   │
+│   ├── interactive_scenes/         # ← NUEVO (Spike 12): un JSON por localización interactiva
+│   │   ├── poi_test_map.json       # mapa de PRUEBA (6 hotspots: dialogue, shop, narrative_scene, combat con enemy_definitions, uno con required_flags y otro con blocked_flags) — Spike 13 añade el del pueblo
+│   │   ├── telmori_village.json    # ← NUEVO (Spike 13) — el pueblo real: `on_first_visit` (llegada, `flag.telmori_village_visited`) + 11 hotspots en 4 posiciones (sheriff ×3, herrería, taberna, salida ×6), mutuamente excluyentes por flags según la etapa de la aventura
+│   │   ├── images/
+│   │   │   └── mapa_aldea_telmori.jpg   # ← NUEVO (Spike 13) — fondo del pueblo, 1376×768, tinta y aguada sobre pergamino
+│   │   └── icons/telmori/               # ← NUEVO (Spike 13) — medallones PNG con transparencia: icon_sheriff / icon_blacksmith / icon_tavern / icon_exit (el de sheriff sirve a sus 3 hotspots; el de salida, a los 6). Ruta según lo acordado — verificar
+│   │
 │   ├── narrative_scenes/           # Un JSON por escena narrativa de contenido real
 │   │   # Spike 3, Grupo B — primer contenido real: 11 escenas de "Los Telmori"
 │   │   # (village_arrival, sheriff_briefing, equipment_arrows, equipment_spear,
@@ -285,6 +305,18 @@ athelia/
 │   │   # entregas (oro, trofeo, tomo) en ese mismo outcome, y siguen encadenando a
 │   │   # training / pelts al cerrarse el diálogo. telmori_sheriff_pelts (tirada de
 │   │   # Curtido, no convertible a diálogo) y telmori_epilogue_hook no cambian.
+│   │   # Spike 13 — el pueblo pasa a hub (motor de escenas interactivas). NUEVAS:
+│   │   # telmori_exit_locked_briefing / telmori_exit_locked_reward (avisos de salida
+│   │   # bloqueada: un nodo, una opción que cierra) y telmori_village_departure
+│   │   # (MARCADOR de la salida final). EDITADAS: telmori_village_arrival
+│   │   # (next_scene_id vacío: termina en el mapa), telmori_day2_approach
+│   │   # (combat_victory_scene_id → telmori_post_ambush_tracking; sin flag de disparo),
+│   │   # telmori_post_ambush_tracking (el fallo marca flag.telmori_ambush_won),
+│   │   # telmori_lair_alerted / _stealth (combat_victory_scene_id → telmori_lair_victory;
+│   │   # sin flag de disparo), telmori_sheriff_reward_intro (take_item: devuelve
+│   │   # enchanted_spear). SIN USO desde Spike 13: la escena envoltorio
+│   │   # telmori_sheriff_briefing (el sheriff abre el diálogo directamente) y
+│   │   # telmori_equipment_arrows / _spear (las compra el jugador en la herrería).
 │   │   └── images/
 │   │       └── telmori/            # ← NUEVO (Grupo 4): fondos de escena 16:9, catálogo reutilizable por TIPO de escenario, no por escena (telmori_bg_village.jpg y demás)
 │   │
@@ -294,7 +326,8 @@ athelia/
 │   │   └── stamina.tres
 │   │
 │   ├── shops/                      # Definiciones de tiendas
-│   │   └── blacksmith_01.tres
+│   │   ├── blacksmith_01.tres
+│   │   └── blacksmith_telmori.tres   # ← NUEVO (Spike 13) — tienda propia de la aventura: stock de blacksmith_01 + `enchanted_spear` (valor 0, `quest_loan`: sale gratis) y 20 `silver_arrow` (2 de oro c/u); `max_slots` 16 (con 12 no cabían las dos armas nuevas)
 │   │
 │   ├── skills/                     # Habilidades por categoría
 │   │   ├── combat/
@@ -355,7 +388,8 @@ athelia/
 │   ├── spike_3_grupoD_cierre_informe_cierre.md  # cierre completo — recompensa multicapa, botín mágico, otorgar recurso, "Los Telmori" jugable de principio a fin
 │   ├── mejoras_grupo2_dialogo_narrativa_informe_cierre.md
 │   ├── mejoras_grupo3_overlays_narrativa_informe_cierre.md
-│   └── mejoras_grupo5_combate_produccion_informe_cierre.md  # ← NUEVO: pantalla de combate de producción completa — UIRadialGauge/UICombatToken, CombatArenaViewModel/Panel, combat_production_scene.gd, integración real en SceneOrchestrator, jugado de principio a fin en "Los Telmori"
+│   ├── mejoras_grupo5_combate_produccion_informe_cierre.md  # ← NUEVO: pantalla de combate de producción completa — UIRadialGauge/UICombatToken, CombatArenaViewModel/Panel, combat_production_scene.gd, integración real en SceneOrchestrator, jugado de principio a fin en "Los Telmori"
+│   └── spike_13_reautoria_pueblo_telmori.md  # ← NUEVO (Spike 13): el pueblo de Los Telmori sobre el motor de escenas interactivas — resultado, plan frente a lo hecho, validación
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales
@@ -364,7 +398,7 @@ athelia/
 │   ├── dialogues.csv               # Textos de diálogos
 │   ├── dialogues.en.translation
 │   ├── dialogues.es.translation
-│   ├── dialogues_scenes_telmori.csv    # Grupo 2 (briefing del sheriff) + Spike 10 (+12 claves: los dos diálogos de recompensa y entrenamiento) — CSV propio por aventura
+│   ├── dialogues_scenes_telmori.csv    # Grupo 2 (briefing del sheriff) + Spike 10 (+12 claves: los dos diálogos de recompensa y entrenamiento) — CSV propio por aventura — **Spike 13:** +7 claves (`DLG_SHERIFF_OPT_LEAVE` y las 6 del posadero `DLG_TAVERN_*`); modificadas `DLG_SHERIFF_04_WEAPONS` (ahora remite a la herrería) y `DLG_SHERIFF_REWARD_01_GREET` (frase de devolución de la lanza)
 │   ├── dialogues_scenes_telmori.en.translation
 │   ├── dialogues_scenes_telmori.es.translation
 │   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
@@ -382,7 +416,7 @@ athelia/
 │   ├── narrative_scenes.csv        # Textos de escenas narrativas (solo cabecera hasta Spike 3/B — claves de test de Spike 1/2 retiradas en Grupo A)
 │   ├── narrative_scenes.en.translation
 │   ├── narrative_scenes.es.translation
-│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B (22 claves) + Grupo C (7 más, 29 en total) + Grupo D (6 escenas + prompt del interactuable del sheriff) + Spike 10 (+11 claves: textos de reward_intro/training/pelts/epílogo, el prompt `UI_TELMORI_SHERIFF_REWARD_INTERACT` y la escena `telmori_lair_loot_obsidian`, que Grupo D daba por localizados pero no lo estaban) — CSV propio por aventura
+│   ├── narrative_scenes_telmori.csv    # Spike 3, Grupo B (22 claves) + Grupo C (7 más, 29 en total) + Grupo D (6 escenas + prompt del interactuable del sheriff) + Spike 10 (+11 claves: textos de reward_intro/training/pelts/epílogo, el prompt `UI_TELMORI_SHERIFF_REWARD_INTERACT` y la escena `telmori_lair_loot_obsidian`, que Grupo D daba por localizados pero no lo estaban) — CSV propio por aventura — **Spike 13:** +10 claves (4 etiquetas `TELMORI_HOTSPOT_*`, las 2 escenas de aviso de salida bloqueada y la de salida final provisional, cada una con su `_OPTION_CLOSE`); modificada `TELMORI_VILLAGE_ARRIVAL_OPTION_CONTINUE` ("Entrar en la aldea"). Las 2 de tienda (`SHOP_TELMORI_BLACKSMITH_NAME/DESC`) van junto a `SHOP_BLACKSMITH_NAME`
 │   ├── narrative_scenes_telmori.en.translation
 │   ├── narrative_scenes_telmori.es.translation
 │   ├── characters_telmori.csv          # Spike 3, Grupo B — nombre/desc de telmori_warrior/wolf
@@ -409,9 +443,9 @@ athelia/
 │   │   └── companion_mira.tscn
 │   │
 │   ├── exploration/                 # scripts COMPARTIDOS entre todas las zonas de exploración
-│   │   ├── exploration_test.tscn    # sandbox de desarrollo — nodo raíz debe llamarse "ExplorationScene" para que SceneOrchestrator._handle_exploration() lo reconozca al ejecutarlo suelto (F6); si no, intenta instanciar otra copia de la escena de producción encima y crashea ("Parent node is busy setting up children")
+│   │   ├── exploration_test.tscn    # sandbox de desarrollo — nodo raíz debe llamarse "ExplorationScene" para que SceneOrchestrator._handle_exploration() lo reconozca al ejecutarlo suelto (F6); si no, intenta instanciar otra copia de la escena de producción encima y crashea ("Parent node is busy setting up children") — **Spike 13: DESCARTADA** (no es escena de producción); candidata a borrar
 │   │   ├── exploration_test.gd
-│   │   ├── exploration_controller.gd  # Input de exploración (interact, inventory, party, player_menu, F9 quickload) — tecla F1 de debug de Spike 1 retirada en Spike 3, Grupo A; Spike 3/B: _on_interaction_requested() gana el caso "narrative_scene" (ver Interactable abajo); mejoras post-Spike 3, Grupo 1: F5 (quicksave) retirado por completo, sustituido por tecla de debug F2 configurable por fichero (user://debug_shortcut.json)
+│   │   ├── exploration_controller.gd  # Input de exploración (interact, inventory, party, player_menu, F9 quickload) — tecla F1 de debug de Spike 1 retirada en Spike 3, Grupo A; Spike 3/B: _on_interaction_requested() gana el caso "narrative_scene" (ver Interactable abajo); mejoras post-Spike 3, Grupo 1: F5 (quicksave) retirado por completo, sustituido por tecla de debug F2 configurable por fichero (user://debug_shortcut.json) — **Spike 12: `request_interaction(type, target_id, enemy_definitions := {})` es el ÚNICO punto de routing de interacciones; `_on_interaction_requested()` (camino de `Interactable`) delega en él con las definiciones del nodo**
 │   │   ├── exploration_hud.gd
 │   │   ├── player_exploration.gd
 │   │   ├── companion_follow_node.gd
@@ -421,9 +455,13 @@ athelia/
 │   │   │   ├── exploration_tutorial.tscn
 │   │   │   └── exploration_tutorial.gd
 │   │   │
-│   │   └── telmori_village/         # ← NUEVO (Spike 3, Grupo B): primera zona de producción real
-│   │       ├── exploration_telmori_village.tscn
-│   │       └── exploration_telmori_village.gd
+│   │   ├── telmori_village/         # ← NUEVO (Spike 3, Grupo B): primera zona de producción real — **Spike 12: ya no es `SCENE_EXPLORATION` (línea comentada, revertible); se retira o migra en Spike 13** — **Spike 13: OBSOLETA**, sustituida por `data/interactive_scenes/telmori_village.json`; candidata a retirada (ver pendientes, punto 10)
+│   │   │   ├── exploration_telmori_village.tscn
+│   │   │   └── exploration_telmori_village.gd
+│   │   │
+│   │   └── interactive_map/         # ← NUEVO (Spike 12): escena raíz de exploración basada en un mapa de puntos de interés (sin Player, sin Camera2D)
+│   │       ├── exploration_interactive_map.tscn  # ExplorationController + ExplorationHUD + MapLayer (CanvasLayer -1) con InteractiveSceneView; raíz libre (SceneOrchestrator fuerza name = "ExplorationScene")
+│   │       └── exploration_interactive_map.gd    # composición pura: crea el ViewModel, lo enlaza y reenvía hotspot_activated → request_interaction(); @export interactive_scene_id (**Spike 13: la escena carga `"telmori_village"`**; `poi_test_map` queda para pruebas cambiando el id); en `_ready()` llama a `_view_model.call_deferred("request_first_visit")`
 │   │
 │   ├── player/                      # ⚠️ player.gd/player.tscn: código muerto, limpieza APARCADA
 │   │   ├── player.gd                #    (bloqueada por test/test_shop_ui.gd, que aún los referencia)
@@ -462,14 +500,14 @@ athelia/
     │   └── damage_number.tscn
     │
     ├── character_creation/         # Creación de personaje (patrón MVVM)
-    │   ├── character_creation_viewmodel.gd  # Spike 3/B: kit inicial de skills leído de player_new.tres, ya no de una constante duplicada (STARTING_SKILL_VALUES, eliminada)
+    │   ├── character_creation_viewmodel.gd  # Spike 3/B: kit inicial de skills leído de player_new.tres, ya no de una constante duplicada (STARTING_SKILL_VALUES, eliminada) — **Spike 13:** llama a `AdventureStarter.apply(DEFAULT_ADVENTURE_ID)` tras `_create_player_entity()` (companions y kit salen a `data/adventures/`); `STARTING_ITEMS` vaciado
     │   ├── character_creation_screen.gd
     │   └── character_creation_screen.tscn
     │
     ├── design_system/              # Sistema de diseño centralizado
     │   ├── components/
     │   │   ├── ui_button/
-    │   │   │   ├── ui_button.gd
+    │   │   │   ├── ui_button.gd   # Spike 13: + `min_square` (botón cuadrado de solo icono) e `icon_backdrop` (disco oscuro semitransparente tras el icono) — ambos opt-in, apagados por defecto
     │   │   │   └── ui_button.tscn
     │   │   ├── ui_panel/           # Spike 9: + decorative_frame / corner_texture (marco ornamental opt-in, _draw() sobre el propio panel; con el marco activo anula borde y corner_radius del stylebox)
     │   │   │   ├── ui_panel.gd
@@ -543,6 +581,10 @@ athelia/
     │   ├── narrative_scene_panel.gd      # Spike 3/B: consume "streak_progress" (hueco abierto desde Spike 2); UIPanel anclado a tamaño fijo (bug de autowrap sin ancho)
     │   └── narrative_scene_panel.tscn    # Grupo 4: layout B1 — SceneImage a pantalla completa detrás, UIPanel anclado al tercio inferior (anclas relativas, grow_vertical = BEGIN), texto y opciones en HBoxContainer. Cero cambios en el script. Spike 9: nodo Root/UIPanel con decorative_frame = true y corner_texture = frame_corner_64x64.png (solo inspector, sin script)
     │
+    ├── interactive_scene/           # ← NUEVO (Spike 12): vista PERMANENTE dentro de la escena de exploración (no es overlay)
+    │   ├── interactive_scene_viewmodel.gd  # changed(reason: scene_loaded/hotspots_refreshed) + hotspot_activated(type, target_id, enemy_definitions); filtra hotspots por flags; guard GameState == EXPLORATION — **Spike 13:** + `request_first_visit()` (acción de `on_first_visit`; solo en EXPLORATION, marca el flag antes de actuar, reutiliza `hotspot_activated`)
+    │   └── interactive_scene_view.gd       # vista pasiva: Fallback + Background + un `UIButton` por hotspot visible (**Spike 13:** con `icon_path` válido, solo icono — `GHOST` + `min_square` + `icon_backdrop`, nombre en tooltip —; sin él, botón de texto `SECONDARY`), posiciones normalizadas sobre el rectángulo real de la imagen
+    │
     ├── party/                      # Pantalla de party (patrón MVVM)
     │   ├── party_viewmodel.gd
     │   ├── party_ui.gd
@@ -601,7 +643,7 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 - Los companions actúan **después del jugador, antes de los enemigos**.
 - Un companion incapacitado permanece en `turn_order` pero `CompanionAI` skipea su turno.
 - Victoria: todos los enemigos muertos. Derrota: jugador muerto (los companions no evitan la derrota actualmente).
-- `start_combat()` acepta como estado de origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard explícito, independiente de `VALID_STATE_TRANSITIONS` — `start_combat()` transiciona directo con `_transition_game_state()`, no pasa por `request_state_change()`).
+- `start_combat()` acepta como estado de origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard explícito, independiente de `VALID_STATE_TRANSITIONS` — `start_combat()` transiciona directo con `_transition_game_state()`, no pasa por `request_state_change()`). **Spike 13:** firma `start_combat(enemy_ids, encounter = null, victory_scene_id = "")` — la escena a abrir al ganar vive en `_pending_victory_scene_id` (ver "Spike 13").
 - **`_transition_to_phase()` devuelve `bool` desde Spike 6** (antes `void`) — `_end_turn()`/`_end_round()` abortan sin reemitir señales si la transición es rechazada. Causa raíz confirmada de un bug de motor real: una invocación duplicada de `_end_turn()` (candidato: señal `combat_action_completed` de un actor equivocado, mal atribuida por fase en vez de por `actor`) dejaba pasar el error de transición y seguía igual, duplicando `round_ended` y el incremento de `round_number` a la vez. `_on_combat_action_completed()` ahora compara `result["actor"]` contra el actor que realmente tiene el turno (`_current_acting_entity`) antes de procesar — requirió añadir `"actor"` al payload de la resolución normal de skill en `CombatSystem`, que no lo llevaba (solo las ramas de excepción staggered/disarmed/dodge sí). Ver `docs/spike_6_investigacion_motor_combate.md` para el detalle completo.
 - **Nota sobre `request_state_change()` (confirmado en Spike 3/B):** `DEFEAT` solo tiene transición válida hacia `EXPLORATION`/`MENU` — nunca directo a `CHARACTER_CREATION`. Cualquier flujo de reinicio de partida tras Game Over debe pasar por `enter_main_menu()` antes de `enter_character_creation()`, igual que el camino real de "Nueva Partida" desde el menú.
 - **`MENU → NARRATIVE_SCENE` (mejoras post-Spike 3, Grupo 1):** habilita "Cargar Partida" para resumir directamente dentro de una escena narrativa, si el save se hizo desde ahí. Antes de este grupo era un camino inexistente — la única entrada a `NARRATIVE_SCENE` era desde `EXPLORATION`. Ver sección propia de Grupo 1 más abajo para el hallazgo de reentrada que este camino nuevo expuso en `SceneOrchestrator`/`TelmoriVillage._ready()`.
@@ -626,9 +668,12 @@ scenes/exploration/
 ├── tutorial/                    ← una zona = una subcarpeta (OBSOLETA desde Spike 3/B)
 │   ├── exploration_tutorial.tscn
 │   └── exploration_tutorial.gd
-└── telmori_village/             ← NUEVO (Spike 3, Grupo B) — zona de producción real
-    ├── exploration_telmori_village.tscn
-    └── exploration_telmori_village.gd
+├── telmori_village/             ← NUEVO (Spike 3, Grupo B) — zona de producción real (Spike 12: ya no es SCENE_EXPLORATION)
+│   ├── exploration_telmori_village.tscn
+│   └── exploration_telmori_village.gd
+└── interactive_map/             ← NUEVO (Spike 12) — escena de exploración basada en mapa de puntos de interés
+    ├── exploration_interactive_map.tscn
+    └── exploration_interactive_map.gd
 ```
 
 Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes/narrative/<evento>/`. El orden de progresión del jugador (qué zona sigue a cuál) debe vivir en datos (futuro registro de niveles/zonas), no en el nombre del archivo — un número no comunica contenido y se rompe al reordenar. Decidido en `docs/spike_produccion_post_character_creation_informe_cierre.md`.
@@ -644,6 +689,8 @@ Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes
 - `_handle_character_creation()` usa `_show_overlay()` (igual que Shop/Inventory/Party) — importante: instanciarla manualmente contra `get_tree().root` sin pasar por `_show_overlay()` deja la escena huérfana de `_current_overlay`, y `_hide_current_overlay()` nunca la destruye al salir.
 - `_handle_exploration()` instancia `SCENE_EXPLORATION` si no existe ya en el árbol (comprobando por nombre de nodo `"ExplorationScene"`) — necesario para el flujo real Menú → Character Creation → Exploration, no solo para correr una escena de exploración de forma aislada. El nodo instanciado se **renombra** a `"ExplorationScene"` en el propio `_handle_exploration()`, independientemente del nombre que tenga el nodo raíz dentro del `.tscn` — así que el nombre interno del `.tscn` no tiene que coincidir. **Importante para pruebas manuales:** si ejecutas `exploration_test.tscn` suelto (F6), su nodo raíz debe llamarse literalmente `"ExplorationScene"` o esta búsqueda falla y el sistema intenta instanciar otra copia de la escena de producción encima, en medio del arranque del árbol (`add_child()` con "Parent node is busy setting up children").
 - **`SCENE_EXPLORATION` apunta ahora a `res://scenes/exploration/telmori_village/exploration_telmori_village.tscn`** (Spike 3, Grupo B) — antes apuntaba a `exploration_tutorial.tscn`, que queda obsoleta (pensada para un mundo 2D más amplio que ya no es el centro de la jugabilidad tras el pivote narrativo) y pendiente de retirar del proyecto.
+- **`SCENE_EXPLORATION` apunta ahora (Spike 12) a `res://scenes/exploration/interactive_map/exploration_interactive_map.tscn`** — el mapa de PRUEBA (`poi_test_map`). La línea del pueblo queda comentada justo debajo (revertible descomentándola; mismo patrón que ya se usó con el tutorial). El nombre del nodo raíz del `.tscn` es libre: `_ensure_exploration_scene_instantiated()` fuerza `instance.name = "ExplorationScene"` al instanciar. Spike 13 decide el estado final.
+- **Spike 13:** `SCENE_EXPLORATION` sigue apuntando a `exploration_interactive_map.tscn`, que ahora carga `telmori_village` (el mapa de prueba queda para pruebas cambiando `interactive_scene_id`). Las líneas comentadas de `SCENE_EXPLORATION` (pueblo antiguo, tutorial), si siguen ahí, son restos candidatos a limpieza.
 - `_handle_narrative_scene(scene_id)` — calcado de `_handle_dialogue()`: `_hide_current_overlay()` → `_show_overlay(OVERLAY_NARRATIVE_SCENE)` → `open(scene_id)` en el overlay instanciado. Cierre vía `EventBus.narrative_scene_closed` → `_on_narrative_scene_closed()` → `GameLoop.enter_exploration()`, mismo patrón que `_on_shop_closed()`.
 
 ### Interactable — tipos de interacción (Spike 3, Grupo B)
@@ -657,6 +704,13 @@ Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes
 | `"combat"` | Registra enemigos (`enemy_id → definition_id` leído de `Interactable.enemy_definitions`) y llama a `GameLoop.start_combat()` |
 | `"item"` | Recoge ítem vía `WorldObjectSystem`, sin cambio de `GameState` |
 | `"narrative_scene"` | `GameLoop.enter_narrative_scene(target_id)` — **nuevo en Spike 3/B**. Antes no existía ningún camino de producción para entrar en una escena narrativa desde exploración; la única vía que había existido nunca era una tecla de debug (F1) de Spike 1, ya retirada en Spike 3, Grupo A |
+
+**Spike 12 — correcciones tras revisar el código real (Fase 0):**
+
+- El routing ya no vive en `_on_interaction_requested()`, sino en `ExplorationController.request_interaction(type, target_id, enemy_definitions := {})`. `_on_interaction_requested()` delega en él pasando el `enemy_definitions` del `_current_interactable`; el comportamiento del camino físico no cambia. Motivo: la señal `interaction_requested(type, target_id)` no puede llevar `enemy_definitions` (un signal de GDScript no admite parámetros opcionales) y un punto sin nodo físico no tiene de dónde leerlo — sin el canal nuevo el combate degradaba en silencio a `enemy_base`.
+- El `@export_enum` de `interactable.gd` **NO lista `"narrative_scene"`** (solo `dialogue`/`shop`/`combat`/`item`). El valor funciona porque `exploration_telmori_village.gd` lo asigna con `area.set("interaction_type", "narrative_scene")`; el enum es solo cosmético (el campo es `String`). La descripción de `interactable.gd` de más arriba y la de la tabla contaban el enum como si lo incluyera.
+- En el pueblo, `Interactable` solo se usa con `narrative_scene` y siempre creado por código (rastro, aftermath, recompensa del sheriff); el `.tscn` del pueblo no tiene ninguno. Los `.tscn` de `exploration_test`/`exploration_tutorial` sí los instancian, pero ninguna de las dos es ya `SCENE_EXPLORATION`.
+- **Spike 13 — `Interactable` queda VESTIGIAL.** El pueblo ya no usa ninguno (`telmori_village.json` es declarativo) y un mapa estático no puede tenerlos (sin jugador, física ni proximidad). Fernando descartó `exploration_tutorial` y `exploration_test` (no eran escenas de producción), así que no queda ningún consumidor en el camino jugable. El camino físico refactorizado en Spike 12 (`request_interaction()`) **nunca se validó en partida real y ya no se va a validar**. Candidato a limpieza en la recopilación final.
 
 ### Menú principal — Arquitectura
 
@@ -701,6 +755,8 @@ Usa `data/characters/player_new.tres` (no `player_base.tres`, que es plantilla d
 
 **Spike 3, Grupo B — el kit fijo de skills se lee de la propia `CharacterDefinition`.** Antes, `_create_player_entity()` registraba el kit vía una constante hardcodeada (`STARTING_SKILL_VALUES`) duplicada e independiente de `player_new.tres` — al añadir skills nuevas al `.tres` sin tocar la constante, `SkillSystem` nunca las registraba (aunque `CharacterState.skill_values`, que sí lee del `.tres` directamente, funcionaba bien — de ahí que las tiradas resolvieran con % correcto pero `SkillSystem.get_skill_instance()` fallara al terminar combate). Eliminada la constante; ahora se lee `chars.get_definition(PLAYER_DEFINITION_ID).skills`.
 
+**Spike 13 — el arranque de aventura sale del ViewModel y de la escena.** `request_confirm_character()` llama a `AdventureStarter.apply(DEFAULT_ADVENTURE_ID)` justo después de `_create_player_entity()` y antes de `enter_exploration()`: une a `companion_mira` y da y equipa el kit inicial de `player` y de la companion, leído de `data/adventures/telmori.json`. Sustituye a `STARTING_ITEMS` (ahora vacío) y a `_equip_starter_gear()` de la escena del pueblo, que dejaba dos espadas y dos armaduras al jugador y re-añadía el kit en cada `_ready()` (también al cargar partida; no verificado en el código antiguo, eliminado de raíz).
+
 Ver `docs/spike_character_creation_informe_cierre.md` para el detalle completo.
 
 ### Skills — dos sistemas paralelos de valores (aclarado en Spike 3, Grupo B)
@@ -715,6 +771,8 @@ Si el registro de `SkillSystem` no incluye una skill que sí aparece en `list_kn
 **Skills fuera del kit inicial (Spike 10).** Un libro (o cualquier fuente futura) puede enseñar una skill que la entidad no tiene registrada. `SkillSystem.learn_skill(entity_id, skill_id)` crea la instancia si falta y la desbloquea reutilizando `unlock_skill()` — se siguen comprobando `prerequisite_requirements`; `requires_unlock` no bloquea, porque aprenderla es lo que resuelve ese bloqueo. Si el desbloqueo falla, retira la instancia (nunca quedan skills a medias); con una skill ya registrada no salta su bloqueo. El **valor inicial** (`CharacterState.skill_values`) no lo fija `SkillSystem` sino `ItemCharacterBridge` (que ya conecta ambos sistemas): clave opcional `initial_value` en `learning_data`, por defecto el `base_success_rate` de la skill, y solo si la entidad no tenía ya un valor > 0. Persistencia: `CharacterState` guarda y restaura `skill_values` entero, y `SkillSystem.load_save_state()` recrea desde su definición las instancias que no están en el kit — sin eso una skill aprendida en runtime se perdía al cargar. Curtido (`skill.exploration.tanning`) es el primer caso real.
 
 ### Exploration Tutorial — Arquitectura (OBSOLETA desde Spike 3, Grupo B)
+
+> **Spike 13: DESCARTADA** por Fernando (no era escena de producción). Pendiente de borrar junto a `exploration_test` (ver pendientes, punto 10).
 
 ```
 ExplorationTutorial (Node2D)              ← script: exploration_tutorial.gd
@@ -743,6 +801,10 @@ Pensada originalmente para enseñar mecánicas de un mundo 2D más amplio que de
 Ver `docs/spike_produccion_post_character_creation_informe_cierre.md` para el detalle completo (bugs corregidos, hallazgos aparcados).
 
 ### Telmori Village — Arquitectura (Spike 3, Grupo B — escena de producción real; ampliada en Grupo C)
+
+> **Spike 12:** esta escena ya no es `SCENE_EXPLORATION` (comentada, revertible). Su `_ready()` hace inicialización de PARTIDA (companion, equipo inicial, primera entrada narrativa) y sus 5 listeners de reconexión (`combat_ended`/`narrative_flag_set`) son la lógica que Spike 13 debe migrar a datos (hotspots con `required_flags`/`blocked_flags`) antes de retirarla.
+
+> **Spike 13: OBSOLETA.** El pueblo vive ahora en `data/interactive_scenes/telmori_village.json` (hub declarativo). La inicialización de partida pasó a `AdventureStarter` + `on_first_visit`; los 3 `Interactable` y los 5 listeners de reconexión desaparecen con esta escena. Candidata a retirada.
 
 ```
 TelmoriVillage (Node2D)                   ← script: exploration_telmori_village.gd
@@ -811,6 +873,10 @@ Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `Na
 - `grant_resource_id` / `grant_resource_amount` / `grant_resource_target` — "otorgar recurso", análogo a `grant_item_*` pero vía `Resources.add_resource()` en vez de `Inventory.add_item()`. Mismo criterio deliberadamente mínimo: un solo recurso por outcome, sin condiciones ni tabla de recompensas. Se resuelve en `_apply_outcome()` justo después de `grant_item_*`, con la misma independencia respecto a si el outcome también dispara combate o encadena escena.
 - **Bug real al integrar el patch:** la primera versión declaró `grant_resource_id`/`grant_resource_amount` pero no `grant_resource_target` como propiedad de la clase (se quedó solo el comentario) — `from_dict()` sí intentaba asignarla, y GDScript permite asignación dinámica sobre un `Resource` pero falla en tiempo de ejecución si la propiedad no existe como miembro declarado: `Invalid assignment of property or key 'grant_resource_target'`. Lección reutilizable: al añadir un campo nuevo a una data class por parches sucesivos, verificar que la declaración y el `from_dict()` viajan juntos en el mismo cambio — un error de este tipo no lo detecta el compilador si la asignación es sobre un objeto ya tipado como `Resource` genérico en el momento de la llamada.
 
+**Spike 13 — `NarrativeSceneOutcome` extendido de nuevo:**
+- `combat_victory_scene_id: String` (vacío por defecto) — escena narrativa a abrir al GANAR el combate de este outcome, en lugar de volver a `EXPLORATION`. Va en el outcome y no en `CombatEncounterDefinition` porque el encuentro puede ser `null` y el dato se perdería en silencio. `_apply_outcome()` lo pasa a `start_combat()` y avisa (`push_warning`) si la escena no existe.
+- `take_item_id` / `take_item_quantity` / `take_item_target` — quitar un ítem (devolver un préstamo). `Equipment.unequip_item()` primero y luego `Inventory.remove_item()`; si la entidad no lo tiene (vendido, ya devuelto) no es un error. Solo una entidad (`"player"` por defecto).
+
 **Mejoras post-Spike 3, Grupo 2 — `NarrativeSceneOutcome` extendido con diálogo:**
 - `dialogue_id: String` (vacío por defecto) — cuando está relleno, la opción abre `DialoguePanel` como sub-overlay encima del panel narrativo (mismo patrón que Inventory/Party/PlayerMenu de Grupo 3: hijo directo de `NarrativeScenePanel`, nunca vía `SceneOrchestrator`), llamando directamente a `Dialogue.start_dialogue(dialogue_id)` sobre el autoload — sin transición de `GameState`, se queda en `NARRATIVE_SCENE` durante toda la conversación.
 - `next_scene_id` del mismo outcome cambia de significado cuando `dialogue_id` no está vacío: deja de aplicarse al instante y pasa a ser la escena a la que avanzar **cuando se cierre el diálogo** — `NarrativeSceneViewModel.resume_after_dialogue()`, llamado por `NarrativeScenePanel` solo si el sub-overlay que se cerró era Diálogo (nuevo flag interno `_sub_overlay_is_dialogue`, distinto de Inventory/Party/PlayerMenu, que nunca disparan el reenganche).
@@ -823,7 +889,7 @@ Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `Na
 
 **Restricción real de `reinforcement_definition_id` (Grupo C):** es un único string, no un diccionario por entidad — todo un refuerzo sale de la misma `CharacterDefinition`, no admite mezclar tipos de enemigo en la misma oleada (a diferencia del roster *inicial*, que sí admite tipos mixtos vía `combat_enemy_definitions` normal). Si un contenido necesita refuerzo de tipos mixtos, hay que elegir entre extender el recurso a un diccionario (cambio de motor, no hecho todavía) o simplificar el contenido a un refuerzo homogéneo (la opción que tomó Grupo C).
 
-`_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → otorgar recurso → si hay `dialogue_id`, abrir el diálogo y retorno temprano (`grant_*` ya se aplicaron; `next_scene_id` queda pendiente hasta cerrar el diálogo) → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
+`_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → **quitar ítem (Spike 13)** → otorgar recurso → si hay `dialogue_id`, abrir el diálogo y retorno temprano (`grant_*` ya se aplicaron; `next_scene_id` queda pendiente hasta cerrar el diálogo) → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
 
 Cierre desacoplado: `NarrativeSceneViewModel` no llama a `GameLoop` directamente al terminar una rama — emite `EventBus.narrative_scene_closed(scene_id)`, y `SceneOrchestrator._on_narrative_scene_closed()` decide volver a `EXPLORATION`. Mismo patrón que `dialogue_ended`/`shop_closed`. Cuando el outcome dispara combate, no hay paso intermedio por `EXPLORATION`: `GameLoop.start_combat()` acepta `NARRATIVE_SCENE` como estado de origen directamente.
 
@@ -1056,6 +1122,91 @@ para la maqueta y el detalle completo de la Fase 1.
   `UIPanel.Variant.OVERLAY` como semitransparente, con stylebox opaco en
   la práctica.
 
+### Spike 12 — Motor de escenas interactivas (mapa de puntos de interés)
+
+**Qué es.** Un primitivo genérico: imagen de fondo + puntos clicables posicionados por datos + visibilidad por flags + un clic dispara una acción. Sustituye la apertura del pueblo como `SCENE_EXPLORATION` (sin jugador, sin física, sin cámara). Naming genérico (`InteractiveScene*`/`InteractiveHotspot*`) a propósito: el mismo primitivo servirá para futuras escenas de "buscar algo en la imagen" (mecánica NO decidida en este spike). Decisiones de Fernando: sin movimiento ni posición de personaje; sistema nuevo y dedicado (`WorldObjectSystem`/`Interactable` no se tocan); visibilidad declarativa, no dinámica por evento. Cerrado y validado en partida real con `poi_test_map`. Detalle en `docs/spike_12_motor_mapa_poi.md`.
+
+**Flujo:**
+```
+InteractiveSceneView (Button por hotspot visible)
+  → InteractiveSceneViewModel.activate_hotspot(id)        [guard: GameState == EXPLORATION]
+    → hotspot_activated(interaction_type, target_id, enemy_definitions)
+      → ExplorationInteractiveMap (composición, sin lógica)
+        → ExplorationController.request_interaction(type, target_id, enemy_definitions)
+          → GameLoop.enter_dialogue / enter_shop / start_combat / enter_narrative_scene
+```
+
+**Datos** (`core/interactive_scenes/`, JSON en `data/interactive_scenes/`): `InteractiveSceneDefinition` (scene_id, image_path, hotspots) e `InteractiveHotspotDefinition` (vocabulario de salida calcado de `Interactable` + `map_position` normalizada 0–1, `icon_path`, `label_key`, `required_flags`, `blocked_flags`). `item` queda fuera de los tipos válidos en v1 (exige un `WorldObject` registrado). `validate()` marca error por tipo inválido, `label_key`/target vacío o `hotspot_id` duplicado, y warning por posición fuera de 0–1 o icono inexistente. El `ViewModel` avisa al cargar de `scene_id` narrativos inexistentes.
+
+**`ExplorationController.request_interaction()`** es ahora el ÚNICO punto de routing. Tiene guard propio (`is_input_blocked()`) por ser API pública. Para `combat`, `enemy_definitions` llega como parámetro y se copia a `_pending_enemy_definitions` antes de registrar enemigos; confirmado en log: `Enemy definitions loaded: {…: "wolf_test"}` y enemigos pre-registrados con `def: wolf_test`, no `enemy_base`.
+
+**Visibilidad declarativa.** `required_flags` (todos puestos) y `blocked_flags` (ninguno puesto), evaluados contra el autoload `Narrative`. Se recalcula al cargar la escena y en cada `game_state_changed → EXPLORATION` — sin spawn/cleanup por evento ni listeners de `combat_ended`. Un flag puesto sin cambio de estado (p. ej. el atajo F2) no refresca hasta la siguiente vuelta a `EXPLORATION`.
+
+**Escena raíz `exploration_interactive_map`.** `ExplorationController` + `ExplorationHUD` (misma jerarquía de hijos que el HUD del pueblo — usa `$` en `@onready`, falla en `_ready()` si falta alguno) + `MapLayer` (`CanvasLayer` capa -1, oculto en `COMBAT_ACTIVE`/`VICTORY`/`DEFEAT`; comprobado en partida que el mapa no se ve durante el combate). El HUD no necesita `Player`. La escena raíz llama a `exploration_hud.refresh()` en su `_ready()`.
+
+**SaveSystem.** `_collect_player_state()` exigía un nodo `Player` (`_find_player()`) y abortaba el guardado con `Player node not found`; con esta escena habría bloqueado cualquier savepoint (`triggers_save`). Ahora guarda sin la clave `position` si no hay `Player` (clave opcional, `SAVE_VERSION` sin cambios); la restauración ya toleraba un `Player` ausente. Validado: guardado desde el NPC savepoint con el mapa activo (`Game saved successfully`) y "Cargar Partida" que reanuda en `telmori_sheriff_briefing` sobre el mapa.
+
+**Correcciones a lo que se creía antes de la Fase 0:**
+- `Interactable` estaba vivo, pero solo con `narrative_scene` y creado por código; el `@export_enum` no lista `narrative_scene`.
+- La primera entrada narrativa del pueblo es `_ready()` + `flag.telmori_village_visited` → `enter_narrative_scene("telmori_village_arrival")`, no un `Interactable`.
+- `TelmoriVillage._ready()` hace inicialización de partida (`Party.join_party("companion_mira")`, equipo inicial para `player` y `companion_mira`): lógica de juego dentro de una escena.
+- El nombre del nodo raíz del `.tscn` de exploración es libre: `SceneOrchestrator` fuerza `name = "ExplorationScene"` al instanciar (solo importa al ejecutar una escena suelta con F6).
+- `NarrativeSceneDB` sí es un autoload (`Node` sin estado runtime); `InteractiveSceneDB` sigue el mismo patrón.
+
+**No verificado en partida.** El camino físico de `Interactable` tras el refactor de `ExplorationController` (revisado por inspección, comportamiento idéntico por diseño, pero no jugado de extremo a extremo). F9 queda fuera: no operativo desde el Spike 7. **Spike 13: descartado** — el pueblo no usa `Interactable` y se descartaron el tutorial y el test; no se validará (ver la sección siguiente).
+
+**Pendiente (Spike 13):** *resuelto — ver la sección siguiente.* (Entonces: inicialización de partida fuera de la escena; los 3 spawns por evento del pueblo → hotspots declarativos; un flag de victoria de la emboscada; arte, `UIButton` del Design System y claves de localización reales.)
+
+### Spike 13 — Reautoría del pueblo de "Los Telmori" sobre el motor de escenas interactivas
+
+**Qué es.** Aplica el motor de Spike 12 al contenido real. El pueblo deja de ser una escena 2D con `Interactable` creados por código y pasa a ser un **hub persistente** (`data/interactive_scenes/telmori_village.json`) sobre una ilustración (`mapa_aldea_telmori.jpg`, tinta y aguada sobre pergamino) con cuatro lugares — sheriff, herrería, taberna y salida — que cambian de significado según la etapa de la aventura. `exploration_interactive_map.tscn` carga ahora `telmori_village`; `poi_test_map` queda para pruebas cambiando `interactive_scene_id`. Cerrado y jugado de principio a fin, con validación parcial (ver más abajo). Detalle en `docs/spike_13_reautoria_pueblo_telmori.md`.
+
+**El plan original no era el real.** La spec trataba el mapa como un contenedor para tres hotspots dinámicos (rastro, aftermath, recompensa del sheriff) y planteaba un flag de victoria de la emboscada. El flujo que quería Fernando es un hub: tras la llegada se visita el sheriff, la herrería y la taberna; la salida está visible pero bloqueada hasta aceptar el encargo (y de nuevo hasta cobrar la recompensa), y al ganar un combate se encadena directamente la siguiente escena narrativa en vez de dejar al jugador en el pueblo. Eso cambió el diseño:
+
+| Etapa | Flags activos | Sheriff | Salida |
+|---|---|---|---|
+| 1 Llegada | — | diálogo (con "aceptar") | aviso: falta aceptar el encargo |
+| 2 Encargo aceptado | `flag.telmori_sheriff_briefed` | diálogo (sin "aceptar") | → colinas |
+| 3a Emboscada ganada, rastreo fallido | + `flag.telmori_ambush_won` | diálogo | → rastreo |
+| 3b Rastro logrado | + `flag.telmori_tracked_to_lair` | diálogo | → puerta de la guarida |
+| 4 Guarida limpia | + `flag.telmori_lair_cleared` | recompensa (cadena narrativa) | aviso: falta cobrar |
+| 5 Completada | + `flag.telmori_adventure_completed` | diálogo final | → salida final (marcador) |
+
+**Hotspots.** 11 hotspots en 4 posiciones. Los que comparten sitio son mutuamente excluyentes por `required_flags`/`blocked_flags` (comprobado por simulación para las 7 combinaciones de flags: en cada etapa se ve una sola salida y un solo sheriff). No hizo falta motor nuevo para el "visible pero bloqueado": dos hotspots en el mismo sitio, uno de los cuales abre una escena de aviso de un nodo. Con `icon_path` válido salen como `UIButton` solo-icono (medallón) con el nombre en tooltip; sin él, botón de texto.
+
+**Ciclo de combate (cambio de motor).** Con `NarrativeSceneOutcome.combat_victory_scene_id`, ganar el combate abre esa escena narrativa en lugar de volver a `EXPLORATION`: emboscada → `telmori_post_ambush_tracking` → guarida → combate → `telmori_lair_victory` → `telmori_lair_loot_obsidian` → pueblo. Huir devuelve al pueblo, donde la salida de la etapa correspondiente permite reintentar.
+- `GameLoop.VALID_STATE_TRANSITIONS`: `VICTORY → [EXPLORATION, NARRATIVE_SCENE]` (**cambio de contrato**).
+- `start_combat(enemy_ids, encounter = null, victory_scene_id = "")`. El id vive en `GameLoop._pending_victory_scene_id` — no en `CombatEncounterDefinition`, que puede ser `null` y cuyo `_current_encounter` se limpia en `end_combat()`. `consume_pending_victory_scene()` lo devuelve y vacía; `end_combat()` lo descarta tras emitir `combat_ended` (emisión síncrona), para que no se fugue al combate siguiente.
+- `SceneOrchestrator._on_combat_ended`: abre la escena de victoria; si el id **no existe**, `push_error` y vuelve a `EXPLORATION`. Una prueba con un id mal escrito abría un panel narrativo vacío sin salida: softlock justo tras ganar.
+- **El defecto de la spec era doble:** `flag.telmori_ambush_triggered` y `flag.telmori_lair_combat_won` (mal nombrado) se ponían al DISPARAR el combate, no al ganarlo. Ya no los pone ni lee nadie. `flag.telmori_ambush_won` lo pone `telmori_post_ambush_tracking` en su salida de fallo (solo se alcanza tras ganar); en la de éxito ya pone `flag.telmori_tracked_to_lair`. `flag_to_set` es un único flag por outcome, así que la visibilidad se diseñó para no necesitar dos.
+
+**Otros cambios de motor.**
+- `NarrativeSceneOutcome.take_item_*` (quitar un ítem; desequipa antes). Se usa en `telmori_sheriff_reward_intro` para devolver `enchanted_spear` (préstamo: `quest_loan`, `base_value` 0). Solo cubre una entidad: si la lanza pasa a Mira no se retira.
+- `InteractiveSceneDefinition.on_first_visit` + `InteractiveSceneViewModel.request_first_visit()`: acción de una sola vez al entrar por primera vez. Solo en `EXPLORATION`, marca el flag antes de actuar, llamada con `call_deferred` desde el `_ready()` de la escena raíz para que `SceneOrchestrator` termine de atender `EXPLORATION` antes de abrir la escena narrativa. El pueblo abre así `telmori_village_arrival` (`once_flag: flag.telmori_village_visited`), lo que antes hacía `TelmoriVillage._ready()`.
+- `AdventureStarter.apply()` + `data/adventures/telmori.json`: companions y kit inicial, una sola vez al confirmar el personaje.
+- `UIButton`: `min_square` e `icon_backdrop` (opt-in).
+- **Dos mensajes preexistentes al huir, corregidos de paso:** `EXPLORATION → EXPLORATION` (`end_combat("escaped")` ya transiciona a `EXPLORATION` y `_on_combat_ended` repetía `enter_exploration()`) y `ROUND_START → PLAYER_ACTION_SELECT` (la huida se resuelve DENTRO de la señal `player_turn_started`: el combate acaba y `_start_player_turn()` seguía transicionando de fase). Dos guardas de dos líneas.
+
+**Datos.**
+- Tienda propia `blacksmith_telmori.tres` (`max_slots` 16): stock de `blacksmith_01` + `enchanted_spear` (valor 0, sale gratis) y 20 `silver_arrow` (2 de oro cada una). El jugador empieza con 50 de oro, suficiente para las flechas.
+- Sheriff: el hotspot abre `DLG_TELMORI_SHERIFF_BRIEFING` directamente (la escena narrativa envoltorio ya no se usa). `O4` (aceptar) con `blocked_flags: [flag.telmori_sheriff_briefed]` — flag puesto por `EVT_TELMORI_SHERIFF_BRIEFED`, disparado desde la opción —, nueva opción "Salir", y `O1`–`O3` bloqueadas con la aventura completada. El diálogo tiene guardado (`triggers_save`) y es el punto de guardado del hub. **La etapa 4 no ofrece guardado a propósito:** la cadena de recompensa entrega oro y trofeo al pulsar, y un guardado dentro permitiría cobrar dos veces.
+- Escenas narrativas nuevas, editadas y sin uso: ver el árbol. Localización: +19 claves y 3 modificadas (ver el árbol).
+
+**Decisión sobre `Interactable` (punto 6 de la spec).** El pueblo no usa ninguno: un mapa estático no puede tenerlos (sin jugador, física ni proximidad). Fernando descartó `exploration_tutorial` y `exploration_test` (no eran escenas de producción). `Interactable` queda **vestigial**, sin consumidores en el camino jugable, y el camino físico refactorizado en Spike 12 (`request_interaction()`) **nunca se validó en partida real y ya no se va a validar**. Candidato a limpieza en la recopilación final (ver pendientes, punto 10).
+
+**Hallazgos.**
+- **Colisión de nombres de fichero:** el diálogo y la escena narrativa del briefing se llamaban igual en carpetas distintas; al copiar el diálogo a `narrative_scenes` se pisó la escena y `NarrativeSceneDB` dio `scene_id vacío`. Los diálogos llevan prefijo `dlg_`.
+- **Un `NarrativeScene` con id inexistente abre un panel vacío sin salida desde cualquier origen;** solo se protegió la ruta de victoria. Guarda general pendiente.
+- `EVT_TELMORI_SHERIFF_BRIEFED` declara `trigger_type: DIALOGUE_END`, pero la búsqueda no encontró código que consuma `dialogue_ended` para disparar eventos: se disparan desde `narrative_events` de la opción (inferido de la búsqueda de código; el caso contrario no se probó).
+- Las "fichas de combate" (`UICombatToken`) no son reutilizables como icono de mapa: están acopladas al combate. Los iconos de hotspot son PNG propios con `UIButton`.
+- Los `push_warning`/`push_error` salen en la pestaña Depurador → Errores, no en la salida de texto: los dos mensajes de la huida llevaban ahí desde antes y no aparecían en los logs pegados.
+
+**Validación.**
+- **Validado en partida real (Fernando):** la aventura completa sobre el motor nuevo; guardado al final y cierre del juego; la lanza desaparece del inventario al empezar la recompensa; huir de la emboscada devuelve al pueblo y ganar sigue el ciclo definido.
+- **Validado por log:** llegada → mapa; kit una sola vez y Mira en el grupo; victoria con escena; huida; id de victoria inexistente (fallback).
+- **Sin confirmar:** un segundo punto de guardado distinto (la spec pide dos); ganar un combate sin escena de victoria y la derrota (solo comprobables con `poi_test_map`); lanza equipada frente a vendida; que "Salir" del sheriff no marque `sheriff_briefed`.
+- Camino físico de `Interactable`: no validado y descartado.
+
 ### ItemCharacterBridge — Aplicación de modificadores
 
 El target de un modificador sigue el formato `tipo.id`:
@@ -1075,11 +1226,11 @@ Todos los componentes de UI deben usar el Design System centralizado:
 
 - **UITokens** (autoload): Define colores, espaciado y tamaños centralizados
 - **UIPanel**: PanelContainer con estilos consistentes — **debe anclarse a un tamaño explícito** cuando contiene texto largo (ver antipatrón nuevo en `athelia_ui_architecture.md`, Spike 3/B); sin anclaje se dimensiona al contenido y puede desbordar la ventana. **Spike 9:** opción `decorative_frame` (false por defecto) que dibuja doble filete + esquineras con `_draw()`; ver sección propia en `athelia_ui_architecture.md`
-- **UIButton**: Button con variants (PRIMARY, SECONDARY, etc.) y tamaños
+- **UIButton**: Button con variants (PRIMARY, SECONDARY, etc.) y tamaños. **Spike 13:** `min_square` (botón de solo icono, cuadrado) e `icon_backdrop` (disco oscuro semitransparente tras el icono) — opt-in, apagados por defecto; `variant`/`btn_size`/`min_square` se fijan ANTES de `add_child()` (se leen en `_ready()`). Ver `athelia_ui_architecture.md`
 - **UISlot**: Slot de inventario/equipo con drag & drop
 - **UIResourceBar**: Barra de recurso (vida, stamina) con valores actuales/máximos
 - **UIRadialGauge** (Grupo 5): Anillo de progreso radial parametrizable, un único anillo por instancia — primer componente con `_draw()`/arcos, sin precedente previo en el Design System
-- **UICombatToken** (Grupo 5): Ficha de combate (party o enemigo) — compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo. Grupo 4: contorno de texto desde tokens, para leerse sobre fondos de combate claros
+- **UICombatToken** (Grupo 5): Ficha de combate (party o enemigo) — compone dos `UIRadialGauge` + relleno central + triángulo de turno + retícula de objetivo. Grupo 4: contorno de texto desde tokens, para leerse sobre fondos de combate claros. **Spike 13:** acoplada al combate (anillos de vida/energía, triángulo de turno, retícula), no es reutilizable como icono de mapa; los iconos de hotspot son PNG propios con `UIButton`
 - **Marco decorativo** (Spike 9, cerrado y validado): `UIPanel.decorative_frame` + `corner_texture` (doble filete + esquinera única rotada en las 4 esquinas), tokens `COLOR_FRAME_*`/`FRAME_*` en `UITokens`, arte en `ui/design_system/assets/frames/`. Activado solo en `NarrativeScenePanel`; el resto de pantallas siguen sin marco hasta decisión explícita por pantalla (opt-in)
 
 Ver `docs/athelia_ui_architecture.md` y `README.md` para documentación completa del Design System.
@@ -1130,6 +1281,8 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 
 **Spike 1 Motor Narrativo añadió F1** como tecla de debug temporal en `_unhandled_input()` para disparar `GameLoop.enter_narrative_scene("test_intro")` — retirada en Spike 3, Grupo A junto con `_debug_test_narrative_scene()` y las escenas de prueba asociadas.
 
+- **Spike 12 — el atajo F2 lee `user://debug_shortcut.json`, NO la raíz del proyecto.** En Windows `user://` es `%APPDATA%\Godot\app_userdata\<config/name>\`; un `debug_shortcut.json` junto a `project.godot` da `Debug shortcut: file not found at user://debug_shortcut.json`. Ese warning prueba que la tecla SÍ llega (el keycode crudo `KEY_F2` no necesita alta en el InputMap) y solo falla el fichero. En el editor: Proyecto → Abrir carpeta de datos de usuario.
+
 ---
 
 ## Notas de convenciones
@@ -1175,10 +1328,25 @@ Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4
 - **Un `.csv` de localización nuevo necesita alta manual en Project Settings → Localization → Translations (Spike 10):** sin ella todas sus claves salen crudas aunque los datos y las claves sean correctos (`items_telmori.csv`). Y todo campo con comas debe ir entrecomillado, o la fila tiene más columnas de las declaradas.
 - **Un consumible con efecto condicional no debe emitir `item_use_success` incondicionalmente (Spike 10):** el consumo del ítem cuelga de esa señal. `_apply_consumable()` consumía el libro aunque `execute_learning_session()` hubiera devuelto `skill_locked`; ahora emite `item_use_failed` si el aprendizaje no se aplicó.
 - **Un sistema que solo mejora lo que ya existe no cubre "aprender lo nuevo" (Spike 10):** los libros previos solo subían skills ya poseídas, así que `register_entity_skills()` (solo el kit) nunca había fallado. Cualquier fuente que dé algo que la entidad no tiene necesita su propio camino de alta (`learn_skill()`), con persistencia incluida (`load_save_state()` debe poder recrear lo aprendido en runtime).
+- **Una señal de GDScript no admite parámetros opcionales, y un dato que viaja fuera de la señal se lee de estado ambiente — degradación silenciosa si falta (Spike 12):** `interaction_requested(type, target_id)` no lleva `enemy_definitions`; `ExplorationController` lo leía del `_current_interactable`. Sin nodo (un hotspot), el combate arrancaba igual pero con todos los enemigos como `enemy_base` — solo un `print`. Un punto de entrada nuevo debe pasar explícitamente todo lo que el camino antiguo obtenía por efecto lateral (`request_interaction()` lo recibe como parámetro).
+- **Una API pública necesita su propio guard, aunque el llamador ya lo tenga (Spike 12):** `request_interaction()` comprueba `is_input_blocked()` y el ViewModel exige además `GameState == EXPLORATION` — `is_input_blocked()` por sí solo deja pasar `PAUSE` y `MENU`.
+- **Una escena de exploración nueva hereda dependencias invisibles de la anterior (Spike 12):** `SaveSystem._collect_player_state()` exigía un nodo `Player` y abortaba el guardado entero; `ExplorationHUD` exige una jerarquía de hijos exacta (`$` en `@onready`). Antes de sustituir `SCENE_EXPLORATION`, buscar (`Select-String`) quién busca `Player`/grupo `"player"` y qué nodos hijos consumen los scripts compartidos.
+- **La documentación del proyecto puede describir el código de forma incorrecta (Spike 12):** decía que el `@export_enum` de `Interactable` incluía `narrative_scene` (no lo incluye) y que el nombre del nodo raíz de exploración debía ser `ExplorationScene` (el orquestador lo fuerza). Una Fase 0 con `Select-String` sobre el proyecto entero antes de diseñar sigue siendo el paso obligado.
+- **`user://` no es la carpeta del proyecto (Spike 12):** un fichero de configuración de desarrollo junto a `project.godot` no lo ve `FileAccess` (ver la nota de F2, más arriba).
+- **Dos ficheros con el mismo nombre en carpetas distintas se pisan al copiar (Spike 13):** el diálogo y la escena narrativa del briefing eran ambos `telmori_sheriff_briefing.json`; al dejar el diálogo en `narrative_scenes` se sobrescribió la escena y `NarrativeSceneDB` dio `scene_id vacío` (el cargador del registro lo descartó sin tumbar el resto). Los diálogos llevan prefijo `dlg_`.
+- **Abrir una escena narrativa con un id inexistente deja un panel vacío sin salida (Spike 13):** softlock justo tras ganar un combate, detectado probando un id mal escrito. Validar el id ANTES de abrir y degradar a `EXPLORATION` (hecho para la ruta de victoria; guarda general pendiente en `_handle_narrative_scene()`).
+- **Un dato que debe sobrevivir a una señal síncrona no se guarda en el recurso que se limpia (Spike 13):** la escena de victoria vive en `GameLoop._pending_victory_scene_id`, no en `CombatEncounterDefinition` (puede ser `null`, y `_current_encounter` se limpia en `end_combat()`); se consume durante `combat_ended` y se descarta justo después, para que no se fugue al combate siguiente.
+- **Un flag puesto al DISPARAR una acción no demuestra que se haya GANADO (Spike 13):** `telmori_ambush_triggered` y `telmori_lair_combat_won` se ponían al lanzar el combate; solo el `combat_ended "victory"` aparte lo disimulaba. Una puerta de "lo conseguí" necesita un flag puesto por una escena que solo se alcanza al conseguirlo.
+- **Un componente del Design System lee sus propiedades en `_ready()` (Spike 13):** `UIButton` aplica `variant`, `btn_size`, `min_square` e `icon_backdrop` en `_apply_style()`, así que se fijan ANTES de `add_child()`; un `custom_minimum_size` puesto antes se pisa en parte (la altura).
+- **`push_warning`/`push_error` solo aparecen en Depurador → Errores, no en la salida de texto (Spike 13):** dos mensajes de la huida llevaban ahí desde antes del spike y no se veían en los logs pegados. Para auditar "sin warnings" hay que mirar esa pestaña.
 
 ---
 
-*Última actualización: Spike 11 — Rediseño de la ventana de diálogo (fondo, retrato, estado de ánimo) — cerrado y validado en partida real de principio a fin, apertura desde escena narrativa y desde `EXPLORATION`. `DialogueNodeDefinition` gana `mood`; `DialogueDefinition` gana `portrait_folder` y `background_id`; `EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos. `DialoguePanel` migra de `PanelContainer` plano a `UIPanel` (marco del Spike 9) — cierra el pendiente que dejó abierto ese spike para esta pantalla. Antipatrón nuevo: un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, así que las opciones de diálogo necesitan `ScrollContainer` si su número puede variar — mismo problema de fondo que "Panel sin tamaño fijo con texto largo", por número de hijos en vez de longitud de texto. Ver `spike_11_ventana_dialogo.md` para el detalle técnico completo (maqueta de layout, catálogo de estados de ánimo, cascadas de respaldo). Godot 4.7.2.*
+*Última actualización: Spike 13 — Reautoría del pueblo de "Los Telmori" sobre el motor de escenas interactivas (cerrado, jugado de principio a fin; validación parcial anotada en la sección propia). El pueblo pasa a ser un hub declarativo (`data/interactive_scenes/telmori_village.json`: 11 hotspots en 4 posiciones, exclusivos por flags según la etapa) sobre una ilustración, con iconos `UIButton` de solo icono. Cambios de motor y de contrato: `VICTORY → NARRATIVE_SCENE` en `VALID_STATE_TRANSITIONS`; `start_combat(..., victory_scene_id)` + `NarrativeSceneOutcome.combat_victory_scene_id` (al ganar se abre una escena narrativa; si no existe, vuelve a `EXPLORATION`); `NarrativeSceneOutcome.take_item_*`; `InteractiveSceneDefinition.on_first_visit` + `request_first_visit()`; `AdventureStarter` + `data/adventures/telmori.json` (kit y companions una sola vez; elimina el kit duplicado); `UIButton.min_square`/`icon_backdrop` (opt-in). Resuelve de paso dos mensajes preexistentes al huir. Decisión: `Interactable` queda vestigial (se descartan el tutorial y el test) y su camino físico nunca se validó. Hallazgos: colisión de nombres de fichero entre diálogo y escena, panel narrativo vacío con id inexistente, flags puestos al disparar en vez de al ganar. Detalle en `docs/spike_13_reautoria_pueblo_telmori.md` y `athelia_pendientes_post_pivote_narrativo.md` (punto 10). Godot 4.7.2.*
+
+*Última actualización anterior: Spike 12 — Motor de escenas interactivas / mapa de puntos de interés (cerrado y validado en partida real con `poi_test_map`: `dialogue`, `shop`, `narrative_scene`, `combat` con `enemy_definitions`, visibilidad por `required_flags`/`blocked_flags`, guardado y carga sin nodo `Player`). Nuevo sistema `core/interactive_scenes/` (`InteractiveSceneDefinition`, `InteractiveHotspotDefinition`, autoload `InteractiveSceneDB`), `ui/interactive_scene/` (ViewModel + View) y `scenes/exploration/interactive_map/` (escena raíz de exploración sin `Player`). `ExplorationController.request_interaction()` pasa a ser el único punto de routing de interacciones (el camino de `Interactable` delega en él); `SaveSystem._collect_player_state()` ya no exige nodo `Player`. `SCENE_EXPLORATION` apunta al mapa de PRUEBA (línea del pueblo comentada, revertible). Fase 0 corrigió cuatro supuestos de la documentación: `Interactable` estaba vivo pero solo con `narrative_scene` creado por código; su `@export_enum` no lista `narrative_scene`; el nombre del nodo raíz de exploración lo fuerza el orquestador; y `TelmoriVillage._ready()` hace inicialización de partida (companion, equipo). Sin verificar en partida: el camino físico de `Interactable` tras el refactor del controlador. Pendiente para el Spike 13: inicialización de partida fuera de la escena, los 3 spawns del pueblo → hotspots declarativos, un flag de victoria de la emboscada, arte/`UIButton`/localización real. Ver `docs/spike_12_motor_mapa_poi.md` para el detalle completo. Godot 4.7.2.*
+
+*Última actualización anterior: Spike 11 — Rediseño de la ventana de diálogo (fondo, retrato, estado de ánimo) — cerrado y validado en partida real de principio a fin, apertura desde escena narrativa y desde `EXPLORATION`. `DialogueNodeDefinition` gana `mood`; `DialogueDefinition` gana `portrait_folder` y `background_id`; `EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos. `DialoguePanel` migra de `PanelContainer` plano a `UIPanel` (marco del Spike 9) — cierra el pendiente que dejó abierto ese spike para esta pantalla. Antipatrón nuevo: un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, así que las opciones de diálogo necesitan `ScrollContainer` si su número puede variar — mismo problema de fondo que "Panel sin tamaño fijo con texto largo", por número de hijos en vez de longitud de texto. Ver `spike_11_ventana_dialogo.md` para el detalle técnico completo (maqueta de layout, catálogo de estados de ánimo, cascadas de respaldo). Godot 4.7.2.*
 
 *Última actualización anterior: Spike 10 — Diálogos restantes del sheriff (cerrado, camino A, validado en partida real). `telmori_sheriff_reward_intro` y `telmori_sheriff_training` abren `DLG_TELMORI_SHERIFF_REWARD`/`_TRAINING` como sub-overlay con las entregas en el mismo outcome (el diálogo solo conversa; `DialogueOptionDefinition`/`DialogueSystem` no tienen entregas y no se ampliaron); Grupo 2 completo. Dos fallos de motor previos destapados por la validación: `grant_item_*` se había perdido de `NarrativeSceneViewModel._apply_outcome()` (ningún ítem llegaba al inventario, sin error visible) y un libro no podía enseñar una skill fuera del kit inicial, consumiéndose sin efecto — nuevo `SkillSystem.learn_skill()`, `initial_value` en `learning_data`, `load_save_state()` que recrea skills aprendidas y consumo del libro condicionado a que el aprendizaje se aplique. Localización completada (escenas del Grupo D, escena de botín, flechas/lanza de Grupo B) y alta de `items_telmori.csv`. Sin probar en partida: camino de fallo del libro y guardado/carga con Curtido. Ver `docs/spike_10_dialogos_sheriff.md`. Godot 4.7.2.*
 

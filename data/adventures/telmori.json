@@ -1,0 +1,23 @@
+{
+	"adventure_id": "telmori",
+	"schema_version": 1,
+	"companions": [
+		"companion_mira"
+	],
+	"starting_gear": {
+		"player": [
+			"iron_helmet",
+			"leather_armor",
+			"leather_boots",
+			"wooden_shield",
+			"iron_sword"
+		],
+		"companion_mira": [
+			"iron_helmet",
+			"leather_armor",
+			"leather_boots",
+			"wooden_shield",
+			"iron_sword"
+		]
+	}
+}

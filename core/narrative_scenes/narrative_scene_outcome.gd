@@ -45,6 +45,11 @@ var combat_enemy_definitions: Dictionary = {}
 ## sustituye a tener que llamar aparte a configure_active_encounter().
 var combat_encounter: CombatEncounterDefinition = null
 
+## Spike 13 — escena narrativa a abrir al GANAR el combate de este outcome
+## (en vez de volver a EXPLORATION). Vacío = comportamiento de siempre.
+## Solo tiene sentido con combat_enemy_ids no vacío.
+var combat_victory_scene_id: String = ""
+
 ## Spike 3, Grupo B — "otorgar ítem": entrega puntual de un solo ítem,
 ## reutilizando la API de Inventory ya existente. Vacío = no otorga nada.
 ## Deliberadamente mínimo: no es una tabla de botín, no admite condiciones
@@ -57,6 +62,13 @@ var grant_item_quantity: int = 1
 ## el autor de la escena en JSON (p. ej. para dar un ítem a un companion
 ## en vez de al jugador).
 var grant_item_target: String = "player"
+
+## Spike 13 — quitar ítem (p. ej. devolver un préstamo de misión). Se aplica al
+## pulsar la opción, igual que grant_item_*. Si la entidad no lo tiene (vendido,
+## ya devuelto) no es un error: no hay nada que quitar.
+var take_item_id: String = ""
+var take_item_quantity: int = 1
+var take_item_target: String = "player"
 
 ## Spike 3, Grupo D — "otorgar recurso": entrega puntual de un recurso
 ## (oro, etc.) vía ResourceSystem.add_resource(), análogo a "otorgar ítem"
@@ -101,8 +113,13 @@ static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
 	outcome.grant_item_quantity = data.get("grant_item_quantity", 1)
 	outcome.grant_item_target = data.get("grant_item_target", "player")
 
+	outcome.take_item_id = data.get("take_item_id", "")
+	outcome.take_item_quantity = data.get("take_item_quantity", 1)
+	outcome.take_item_target = data.get("take_item_target", "player")
+
 	outcome.grant_resource_id = data.get("grant_resource_id", "")
 	outcome.grant_resource_amount = data.get("grant_resource_amount", 0.0)
 	outcome.grant_resource_target = data.get("grant_resource_target", "player")
 	outcome.dialogue_id = data.get("dialogue_id", "")
+	outcome.combat_victory_scene_id = data.get("combat_victory_scene_id", "")
 	return outcome

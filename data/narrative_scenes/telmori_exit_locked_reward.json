@@ -1,11 +1,11 @@
 {
-	"scene_id": "telmori_village_arrival",
+	"scene_id": "telmori_exit_locked_reward",
 	"image_path": "res://data/narrative_scenes/images/telmori/telmori_bg_village.jpg",
-	"text_key": "TELMORI_VILLAGE_ARRIVAL",
+	"text_key": "TELMORI_EXIT_LOCKED_REWARD",
 	"options": [
 		{
-			"option_id": "continue_to_sheriff",
-			"text_key": "TELMORI_VILLAGE_ARRIVAL_OPTION_CONTINUE",
+			"option_id": "close",
+			"text_key": "TELMORI_EXIT_LOCKED_REWARD_OPTION_CLOSE",
 			"skill_id": "",
 			"roll_modifier": 0,
 			"challenge_level": 0,
@@ -15,7 +15,8 @@
 			"outcome_default": {
 				"next_scene_id": "",
 				"flag_to_set": "",
-				"combat_enemy_ids": []
+				"combat_enemy_ids": [],
+				"combat_enemy_definitions": {}
 			}
 		}
 	]

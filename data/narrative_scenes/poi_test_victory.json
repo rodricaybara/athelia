@@ -1,0 +1,11 @@
+{
+  "scene_id": "poi_test_victory",
+  "image_path": "",
+  "text_key": "POI_TEST_VICTORY",
+  "options": [{
+	"option_id": "continue", "text_key": "POI_TEST_VICTORY_OPTION_CONTINUE",
+	"skill_id": "", "roll_modifier": 0, "challenge_level": 0,
+	"required_successes": 0, "retry_policy": "immediate", "group_aggregate": "",
+	"outcome_default": {"next_scene_id": "", "flag_to_set": "", "combat_enemy_ids": []}
+  }]
+}
