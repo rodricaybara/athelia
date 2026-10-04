@@ -215,7 +215,7 @@ func _register_in_systems(companion_id: String, definition_id: String) -> bool:
  
 	var skills_node: Node = get_node_or_null("/root/Skills")
 	if skills_node:
-		if not skills_node._entity_skills.has(companion_id):
+		if not skills_node.has_entity(companion_id):  # Spike 14: API pública en vez de _entity_skills
 			# Kit fijo leído de la propia CharacterDefinition del companion —
 			# antes se llamaba sin segundo argumento, que registra TODO el
 			# catálogo (19+ skills) en vez de solo las suyas.
@@ -243,25 +243,10 @@ func _register_in_systems(companion_id: String, definition_id: String) -> bool:
 	return true
 
 func _unregister_from_systems(companion_id: String) -> void:
-	if Characters.has_entity(companion_id):
-		Characters.unregister_entity(companion_id)
-
-	Resources.unregister_entity(companion_id)
-
-	var skills_node: Node = get_node_or_null("/root/Skills")
-	if skills_node:
-		skills_node.unregister_entity(companion_id)
-
-	var equipment: Node = get_node_or_null("/root/Equipment")
-	if equipment:
-		equipment.unregister_entity(companion_id)
-
-	var inventory: Node = get_node_or_null("/root/Inventory")
-	if inventory and inventory._inventories.has(companion_id):
-		inventory._inventories.erase(companion_id)
-
+	# Spike 14: la baja completa vive en EntityLifecycle (mismo orden que antes:
+	# Characters, Resources, Skills, Equipment, Inventory).
+	EntityLifecycle.unregister_everywhere(companion_id)
 	print("[PartyManager] '%s' unregistered from all systems" % companion_id)
-
 
 # ============================================
 # CALLBACKS

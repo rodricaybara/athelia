@@ -267,7 +267,7 @@ func _create_player_entity() -> void:
 			resources.restore_resource("player", "health")
 			resources.restore_resource("player", "stamina")
 
-	if skills and not skills._entity_skills.has("player"):
+	if skills and not skills.has_entity("player"):
 		# Kit fijo leído directo de la CharacterDefinition — nunca una copia
 		# hardcodeada aquí. register_entity_skills() con el array vacío por
 		# defecto registra TODO el catálogo (17+ skills) — eso rompe la

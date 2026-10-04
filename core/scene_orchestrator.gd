@@ -75,6 +75,10 @@ var _combat_hud: Node = null
 ## Contexto de la última transición (shop_id, dialogue_id, etc.)
 var _pending_context: Dictionary = {}
 
+## Pantalla de Game Over actualmente instanciada (puede ser null).
+## La necesita el teardown de _handle_main_menu() para liberarla (Spike 14).
+var _game_over_ui: Node = null
+
 # ============================================
 # INICIALIZACIÓN
 # ============================================
@@ -159,13 +163,60 @@ func _on_game_state_changed(new_state: int) -> void:
 # ============================================
 
 func _handle_main_menu() -> void:
-	# Limpiar cualquier overlay o escena activa (ej: llegamos desde DEFEAT)
+	# Cerrar cualquier overlay activo (ej: llegamos desde DEFEAT).
 	_hide_current_overlay()
+ 
+	# Spike 14 — teardown de las escenas de la sesión anterior. Síncrono:
+	# queue_free() es diferido, así que no rompe a los listeners que aún
+	# reciban game_state_changed(MENU) en este mismo frame.
+	_free_session_scenes()
+ 
 	# La escena raíz ya es main_menu_screen.tscn — no hay que instanciar nada.
-	# Este handler existe para limpiar estado residual al volver al menú.
-	# En el futuro puede gestionar una transición animada de entrada.
 	print("[SceneOrchestrator] Main menu active")
+ 
+	# Spike 14 — reinicio de sesión tras un frame. Se llama SIN await a
+	# propósito: dispara y olvida; _handle_main_menu() sigue siendo síncrono.
+	# Nadie escucha scene_transition_completed, así que emitirse antes de que
+	# acabe el reinicio no afecta a nada.
+	_run_session_reset()
 
+## Spike 14 — Libera las escenas que pertenecen a una sesión terminada:
+## Game Over, CombatHud, CombatScene y ExplorationScene. Idempotente.
+func _free_session_scenes() -> void:
+	if _game_over_ui and is_instance_valid(_game_over_ui):
+		_game_over_ui.queue_free()
+	_game_over_ui = null
+ 
+	if _combat_hud and is_instance_valid(_combat_hud):
+		_combat_hud.queue_free()
+	_combat_hud = null
+ 
+	for scene_name: String in ["CombatScene", "ExplorationScene"]:
+		var node := get_tree().root.get_node_or_null(scene_name)
+		if node:
+			node.queue_free()
+			print("[SceneOrchestrator] Session scene freed: %s" % scene_name)
+ 
+## Spike 14 — Espera un frame (las escenas liberadas ya no existen y ningún
+## HUD puede leer entidades que están a punto de darse de baja) y reinicia la
+## sesión. Si entre medias el estado ya no es MENU ni CHARACTER_CREATION
+## (p.ej. el jugador ya está cargando una partida), NO reinicia: borrar
+## entidades de una partida recién cargada sería peor que no reiniciar.
+func _run_session_reset() -> void:
+	await get_tree().process_frame
+ 
+	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
+	if not game_loop:
+		push_error("[SceneOrchestrator] GameLoop not found — session reset skipped")
+		return
+ 
+	var state: int = game_loop.current_game_state
+	if state != GameLoopSystem.GameState.MENU \
+			and state != GameLoopSystem.GameState.CHARACTER_CREATION:
+		push_warning("[SceneOrchestrator] Session reset skipped — state is already %s" % GameLoopSystem.GameState.keys()[state])
+		return
+ 
+	SessionReset.apply()
 
 func _handle_character_creation() -> void:
 	_hide_current_overlay()
@@ -588,15 +639,21 @@ func _on_combat_ended(result: String) -> void:
 
 func _show_game_over() -> void:
 	_hide_current_overlay()
-	var packed := load("res://ui/gameover/game_over_ui.tscn") as PackedScene
-	if not packed:
-		push_error("[SceneOrchestrator] Cannot load game_over_ui.tscn")
+ 
+	if _game_over_ui and is_instance_valid(_game_over_ui):
+		push_warning("[SceneOrchestrator] Game Over ya está visible — ignorado")
 		return
-	var game_over := packed.instantiate()
-	game_over.name = "GameOverUI"
-	get_tree().root.add_child(game_over)
-	if game_over.has_method("show_game_over"):
-		game_over.show_game_over()
+ 
+	var packed := load(OVERLAY_GAME_OVER) as PackedScene
+	if not packed:
+		push_error("[SceneOrchestrator] Cannot load game over: %s" % OVERLAY_GAME_OVER)
+		return
+ 
+	_game_over_ui = packed.instantiate()
+	_game_over_ui.name = "GameOverUI"
+	get_tree().root.add_child(_game_over_ui)
+	if _game_over_ui.has_method("show_game_over"):
+		_game_over_ui.show_game_over()
 	print("[SceneOrchestrator] Game Over shown")
 
 func _on_player_incapacitated() -> void:

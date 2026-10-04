@@ -111,6 +111,14 @@ func _load_shop_from_resource(file_path: String):
 	
 	print("[EconomySystem] Loaded shop: %s" % shop_def.id)
 
+## Reinicio de sesión (Spike 14). Descarta todas las ShopInstance (stock y
+## presupuesto mutados por compras/ventas) y las reconstruye desde las
+## ShopDefinition de res://data/shops/. Seguro de repetir: no deja estado
+## acumulado entre llamadas.
+func reset_session() -> void:
+	_shops.clear()
+	_load_shop_definitions()
+	print("[EconomySystem] Session reset — %d shops reloaded" % _shops.size())
 
 ## ============================================
 ## GESTIÓN DE TIENDAS
