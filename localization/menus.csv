@@ -5,7 +5,7 @@ MENU_OPTIONS,Opciones,Options
 MENU_CREDITS,Créditos,Credits
 MENU_QUIT,Salir,Quit
 MENU_BACK,Volver,Back
-MENU_CONFIRM_YES,Sí, salir,Yes, quit
+MENU_CONFIRM_YES,"Sí, salir","Yes, quit"
 MENU_CONFIRM_NO,Cancelar,Cancel
 MENU_NO_SAVE_FOUND,Sin partida guardada,No save found
 MENU_CONFIRM_QUIT_TEXT,¿Seguro que quieres salir?,Are you sure you want to quit?
@@ -17,3 +17,6 @@ MENU_FULLSCREEN,Pantalla completa,Fullscreen
 MENU_LANGUAGE,Idioma,Language
 MENU_CREDITS_TITLE,Créditos,Credits
 LOADING_LABEL,Cargando...,Loading...
+GAMEOVER_TITLE,GAME OVER,GAME OVER
+GAMEOVER_MESSAGE,"Todos han caído.\nNo queda nadie que pueda continuar.","Everyone has fallen.\nNo one is left to carry on."
+GAMEOVER_BUTTON_MENU,Volver al menú principal,Return to main menu

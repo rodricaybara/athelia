@@ -1,0 +1,808 @@
+
+===== .\ui\design_system\components\ui_panel\ui_panel.gd =====
+
+extends PanelContainer
+class_name UIPanel
+## UIPanel - Contenedor base para todas las ventanas y paneles del juego
+##
+## Uso:
+##   Instanciar ui_panel.tscn como raíz visual de cualquier pantalla.
+##   Configurar padding y variant desde el inspector o por código.
+##
+## Variantes:
+##   DEFAULT  → panel estándar (inventario, shop, party)
+##   POPUP    → panel pequeño flotante (tooltips, confirmaciones)
+##   OVERLAY  → panel de fondo semitransparente (diálogo)
+##
+## Marco decorativo (Spike 9):
+##   decorative_frame = true añade un marco ornamental (doble filete +
+##   esquineras) dibujado POR ENCIMA del stylebox de fondo. Opt-in
+##   explícito, false por defecto — ningún panel existente cambia de
+##   aspecto sin activarlo a propósito por pantalla.
+##
+##   Al activarlo, el propio panel suprime su borde y su corner_radius
+##   (pasan a 0): el marco los sustituye, evita duplicar líneas y evita
+##   fondo redondeado bajo un marco de esquina viva.
+##
+##   corner_texture es la esquinera única del Design System (arte
+##   pendiente en el momento de este spike). Sin asignar, el marco se
+##   dibuja solo con los tres filetes concéntricos, sin esquineras, y se
+##   avisa por warning — no bloquea, no rompe nada.
+
+
+enum Variant { DEFAULT, POPUP, OVERLAY }
+
+@export var variant: Variant = Variant.DEFAULT
+@export var padding: int = -1  # -1 = usar default según variante
+
+@export_group("Marco decorativo (Spike 9)")
+@export var decorative_frame: bool = false
+@export var corner_texture: Texture2D
+
+
+func _ready() -> void:
+	_apply_style()
+	if decorative_frame:
+		resized.connect(queue_redraw)
+
+
+func _apply_style() -> void:
+	var effective_padding := padding if padding >= 0 else _default_padding()
+
+	match variant:
+		Variant.DEFAULT:
+			add_theme_stylebox_override("panel", UITokens.make_stylebox(
+				UITokens.COLOR_PANEL,
+				UITokens.COLOR_BORDER,
+				0 if decorative_frame else UITokens.BORDER_WIDTH,
+				0 if decorative_frame else UITokens.BORDER_RADIUS_MD,
+				effective_padding
+			))
+
+		Variant.POPUP:
+			add_theme_stylebox_override("panel", UITokens.make_stylebox(
+				UITokens.COLOR_PANEL_ALT,
+				UITokens.COLOR_BORDER_FOCUS,
+				0 if decorative_frame else UITokens.BORDER_WIDTH_FOCUS,
+				0 if decorative_frame else UITokens.BORDER_RADIUS_SM,
+				effective_padding
+			))
+
+		Variant.OVERLAY:
+			add_theme_stylebox_override("panel", UITokens.make_stylebox(
+				UITokens.COLOR_BG.darkened(0.2),
+				Color.TRANSPARENT,
+				0,
+				0,
+				effective_padding
+			))
+
+
+func _default_padding() -> int:
+	match variant:
+		Variant.POPUP:    return UITokens.SPACE_SM
+		Variant.OVERLAY:  return UITokens.SPACE_XL
+		_:                return UITokens.SPACE_LG
+
+
+## Cambia la variante en runtime (útil para animaciones de apertura)
+func set_variant(new_variant: Variant) -> void:
+	variant = new_variant
+	_apply_style()
+
+
+# ============================================
+# MARCO DECORATIVO (Spike 9)
+# ============================================
+
+func _draw() -> void:
+	if decorative_frame:
+		_draw_decorative_frame()
+
+
+func _draw_decorative_frame() -> void:
+	var rect := Rect2(Vector2.ZERO, size)
+
+	# Filete exterior oscuro
+	draw_rect(rect, UITokens.COLOR_FRAME_OUTER, false, UITokens.FRAME_OUTER_WIDTH)
+
+	# Filete bronce intermedio
+	rect = rect.grow(-(UITokens.FRAME_OUTER_WIDTH + UITokens.FRAME_GAP))
+	draw_rect(rect, UITokens.COLOR_FRAME_FILLET, false, UITokens.FRAME_FILLET_WIDTH)
+
+	# Línea interior tenue
+	rect = rect.grow(-(UITokens.FRAME_FILLET_WIDTH + UITokens.FRAME_GAP))
+	draw_rect(rect, UITokens.COLOR_FRAME_INNER, false, UITokens.FRAME_INNER_WIDTH)
+
+	if corner_texture:
+		_draw_frame_corners()
+	else:
+		push_warning("UIPanel (%s): decorative_frame activo sin corner_texture — solo se dibujan los filetes." % name)
+
+
+## Esquinera única rotada en las 4 esquinas (sin estirar, sin 4 variantes
+## de imagen — decisión tomada aquí, ver spec del spike). El origen local
+## (0,0) de la textura queda anclado a cada esquina del panel; al rotar,
+## la textura se extiende hacia dentro por los dos bordes que forman esa
+## esquina (0°, 90°, 180°, 270°) sin necesidad de offset manual.
+func _draw_frame_corners() -> void:
+	var corners := [
+		[Vector2.ZERO, 0.0],
+		[Vector2(size.x, 0.0), PI / 2.0],
+		[Vector2(size.x, size.y), PI],
+		[Vector2(0.0, size.y), -PI / 2.0],
+	]
+	for corner in corners:
+		draw_set_transform(corner[0], corner[1])
+		draw_texture(corner_texture, Vector2.ZERO)
+	draw_set_transform(Vector2.ZERO, 0.0)
+
+===== .\ui\design_system\components\ui_panel\ui_panel.tscn =====
+
+[gd_scene format=3 uid="uid://bkjn07uwfc3l0"]
+
+[ext_resource type="Script" uid="uid://105d84us6jdl" path="res://ui/design_system/components/ui_panel/ui_panel.gd" id="1_3qs8u"]
+
+[node name="UiPanel" type="PanelContainer" unique_id=932497249]
+script = ExtResource("1_3qs8u")
+
+===== .\ui\design_system\tokens\ui_tokens.gd =====
+
+extends Node
+## UITokens - Tokens de diseño centralizados para Athelia
+## Autoload recomendado: /root/UITokens
+##
+## REGLA: Ningún archivo de UI puede usar valores de color, spacing o
+## tipografía hardcodeados. Siempre referenciar estas constantes.
+##
+## Uso:
+##   panel.add_theme_color_override("bg_color", UITokens.COLOR_PANEL)
+##   margin.add_theme_constant_override("margin_left", UITokens.SPACE_MD)
+
+
+# ============================================================
+# COLORES — Paleta base
+# ============================================================
+
+## Fondo principal de la aplicación (el más oscuro)
+const COLOR_BG          := Color("#1A1816")
+
+## Fondo de paneles y ventanas
+const COLOR_PANEL       := Color("#2E2A26")
+
+## Fondo de paneles secundarios / anidados
+const COLOR_PANEL_ALT   := Color("#252220")
+
+## Borde sutil de paneles
+const COLOR_BORDER      := Color("#3D3830")
+
+## Borde destacado (slots seleccionados, hover)
+const COLOR_BORDER_FOCUS := Color("#6B5A3E")
+
+
+# ============================================================
+# COLORES — Marca
+# ============================================================
+
+## Color primario — usado en elementos interactivos principales
+const COLOR_PRIMARY     := Color("#8C6A3B")
+
+## Color primario hover
+const COLOR_PRIMARY_HOVER := Color("#A07A46")
+
+## Color primario pressed
+const COLOR_PRIMARY_PRESSED := Color("#735630")
+
+## Color acento — highlights, selección activa, iconos importantes
+const COLOR_ACCENT      := Color("#C9A96E")
+
+## Color acento suave — para texto secundario importante
+const COLOR_ACCENT_SOFT := Color("#B09060")
+
+
+# ============================================================
+# COLORES — Texto
+# ============================================================
+
+## Texto principal
+const COLOR_TEXT        := Color("#E0D8C3")
+
+## Texto secundario / muted
+const COLOR_TEXT_MUTED  := Color("#7A756A")
+
+## Texto deshabilitado
+const COLOR_TEXT_DISABLED := Color("#4A4640")
+
+## Texto sobre fondo primario (botones)
+const COLOR_TEXT_ON_PRIMARY := Color("#F0E8D4")
+
+
+# ============================================================
+# COLORES — Semánticos
+# ============================================================
+
+## Peligro / error / vida baja
+const COLOR_DANGER      := Color("#A13C2E")
+const COLOR_DANGER_SOFT := Color("#C04535")
+
+## Éxito / confirmación
+const COLOR_SUCCESS     := Color("#6E8B3D")
+const COLOR_SUCCESS_SOFT := Color("#85A84A")
+
+## Advertencia
+const COLOR_WARNING     := Color("#C9872E")
+
+## Información / neutral
+const COLOR_INFO        := Color("#4A7A9B")
+
+
+# ============================================================
+# COLORES — Recursos del personaje
+# ============================================================
+
+## Vida
+const COLOR_HEALTH      := Color("#A13C2E")
+const COLOR_HEALTH_BG   := Color("#3D1810")
+
+## Stamina
+const COLOR_STAMINA     := Color("#6E8B3D")
+const COLOR_STAMINA_BG  := Color("#1E2D10")
+
+## Oro
+const COLOR_GOLD        := Color("#C9A96E")
+const COLOR_GOLD_BG     := Color("#3D3018")
+
+## Estrés
+const COLOR_STRESS      := Color("#7A4A9B")
+const COLOR_STRESS_BG   := Color("#251530")
+
+
+# ============================================================
+# COLORES — Slots de inventario
+# ============================================================
+
+## Slot vacío
+const COLOR_SLOT_EMPTY      := Color("#1E1C1A")
+const COLOR_SLOT_EMPTY_BORDER := Color("#2E2A26")
+
+## Slot ocupado
+const COLOR_SLOT_OCCUPIED   := Color("#252220")
+const COLOR_SLOT_OCCUPIED_BORDER := Color("#4A4030")
+
+## Slot seleccionado
+const COLOR_SLOT_SELECTED   := Color("#2A2418")
+const COLOR_SLOT_SELECTED_BORDER := Color("#C9A96E")
+
+## Slot hover
+const COLOR_SLOT_HOVER      := Color("#2E2820")
+const COLOR_SLOT_HOVER_BORDER := Color("#8C6A3B")
+
+## Slot equipado (en panel de equipo)
+const COLOR_SLOT_EQUIPPED   := Color("#1E2410")
+const COLOR_SLOT_EQUIPPED_BORDER := Color("#6E8B3D")
+
+
+# ============================================================
+# ESPACIADO
+# ============================================================
+
+const SPACE_XS  := 4
+const SPACE_SM  := 8
+const SPACE_MD  := 12
+const SPACE_LG  := 16
+const SPACE_XL  := 24
+const SPACE_XXL := 32
+
+
+# ============================================================
+# BORDES
+# ============================================================
+
+const BORDER_RADIUS_SM  := 3
+const BORDER_RADIUS_MD  := 5
+const BORDER_RADIUS_LG  := 8
+const BORDER_WIDTH      := 1
+const BORDER_WIDTH_FOCUS := 2
+
+
+# ============================================================
+# TAMAÑOS DE COMPONENTES
+# ============================================================
+
+## Tamaño estándar de slot de inventario
+const SLOT_SIZE         := Vector2(64, 64)
+
+## Tamaño de slot de equipamiento
+const EQUIP_SLOT_SIZE   := Vector2(72, 72)
+
+## Tamaño de icono dentro de slot
+const ICON_SIZE_SM      := Vector2(32, 32)
+const ICON_SIZE_MD      := Vector2(48, 48)
+const ICON_SIZE_LG      := Vector2(64, 64)
+
+## Altura mínima de barra de recurso
+const RESOURCE_BAR_HEIGHT := 14
+
+## Alto mínimo de botón
+const BUTTON_HEIGHT_SM  := 28
+const BUTTON_HEIGHT_MD  := 36
+const BUTTON_HEIGHT_LG  := 44
+
+
+# ============================================================
+# TIPOGRAFÍA — tamaños
+# ============================================================
+
+const FONT_SIZE_XS      := 10
+const FONT_SIZE_SM      := 12
+const FONT_SIZE_MD      := 14
+const FONT_SIZE_LG      := 16
+const FONT_SIZE_XL      := 20
+const FONT_SIZE_TITLE   := 24
+
+
+# ============================================================
+# ESTADOS DE COMPONENTES — helpers
+# ============================================================
+
+const HOVER_BRIGHTNESS  := 1.12
+const PRESSED_DARKNESS  := 0.85
+const DISABLED_ALPHA    := 0.45
+const SELECTED_ALPHA    := 1.0
+
+
+# ============================================================
+# ANIMACIONES
+# ============================================================
+
+const ANIM_DURATION_FAST   := 0.08
+const ANIM_DURATION_NORMAL := 0.15
+const ANIM_DURATION_SLOW   := 0.25
+
+# ============================================
+# FONDOS — capas de profundidad
+# ============================================
+const BG_VOID     := Color("#111009")  ## Fondo más profundo — detrás de todo
+const BG_BASE     := Color("#1A1816")  ## Fondo de pantalla base
+const BG_PANEL    := Color("#2E2A26")  ## Fondo de paneles (header, detail)
+const BG_SURFACE  := Color("#252118")  ## Fondo de tarjetas de skill
+const BG_RAISED   := Color("#3A3428")  ## Fondo de elementos elevados (btn activo)
+const BG_SELECTED := Color("#332C24")  ## Fondo de skill seleccionada
+ 
+# ============================================
+# BORDES — jerarquía de énfasis
+# ============================================
+const BORDER_SUBTLE  := Color("#2A2620")  ## Separadores muy sutiles
+const BORDER_DEFAULT := Color("#3D3830")  ## Borde por defecto de tarjetas
+const BORDER_PANEL   := Color("#5C4E38")  ## Borde de paneles principales
+const BORDER_ACCENT  := Color("#8A7050")  ## Borde de elementos activos/seleccionados
+const BORDER_GOLD    := Color("#D4C49A")  ## Borde decorativo (usar con moderación)
+ 
+# ============================================
+# TEXTO
+# ============================================
+const TEXT_PRIMARY   := Color("#E0D8C3")  ## Texto principal
+const TEXT_SECONDARY := Color("#B8A98A")  ## Texto secundario
+const TEXT_MUTED     := Color("#9A8E78")  ## Texto apagado (labels, hints)
+const TEXT_GOLD      := Color("#D4C49A")  ## Porcentaje en panel lateral — usar solo ahí
+ 
+# ============================================
+# ACENTOS SEMÁNTICOS
+# ============================================
+const ACCENT_GREEN     := Color("#6A9A4A")  ## Mejorable ahora
+const ACCENT_GREEN_BG  := Color("#1A2E14")  ## Fondo badge mejorable
+const ACCENT_GREEN_B   := Color("#5A7A3A")  ## Borde mejorable
+ 
+const ACCENT_AMBER     := Color("#C0A040")  ## Sugerencia IA
+const ACCENT_AMBER_BG  := Color("#2E2010")  ## Fondo badge IA
+const ACCENT_AMBER_B   := Color("#7A6020")  ## Borde sugerencia IA
+ 
+const ACCENT_DANGER    := Color("#C07060")  ## Error, prereq no cumplido
+const ACCENT_DANGER_BG := Color("#2E1010")  ## Fondo badge error
+const ACCENT_DANGER_B  := Color("#7A3A2A")  ## Borde error
+ 
+const ACCENT_INFO      := Color("#6A90C0")  ## Información neutral
+const ACCENT_INFO_BG   := Color("#1A2030")  ## Fondo badge info
+ 
+# ============================================
+# RADIOS DE ESQUINA
+# ============================================
+const RADIUS_CARD  : int = 4   ## Tarjetas de skill, badges
+const RADIUS_PANEL : int = 6   ## Paneles y overlays
+## Sin border-radius > 8px — piedra y madera no son suaves.
+
+# ============================================
+# UIRadialGauge (instancias de PV/EN en fichas de combate)
+# ============================================
+const COLOR_GAUGE_HP_PARTY: Color = Color("#639922")
+const COLOR_GAUGE_EN_PARTY: Color = Color("#378ADD")
+const COLOR_GAUGE_HP_ENEMY: Color = Color("#A34747")
+
+## Relleno de UICombatToken.CenterFill cuando CharacterDefinition.token_color
+## no está asignado (Color.BLACK centinela — ver character_definition.gd).
+const COLOR_TOKEN_FILL_DEFAULT: Color = Color("#5A544A")
+
+# ============================================
+# triángulo de turno y retícula de objetivo en fichas de combate
+# ============================================
+const COLOR_TURN_INDICATOR: Color = Color("#EF9F27")
+
+# ============================================
+# log de combate — grados de resultado de SkillRoller
+# ============================================
+const COLOR_LOG_FUMBLE: Color = Color("#C23B3B")
+const COLOR_LOG_FAILURE: Color = Color("#8A8478")
+const COLOR_LOG_CRITICAL: Color = Color("#FFD34D")
+
+# ============================================
+# arena de combate — fondo ilustrado (Grupo 4)
+# ============================================
+## Alfa del velo (COLOR_PANEL) que CombatArenaPanel pone ENCIMA de la
+## ilustración de fondo cuando el encuentro tiene background_path. Valor
+## inicial, a ajustar en playtest: más alto = fichas/log más legibles,
+## más bajo = se ve más la imagen. Sin imagen, el velo es opaco (1.0).
+const COMBAT_BACKGROUND_SCRIM_ALPHA: float = 0.2
+
+# ============================================
+# texto — contorno de legibilidad (Grupo 4)
+# ============================================
+## Contorno para texto que se pinta directamente sobre imágenes (fichas y
+## log de combate). outline_size de Godot = grosor total del trazo en px.
+const TEXT_OUTLINE_SIZE: int = 4
+const COLOR_TEXT_OUTLINE: Color = COLOR_BG
+
+# ============================================
+# marco decorativo de ventana — UIPanel.decorative_frame (Spike 9)
+# ============================================
+## Doble filete + esquineras. Valores iniciales, a ajustar en playtest
+## contra la esquinera real una vez exista el arte (mismo criterio que
+## COMBAT_BACKGROUND_SCRIM_ALPHA en Grupo 4).
+const COLOR_FRAME_OUTER: Color = Color("#100E0C")   ## Filete exterior oscuro
+const COLOR_FRAME_FILLET: Color = COLOR_PRIMARY     ## Filete bronce intermedio
+const COLOR_FRAME_INNER: Color = Color("#4A4030")   ## Línea interior tenue
+
+const FRAME_OUTER_WIDTH: int = 2
+const FRAME_FILLET_WIDTH: int = 2
+const FRAME_INNER_WIDTH: int = 1
+const FRAME_GAP: int = 2  ## Separación entre cada par de filetes concéntricos
+
+# ============================================================
+# UTILIDADES
+# ============================================================
+
+## Crea un StyleBoxFlat con los valores del sistema de diseño
+func make_stylebox(
+	bg_color: Color,
+	border_color: Color = Color.TRANSPARENT,
+	border_width: int = BORDER_WIDTH,
+	radius: int = BORDER_RADIUS_MD,
+	padding: int = SPACE_SM
+) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.set_border_width_all(border_width)
+	style.set_corner_radius_all(radius)
+	style.set_content_margin_all(padding)
+	return style
+
+
+## Crea un StyleBoxFlat vacío (solo borde, fondo transparente)
+func make_stylebox_outline(
+	border_color: Color,
+	border_width: int = BORDER_WIDTH,
+	radius: int = BORDER_RADIUS_MD
+) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color.TRANSPARENT
+	style.border_color = border_color
+	style.set_border_width_all(border_width)
+	style.set_corner_radius_all(radius)
+	style.draw_center = false
+	return style
+
+===== .\ui\design_system\components\ui_slot\ui_slot.gd =====
+
+extends PanelContainer
+class_name UISlot
+## UISlot - Slot universal para inventario, equipamiento y loot
+##
+## Contrato:
+##   - Nunca accede a sistemas core directamente
+##   - Solo recibe datos, emite intenciones
+##   - El padre (View / Screen) decide qué hacer con las señales
+##
+## Uso:
+##   var slot = preload("res://ui/design_system/components/slot/ui_slot.tscn").instantiate()
+##   slot.set_item(item_instance)
+##   slot.slot_clicked.connect(_on_slot_clicked)
+
+
+# ============================================================
+# SEÑALES
+# ============================================================
+
+## Emitida al hacer click en el slot (ocupado o vacío)
+signal slot_clicked(slot: UISlot)
+
+## Emitida al soltar un drag sobre este slot
+signal slot_drop_received(slot: UISlot, source_item_id: String)
+
+
+# ============================================================
+# ESTADOS
+# ============================================================
+
+enum SlotState {
+	EMPTY,       ## Sin item
+	OCCUPIED,    ## Tiene item, no seleccionado
+	SELECTED,    ## Seleccionado activamente
+	EQUIPPED,    ## Item equipado (para panel de equipamiento)
+	HIGHLIGHTED, ## Slot de comparación activo
+	DISABLED,    ## No interactuable (requisito no cumplido, etc.)
+}
+
+
+# ============================================================
+# CONFIGURACIÓN
+# ============================================================
+
+## Tamaño del slot — cambia el custom_minimum_size automáticamente
+@export var slot_size: Vector2 = UITokens.SLOT_SIZE
+
+## Si true, acepta drops de drag & drop
+@export var accept_drops: bool = true
+
+## ID del slot de equipamiento (head, body, weapon...). Vacío en slots de inventario.
+@export var equipment_slot_id: String = ""
+
+
+# ============================================================
+# REFERENCIAS A NODOS
+# ============================================================
+
+@onready var icon_rect:       TextureRect = $MarginContainer/Icon
+@onready var quantity_label:  Label       = $MarginContainer/QuantityLabel
+@onready var slot_label:      Label       = $SlotLabel   # label del tipo de slot (Head, Weapon...)
+@onready var overlay:         Control     = $Overlay     # para highlight, estado, etc.
+
+
+# ============================================================
+# ESTADO INTERNO
+# ============================================================
+
+var _state: SlotState = SlotState.EMPTY
+var _item_instance: ItemInstance = null
+var _item_id: String = ""
+
+
+# ============================================================
+# INICIALIZACIÓN
+# ============================================================
+
+func _ready() -> void:
+	custom_minimum_size = slot_size
+
+	# Label del tipo de slot (solo en panel de equipamiento)
+	if slot_label:
+		slot_label.visible = not equipment_slot_id.is_empty()
+		if not equipment_slot_id.is_empty():
+			slot_label.text = equipment_slot_id.capitalize()
+			slot_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_XS)
+			slot_label.add_theme_color_override("font_color", UITokens.COLOR_TEXT_MUTED)
+
+	_apply_state_style()
+
+
+# ============================================================
+# API PÚBLICA
+# ============================================================
+
+## Asigna un ItemInstance al slot
+func set_item(instance: ItemInstance) -> void:
+	_item_instance = instance
+	_item_id = instance.definition.id if instance and instance.definition else ""
+
+	if instance and instance.definition:
+		icon_rect.texture = instance.definition.icon
+		icon_rect.visible = true
+
+		# Cantidad solo si > 1 y stackable
+		if instance.quantity > 1:
+			quantity_label.text = str(instance.quantity)
+			quantity_label.visible = true
+		else:
+			quantity_label.visible = false
+
+		_set_state(SlotState.OCCUPIED)
+	else:
+		clear()
+
+
+## Vacía el slot
+func clear() -> void:
+	_item_instance = null
+	_item_id = ""
+	icon_rect.texture = null
+	icon_rect.visible = false
+	quantity_label.visible = false
+	_set_state(SlotState.EMPTY)
+
+
+## Fuerza un estado visual sin cambiar el item
+func set_state(new_state: SlotState) -> void:
+	_set_state(new_state)
+
+
+## Obtiene el item_id del item actual (vacío si no hay ninguno)
+func get_item_id() -> String:
+	return _item_id
+
+
+## Obtiene el ItemInstance actual (null si vacío)
+func get_item_instance() -> ItemInstance:
+	return _item_instance
+
+
+## ¿Está vacío?
+func is_empty() -> bool:
+	return _state == SlotState.EMPTY or _item_instance == null
+
+
+# ============================================================
+# ESTILOS DE ESTADO
+# ============================================================
+
+func _set_state(new_state: SlotState) -> void:
+	_state = new_state
+	_apply_state_style()
+
+
+func _apply_state_style() -> void:
+	var bg_color: Color
+	var border_color: Color
+	var border_width: int = UITokens.BORDER_WIDTH
+
+	match _state:
+		SlotState.EMPTY:
+			bg_color     = UITokens.COLOR_SLOT_EMPTY
+			border_color = UITokens.COLOR_SLOT_EMPTY_BORDER
+
+		SlotState.OCCUPIED:
+			bg_color     = UITokens.COLOR_SLOT_OCCUPIED
+			border_color = UITokens.COLOR_SLOT_OCCUPIED_BORDER
+
+		SlotState.SELECTED:
+			bg_color     = UITokens.COLOR_SLOT_SELECTED
+			border_color = UITokens.COLOR_SLOT_SELECTED_BORDER
+			border_width = UITokens.BORDER_WIDTH_FOCUS
+
+		SlotState.EQUIPPED:
+			bg_color     = UITokens.COLOR_SLOT_EQUIPPED
+			border_color = UITokens.COLOR_SLOT_EQUIPPED_BORDER
+			border_width = UITokens.BORDER_WIDTH_FOCUS
+
+		SlotState.HIGHLIGHTED:
+			bg_color     = UITokens.COLOR_SLOT_HOVER
+			border_color = UITokens.COLOR_ACCENT_SOFT
+			border_width = UITokens.BORDER_WIDTH_FOCUS
+
+		SlotState.DISABLED:
+			bg_color     = UITokens.COLOR_SLOT_EMPTY
+			border_color = UITokens.COLOR_SLOT_EMPTY_BORDER
+			modulate     = Color(1, 1, 1, UITokens.DISABLED_ALPHA)
+
+	add_theme_stylebox_override("panel",
+		UITokens.make_stylebox(bg_color, border_color, border_width, UITokens.BORDER_RADIUS_SM, UITokens.SPACE_XS)
+	)
+
+	# Restaurar opacidad si salimos de DISABLED
+	if _state != SlotState.DISABLED:
+		modulate = Color.WHITE
+
+
+# ============================================================
+# INPUT Y HOVER
+# ============================================================
+
+func _gui_input(event: InputEvent) -> void:
+	if _state == SlotState.DISABLED:
+		return
+
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			slot_clicked.emit(self)
+			accept_event()
+
+
+func _mouse_entered() -> void:
+	if _state == SlotState.DISABLED:
+		return
+	if _state == SlotState.OCCUPIED:
+		_apply_hover_style()
+
+
+func _mouse_exited() -> void:
+	# Restaurar al estado previo (sin cambiar _state)
+	_apply_state_style()
+
+
+func _apply_hover_style() -> void:
+	add_theme_stylebox_override("panel",
+		UITokens.make_stylebox(
+			UITokens.COLOR_SLOT_HOVER,
+			UITokens.COLOR_SLOT_HOVER_BORDER,
+			UITokens.BORDER_WIDTH,
+			UITokens.BORDER_RADIUS_SM,
+			UITokens.SPACE_XS
+		)
+	)
+
+
+# ============================================================
+# DRAG & DROP
+# ============================================================
+
+func _get_drag_data(_pos: Vector2) -> Variant:
+	if _item_instance == null or _state == SlotState.DISABLED:
+		return null
+
+	# Preview visual del drag
+	var preview := TextureRect.new()
+	preview.texture = icon_rect.texture
+	preview.custom_minimum_size = UITokens.ICON_SIZE_MD
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview.modulate = Color(1, 1, 1, 0.8)
+	set_drag_preview(preview)
+
+	return {
+		"item_id": _item_id,
+		"source_slot": self,
+		"source": equipment_slot_id if not equipment_slot_id.is_empty() else "inventory"
+	}
+
+
+func _can_drop_data(_pos: Vector2, data: Variant) -> bool:
+	if not accept_drops:
+		return false
+	if not data is Dictionary:
+		return false
+	return data.has("item_id")
+
+
+func _drop_data(_pos: Vector2, data: Variant) -> void:
+	slot_drop_received.emit(self, data.get("item_id", ""))
+
+===== .\ui\design_system\theme\main_theme.tres =====
+
+[gd_resource type="Theme" format=3 uid="uid://dc6bm3qiwwq3g"]
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_i041b"]
+color = Color(0.23921569, 0.21960784, 0.1882353, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i041b"]
+bg_color = Color(0.18039216, 0.16470589, 0.14901961, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.23921569, 0.21960784, 0.1882353, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ra6cj"]
+bg_color = Color(0.101960786, 0.09411765, 0.08627451, 1)
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_xmulx"]
+color = Color(0.23921569, 0.21960784, 0.1882353, 1)
+
+[resource]
+Button/colors/font_color = Color(0.8784314, 0.84705883, 0.7647059, 1)
+HSeparator/styles/separator = SubResource("StyleBoxLine_i041b")
+Label/colors/font_color = Color(0.8784314, 0.84705883, 0.7647059, 1)
+Label/font_sizes/font_size = 14
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_i041b")
+ScrollContainer/styles/panel = SubResource("StyleBoxFlat_ra6cj")
+VSeparator/styles/separator = SubResource("StyleBoxLine_xmulx")

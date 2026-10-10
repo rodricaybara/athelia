@@ -1,0 +1,624 @@
+
+===== .\ui\dialogue\dialogue_panel_test.gd =====
+
+extends Control
+
+@onready var dialogue_panel: Control = %DialoguePanel
+
+
+func _ready() -> void:
+	# Connect to EventBus signals for debugging
+	if EventBus:
+		EventBus.dialogue_started.connect(_on_dialogue_started)
+		EventBus.dialogue_node_shown.connect(_on_dialogue_node_shown)
+		EventBus.dialogue_option_selected.connect(_on_dialogue_option_selected)
+		EventBus.dialogue_options_updated.connect(_on_dialogue_options_updated)
+		EventBus.dialogue_ended.connect(_on_dialogue_ended)
+	
+	# Start the test dialogue
+	if Dialogue:
+		Dialogue.start_dialogue("DLG_PROLOGUE_INTRO_01")
+
+
+func _on_dialogue_started(dialogue_id: String) -> void:
+	print("[DialogueTest] Dialogue started: %s" % dialogue_id)
+
+
+func _on_dialogue_node_shown(node_id: String, speaker_id: String, text_key: String, portrait_id: String = "") -> void:
+	print("[DialogueTest] Node shown - ID: %s, Speaker: %s, Text Key: %s, Portrait: %s" % [node_id, speaker_id, text_key, portrait_id])
+
+
+func _on_dialogue_option_selected(node_id: String, option_id: String) -> void:
+	print("[DialogueTest] Option selected - Node: %s, Option: %s" % [node_id, option_id])
+
+
+func _on_dialogue_options_updated(options: Array) -> void:
+	print("[DialogueTest] Options updated with %d options" % options.size())
+	for option in options:
+		print("  - Option: %s (text_key: %s)" % [option.id, option.text_key])
+
+
+func _on_dialogue_ended(dialogue_id: String) -> void:
+	print("[DialogueTest] Dialogue ended: %s" % dialogue_id)
+
+===== .\ui\dialogue\dialogue_panel_test.tscn =====
+
+[gd_scene format=3 uid="uid://drwa61i551gmy"]
+
+[ext_resource type="Script" uid="uid://uj6bl5ealsx" path="res://ui/dialogue/dialogue_panel_test.gd" id="1_e5hxe"]
+[ext_resource type="Script" uid="uid://bqcpvo36n47d3" path="res://ui/dialogue/dialogue_panel.gd" id="2_sepj6"]
+[ext_resource type="PackedScene" uid="uid://c6xfpdj2h4yb8" path="res://ui/dialogue/option_button.tscn" id="3_option"]
+
+[node name="DialoguePanelTest" type="Control" unique_id=1646163433]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_e5hxe")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=903279827]
+
+[node name="DialoguePanel" type="Control" parent="CanvasLayer" unique_id=1258332080]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_sepj6")
+option_button_scene = ExtResource("3_option")
+
+[node name="Background" type="TextureRect" parent="CanvasLayer/DialoguePanel" unique_id=583808918]
+unique_name_in_owner = true
+layout_mode = 1
+expand_mode = 1
+
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/DialoguePanel" unique_id=459219358]
+layout_mode = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/DialoguePanel/PanelContainer" unique_id=544509909]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer" unique_id=651681798]
+layout_mode = 2
+
+[node name="PortraitsHBoxContainer" type="HBoxContainer" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=754979191]
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="PortraitLeftFrame" type="Panel" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer" unique_id=1850012515]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PortraitLeft" type="TextureRect" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer/PortraitLeftFrame" unique_id=906184457]
+unique_name_in_owner = true
+layout_mode = 1
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Spacer" type="Control" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer" unique_id=1338121472]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+
+[node name="PortraitRightFrame" type="Panel" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer" unique_id=444964022]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PortraitRight" type="TextureRect" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer/PortraitsHBoxContainer/PortraitRightFrame" unique_id=288233332]
+unique_name_in_owner = true
+layout_mode = 1
+expand_mode = 1
+stretch_mode = 6
+
+[node name="SpeakerNameLabel" type="Label" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=877819690]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 20
+text = "Speaker Name"
+
+[node name="DialogueText" type="RichTextLabel" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=623946730]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 2
+text = "Dialogue text will appear here..."
+fit_content = true
+
+[node name="OptionsContainer" type="VBoxContainer" parent="CanvasLayer/DialoguePanel/PanelContainer/MarginContainer/VBoxContainer" unique_id=571336529]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+
+===== .\ui\dialogue\dialogue_panel.gd =====
+
+extends CanvasLayer
+signal closed
+## DialoguePanel — View
+##
+## Renderiza el estado expuesto por DialogueViewModel.
+## No accede a DialogueSystem ni EventBus directamente.
+##
+## Spike 11 — rediseño (fondo propio, marco Spike 9, retrato único del NPC):
+## base pasa de PanelContainer plano a UIPanel (decorative_frame = true).
+## Único retrato (se descarta el layout de dos retratos original) que vive
+## como hermano del panel, no como hijo — así puede sobresalir por encima
+## del borde superior (layout C de la maqueta). Exports de configuración
+## visual sin efecto real retirados: background_texture, portrait_frame_texture,
+## text_color, text_font_size, speaker_name_color, speaker_name_font_size.
+
+
+# ============================================
+# EXPORTS
+# ============================================
+
+@export var option_button_scene: PackedScene
+
+## Opacidad del velo (Background) cuando hay imagen de fondo (BackgroundImage)
+## detrás. Valor de partida, sin calibrar contra el arte real — misma
+## lección que el velo 0.2 de los mapas de combate (Grupo 4): se ajusta
+## mirando el resultado generado, no a priori.
+const SCRIM_ALPHA_WITH_IMAGE := 0.55
+
+
+# ============================================
+# NODOS
+# ============================================
+
+@onready var background:         ColorRect     = %Background
+@onready var background_image:   TextureRect   = %BackgroundImage
+@onready var panel:              UIPanel       = %Panel
+@onready var portrait:           TextureRect   = %Portrait
+@onready var speaker_name_label: Label         = %SpeakerNameLabel
+@onready var dialogue_text:      RichTextLabel = %DialogueText
+@onready var options_container:  VBoxContainer = %OptionsContainer
+
+
+# ============================================
+# ESTADO INTERNO
+# ============================================
+
+var _vm: DialogueViewModel = null
+var _option_buttons: Array = []
+
+
+# ============================================
+# CICLO DE VIDA
+# ============================================
+
+func _ready() -> void:
+	visible = false
+
+	# Fondo propio del panel (decisión 3 del spec): no puede depender de lo
+	# que haya detrás — abierto desde exploración solo hay gris plano detrás.
+	# Color desde tokens, no literal en el .tscn.
+	background.color = UITokens.COLOR_BG
+
+	_vm = DialogueViewModel.new()
+	_vm.name = "ViewModel"
+	add_child(_vm)
+	_vm.changed.connect(_on_vm_changed)
+
+	print("[DialoguePanel] Ready")
+
+
+# ============================================
+# CALLBACK ÚNICO DEL VIEWMODEL
+# ============================================
+
+func _on_vm_changed(reason: String) -> void:
+	match reason:
+		"opened":
+			visible = true
+		"node":
+			_render_node()
+		"background":
+			_render_background()
+		"options":
+			_render_options()
+		"closed":
+			_clear_options()
+			_clear_portrait()
+			visible = false
+			closed.emit()
+		_:
+			push_warning("[DialoguePanel] Razón desconocida: %s" % reason)
+
+
+# ============================================
+# RENDERS
+# ============================================
+
+## Fondo de ambiente del panel (Spike 11) — una imagen por aventura detrás
+## de un velo, o color plano si no hay (ver DialogueViewModel._resolve_background).
+func _render_background() -> void:
+	if _vm.background_path.is_empty():
+		_clear_background()
+		return
+
+	var texture := load(_vm.background_path) as Texture2D
+	if texture:
+		_assign_background(texture)
+	else:
+		_clear_background()
+
+
+func _render_node() -> void:
+	dialogue_text.text      = _vm.dialogue_text
+	speaker_name_label.text = _vm.speaker_name
+	_clear_options()
+
+	if _vm.portrait_path.is_empty():
+		_clear_portrait()
+	else:
+		var texture := load(_vm.portrait_path) as Texture2D
+		if texture:
+			_assign_portrait(texture)
+		else:
+			_clear_portrait()
+
+
+func _render_options() -> void:
+	_clear_options()
+
+	if not option_button_scene:
+		push_error("[DialoguePanel] option_button_scene no asignado")
+		return
+
+	for option in _vm.options:
+		var btn := option_button_scene.instantiate()
+		btn.text = tr(option.text_key)
+		btn.pressed.connect(func(): _vm.select_option(option.id))
+		options_container.add_child(btn)
+		_option_buttons.append(btn)
+
+
+# ============================================
+# UTILIDADES
+# ============================================
+
+func _clear_options() -> void:
+	for btn in _option_buttons:
+		btn.queue_free()
+	_option_buttons.clear()
+
+
+## Sin retrato disponible, el panel de texto ocupa todo el ancho (decisión
+## de la Fase 1 del spec) — el propio Panel no cambia de tamaño, es el
+## MarginContainer/margin_left el que deja o no hueco para el retrato.
+func _clear_portrait() -> void:
+	portrait.texture = null
+	portrait.hide()
+	panel.get_node("MarginContainer").add_theme_constant_override("margin_left", 0)
+
+
+func _assign_portrait(texture: Texture2D) -> void:
+	portrait.texture = texture
+	portrait.visible = true
+	panel.get_node("MarginContainer").add_theme_constant_override("margin_left", 240)
+
+
+## Sin imagen de ambiente, el panel se queda en el color plano opaco de
+## siempre (decisión 3: no depende de lo que haya detrás).
+func _clear_background() -> void:
+	background_image.texture = null
+	background_image.hide()
+	background.color.a = 1.0
+
+
+func _assign_background(texture: Texture2D) -> void:
+	background_image.texture = texture
+	background_image.visible = true
+	# Velo semitransparente sobre la imagen para separar el panel del fondo,
+	# no para dar legibilidad al texto — el propio Panel ya pinta su stylebox
+	# opaco encima, independiente de lo que haya en Background/BackgroundImage.
+	background.color.a = SCRIM_ALPHA_WITH_IMAGE
+
+===== .\ui\dialogue\dialogue_panel.tscn =====
+
+[gd_scene format=3 uid="uid://c1m12yrw7kaqr"]
+
+[ext_resource type="Script" uid="uid://bqcpvo36n47d3" path="res://ui/dialogue/dialogue_panel.gd" id="1_bvw28"]
+[ext_resource type="PackedScene" uid="uid://c6xfpdj2h4yb8" path="res://ui/dialogue/option_button.tscn" id="2_optbtn"]
+[ext_resource type="PackedScene" uid="uid://bkjn07uwfc3l0" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="3_uipanel"]
+
+[node name="DialoguePanel" type="CanvasLayer" unique_id=1192424188]
+script = ExtResource("1_bvw28")
+option_button_scene = ExtResource("2_optbtn")
+
+[node name="BackgroundImage" type="TextureRect" parent="." unique_id=2089948962]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Background" type="ColorRect" parent="." unique_id=1962959965]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Root" type="Control" parent="." unique_id=2085026156]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" parent="Root" unique_id=252906002 instance=ExtResource("3_uipanel")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.04
+anchor_top = 0.57
+anchor_right = 0.96
+anchor_bottom = 0.96
+grow_horizontal = 2
+grow_vertical = 0
+decorative_frame = true
+
+[node name="MarginContainer" type="MarginContainer" parent="Root/Panel" unique_id=903748435]
+layout_mode = 2
+theme_override_constants/margin_left = 240
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/Panel/MarginContainer" unique_id=561515046]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpeakerNameLabel" type="Label" parent="Root/Panel/MarginContainer/VBoxContainer" unique_id=1550590614]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 20
+text = "Speaker Name"
+
+[node name="DialogueText" type="RichTextLabel" parent="Root/Panel/MarginContainer/VBoxContainer" unique_id=832580777]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+text = "Dialogue text will appear here..."
+scroll_active = false
+
+[node name="OptionsScroll" type="ScrollContainer" parent="Root/Panel/MarginContainer/VBoxContainer" unique_id=312976940]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="OptionsContainer" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBoxContainer/OptionsScroll" unique_id=1380334128]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Portrait" type="TextureRect" parent="Root" unique_id=1086761138]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.06
+anchor_top = 0.42
+anchor_right = 0.26
+anchor_bottom = 0.96
+grow_vertical = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+===== .\ui\dialogue\dialogue_viewmodel.gd =====
+
+class_name DialogueViewModel
+extends Node
+
+## DialogueViewModel
+## Gestiona el estado de la pantalla de diálogo.
+##
+## Responsabilidades:
+##   - Mantener estado explícito (enum DialogueState)
+##   - Escuchar señales del EventBus y construir datos listos para renderizar
+##   - Resolver path de portrait y verificar existencia
+##   - Exponer opciones disponibles
+##
+## NO hace:
+##   - Renderizar nada
+##   - Instanciar nodos
+##   - Llamar a Dialogue.select_option() directamente (eso es una intención)
+
+
+# ============================================
+# ENUM
+# ============================================
+
+enum DialogueState {
+	HIDDEN,    ## Panel cerrado
+	SHOWING,   ## Nodo de diálogo activo, sin opciones aún
+	OPTIONS,   ## Opciones disponibles para el jugador
+}
+
+
+# ============================================
+# SEÑAL HACIA LA VIEW
+# ============================================
+
+## Razones:
+##   "opened"   → mostrar panel, renderizar nodo inicial
+##   "node"     → nuevo nodo de diálogo (texto + portrait)
+##   "options"  → opciones disponibles actualizadas
+##   "closed"   → ocultar panel
+signal changed(reason: String)
+
+
+# ============================================
+# ESTADO PÚBLICO
+# ============================================
+
+var state: DialogueState = DialogueState.HIDDEN
+
+var dialogue_id:  String = ""
+var node_id:      String = ""
+var speaker_name: String = ""
+var dialogue_text: String = ""
+
+## Path de portrait listo para cargar, o "" si no existe
+var portrait_path: String = ""
+
+## Path del fondo de ambiente del panel (Spike 11), o "" si no hay para
+## esta aventura — el panel cae entonces al color plano (decisión 3).
+var background_path: String = ""
+
+## Opciones disponibles (Array[DialogueOptionDefinition] o similares)
+var options: Array = []
+
+
+# ============================================
+# CICLO DE VIDA
+# ============================================
+
+func _ready() -> void:
+	EventBus.dialogue_started.connect(_on_dialogue_started)
+	EventBus.dialogue_node_shown.connect(_on_dialogue_node_shown)
+	EventBus.dialogue_options_updated.connect(_on_dialogue_options_updated)
+	EventBus.dialogue_ended.connect(_on_dialogue_ended)
+	print("[DialogueVM] Ready")
+
+
+# ============================================
+# INTENCIONES
+# ============================================
+
+func select_option(option_id: String) -> void:
+	if state != DialogueState.OPTIONS:
+		return
+	Dialogue.select_option(option_id)
+
+
+# ============================================
+# CALLBACKS DEL EVENTBUS
+# ============================================
+
+func _on_dialogue_started(p_dialogue_id: String) -> void:
+	dialogue_id = p_dialogue_id
+	options.clear()
+	state = DialogueState.SHOWING
+	changed.emit("opened")
+
+
+func _on_dialogue_node_shown(
+		p_node_id: String,
+		speaker_id: String,
+		text_key: String,
+		portrait_id: String = "",
+		mood: String = "neutral",
+		portrait_folder: String = "",
+		background_id: String = "") -> void:
+
+	node_id       = p_node_id
+	dialogue_text = tr(text_key)
+	speaker_name  = tr("SPEAKER_%s" % speaker_id.to_upper())
+	portrait_path = _resolve_portrait(portrait_id if not portrait_id.is_empty() else speaker_id, mood, portrait_folder)
+
+	# El fondo de ambiente es por aventura, no por nodo — solo se emite un
+	# "background" cuando cambia, para no recargar la textura en cada línea.
+	var new_background_path := _resolve_background(portrait_folder, background_id)
+	if new_background_path != background_path:
+		background_path = new_background_path
+		changed.emit("background")
+
+	options.clear()
+	state = DialogueState.SHOWING
+	changed.emit("node")
+
+
+func _on_dialogue_options_updated(p_options: Array) -> void:
+	options = p_options
+	state   = DialogueState.OPTIONS
+	changed.emit("options")
+
+
+func _on_dialogue_ended(_p_dialogue_id: String) -> void:
+	dialogue_id   = ""
+	node_id       = ""
+	speaker_name  = ""
+	dialogue_text = ""
+	portrait_path = ""
+	background_path = ""
+	options.clear()
+	state = DialogueState.HIDDEN
+	changed.emit("closed")
+
+
+# ============================================
+# HELPERS
+# ============================================
+
+## Resuelve el retrato para (speaker_id, mood) con respaldo a neutral:
+##   1) "<speaker_id>_<mood>.png"        (mood != "" y != "neutral")
+##   2) "<speaker_id>.png"               (neutral, o respaldo de 1)
+## Si ninguna existe, avisa con push_warning (antes fallaba en silencio)
+## y el panel se queda sin retrato para ese nodo.
+func _resolve_portrait(speaker_id: String, mood: String = "neutral", portrait_folder: String = "") -> String:
+	var folder := (portrait_folder + "/") if not portrait_folder.is_empty() else ""
+
+	if not mood.is_empty() and mood != "neutral":
+		var mood_path := "res://data/characters/portrait/%s%s_%s.png" % [folder, speaker_id, mood]
+		if ResourceLoader.exists(mood_path):
+			return mood_path
+		push_warning("[DialogueViewModel] Falta retrato '%s' para mood '%s' — usando neutral" % [speaker_id, mood])
+
+	var neutral_path := "res://data/characters/portrait/%s%s.png" % [folder, speaker_id]
+	if ResourceLoader.exists(neutral_path):
+		return neutral_path
+
+	push_warning("[DialogueViewModel] Falta retrato neutral para '%s' — sin retrato" % speaker_id)
+	return ""
+
+
+## Resuelve el fondo de ambiente del panel para esta aventura (Spike 11).
+## Una imagen por portrait_folder, no por diálogo ni por nodo. Sin
+## portrait_folder o sin archivo, respaldo silencioso salvo warning — el
+## panel cae al color plano (decisión 3: no depende de lo que haya detrás).
+func _resolve_background(portrait_folder: String, background_id: String = "") -> String:
+	if portrait_folder.is_empty():
+		return ""
+
+	if not background_id.is_empty():
+		var scene_path := "res://data/dialogue/backgrounds/%s/%s.png" % [portrait_folder, background_id]
+		if ResourceLoader.exists(scene_path):
+			return scene_path
+		push_warning("[DialogueViewModel] Falta fondo '%s' para escena '%s' — usando el de aventura" % [portrait_folder, background_id])
+
+	var path := "res://data/dialogue/backgrounds/%s.png" % portrait_folder
+	if ResourceLoader.exists(path):
+		return path
+
+	push_warning("[DialogueViewModel] Falta fondo de ambiente para '%s' — panel en color plano" % portrait_folder)
+	return ""
+
+===== .\ui\dialogue\option_button.tscn =====
+
+[gd_scene format=3 uid="uid://c6xfpdj2h4yb8"]
+
+[node name="OptionButton" type="Button" unique_id=2055271625]
+custom_minimum_size = Vector2(0, 36)
+text = "Option"
+clip_text = true

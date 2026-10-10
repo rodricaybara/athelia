@@ -2,8 +2,7 @@
 
 **Hito:** rediseño de interfaces (spikes 14-24). **Cambio visual:** ninguno
 (salvo la anchura del botón del Game Over, ver "Hallazgos").
-**Estado:** cerrado y validado en partida real, con tres comprobaciones menores
-pendientes de confirmar (ver "Validación").
+**Estado:** cerrado y validado en partida real.
 
 ---
 
@@ -110,13 +109,13 @@ vacíos), `localization/menus.csv` (`GAMEOVER_TITLE`, `GAMEOVER_MESSAGE`,
 | # | Prueba de la spec | Resultado |
 |---|---|---|
 | 1 | Derrota → botón | Correcto. Secuencia `Return to menu requested` → `Handling state: MENU` → `Session scene freed: ExplorationScene` → `State: DEFEAT → MENU` → `SessionReset` con `buff_entities=8, companions_left=1, entities_unregistered=7, remaining_in_characters=0`. |
-| 2 | Nueva partida tras derrota | Registro limpio de `player` y de un solo `companion_mira`, `ExplorationScene` nueva, primera visita al pueblo disparada de nuevo, inventario de la partida anterior no heredado. **Pendiente de confirmar:** vida completa y stock original de la herrería. |
+| 2 | Nueva partida tras derrota | Registro limpio de `player` y de un solo `companion_mira`, `ExplorationScene` nueva, primera visita al pueblo disparada de nuevo, inventario de la partida anterior no heredado; herrería con su stock original (confirmado en partida). |
 | 3 | Derrota → menú → Cargar partida | Correcto: restaura el punto guardado, inventario incluido. |
-| 4 | Primer arranque normal | Validado en la Fase 1 (código parcial). **Pendiente de confirmar** con el código final: arranque en frío → Nueva partida → pueblo. |
+| 4 | Primer arranque normal | Confirmado con el código final: arranque en frío → Nueva partida → pueblo, sin regresiones. |
 | 5 | "Volver al menú" desde Character Creation | Correcto. Reinicio con almacén vacío, contadores a 0, sin avisos. |
 | 6 | Dos derrotas seguidas | Una sola `ExplorationScene` en el árbol remoto. |
 | 7 | Derrota con companions / combate narrativo | Companion dado de baja por `leave_party` y los 6 enemigos desregistrados (`remaining_in_characters=0`). No se probó por separado un combate lanzado desde narrativa; ambos caminos de registro pasan por `Characters`. |
-| 8 | Companions tras el refactor | Carga con party y baja por `leave_party` correctas. **No jugados:** rescate narrativo y muerte permanente (pasan por el mismo `_unregister_from_systems`). |
+| 8 | Companions tras el refactor | Carga con party y baja por `leave_party` correctas. El rescate narrativo y la muerte permanente no tienen camino jugable en la aventura actual, así que no se pudieron probar; pasan por el mismo `_unregister_from_systems`. |
 | 9 | Reinicio idempotente | Correcto (contadores a 0 sin avisos). |
 | — | Idioma | El Game Over sale en inglés con el juego en inglés. |
 
@@ -138,15 +137,18 @@ vacíos), `localization/menus.csv` (`GAMEOVER_TITLE`, `GAMEOVER_MESSAGE`,
   reinicio no la vería (no hay listador público fuera de `Characters`).
 - **`menus.csv`:** la fila `MENU_CONFIRM_YES` tiene comas sin comillas.
 - **Aviso al cargar la exploración:** `telmori_village/exit_final: escena
-  narrativa inexistente: telmori_village_departure` (escena de epílogo aún por
-  crear; ajeno a este spike).
+  narrativa inexistente: telmori_village_departure` (marcador del punto 10 de la
+  recopilación de pendientes: decidir qué ocurre al salir del pueblo; ajeno a este
+  spike).
 - **Botón del Game Over:** puede ensancharse porque "Volver al menú principal"
   es más largo que "Nueva partida" (rediseño en el spike 24).
 - **Decisión de Fernando:** la carga con F9 en partida queda desestimada de forma
   definitiva; no se vuelve a tratar.
-- **Nombre del documento de estructura:** la spec cita
-  `athelia_estructura_proyecto_actualizado.md`; el proyecto adjunta
-  `athelia_estructura_carpetas.md`. Confirmar cuál es el vigente.
+- **Nombre del documento de estructura:** el vigente es
+  `athelia_estructura_carpetas.md` (la spec citaba el nombre antiguo
+  `athelia_estructura_proyecto_actualizado.md`; las referencias de
+  `athelia_ui_architecture.md` y de la recopilación de pendientes ya están
+  actualizadas).
 
 ## 9. Lecciones
 

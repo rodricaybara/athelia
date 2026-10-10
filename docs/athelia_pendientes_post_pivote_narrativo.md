@@ -14,7 +14,11 @@ Actualizado tras el Spike 13: el punto 9 queda HECHO (el pueblo de "Los Telmori"
 está migrado al motor de escenas interactivas y se juega completo); nuevo punto 10
 con lo que el spike deja abierto — sobre todo limpieza de `Interactable` y del
 pueblo antiguo, una guarda general de ids narrativos inexistentes, marcadores de
-contenido y validaciones sin confirmar.*
+contenido y validaciones sin confirmar.
+Actualizado tras el Spike 14: reinicio de sesión y teardown HECHOS (el Game Over lleva al
+menú principal y `SessionReset` deja los sistemas como en un arranque en frío); nuevo punto 11
+con lo que el spike deja abierto — sobre todo los buffs de combate que nunca se limpian y
+código sin uso descubierto en la Fase 0; F9 queda desestimado de forma definitiva.*
 
 ---
 
@@ -107,6 +111,9 @@ contenido y validaciones sin confirmar.*
   bloqueo total de input.** Causa raíz sin confirmar. Referenciado también
   en el informe de un spike anterior (producción post-character-creation),
   así que no es nuevo de esta ronda.
+- **Decisión de Fernando (Spike 14): F9 queda desestimado de forma definitiva.** Se intentó
+  resolver en su día y se dejó por imposible; no se vuelve a tratar. El reinicio de sesión
+  del Spike 14 no pasa por el camino de F9 y no lo empeora.
 
 ---
 
@@ -336,21 +343,70 @@ nuevo (ver `docs/spike_13_reautoria_pueblo_telmori.md`). Lo que deja abierto:
   construir; hoy `telmori_post_ambush_tracking` es una escena narrativa con tirada de Rastrear.
 
 **Validación sin confirmar (marcada así en el cierre del spike):** un segundo punto de
-guardado distinto (la spec pedía dos); ganar un combate sin escena de victoria y la derrota
-(solo comprobables con `poi_test_map`); lanza equipada frente a vendida; que "Salir" del
+guardado distinto (la spec pedía dos); ganar un combate sin escena de victoria (solo comprobable con `poi_test_map`; la derrota
+ya se jugó en partida real en el Spike 14); lanza equipada frente a vendida; que "Salir" del
 sheriff no marque `flag.telmori_sheriff_briefed`.
 
-**Documentación:** el árbol de `docs/` de `athelia_estructura_proyecto_actualizado.md` no
+**Documentación:** el árbol de `docs/` de `athelia_estructura_carpetas.md` no
 lista los informes de los Spikes 10–12. Renombrar el diálogo del briefing a
 `dlg_telmori_sheriff_briefing.json` (opcional: el cargador usa el `id` interno, pero la
 colisión de nombres con la escena narrativa ya se sufrió).
 
-**Sin cambios:** F9 (quickload) sigue no operativo desde el Spike 7. Los tests del Spike 13
+**Sin cambios:** F9 (quickload) sigue no operativo desde el Spike 7 y queda desestimado de forma definitiva (ver punto 4). Los tests del Spike 13
 fueron manuales (log y captura), sin test automatizado.
 
   automatizado del motor.
 
 ---
+
+## 11. Pendientes surgidos en el Spike 14
+
+El reinicio de sesión y el teardown de escenas están hechos y validados en partida real (ver
+`docs/spike_14_reinicio_sesion.md`): el Game Over lleva al menú principal, y al entrar en `MENU`
+el orquestador libera las escenas de la partida y `SessionReset` deja los sistemas como en un
+arranque en frío. Resueltos de paso: el bug de "Nueva partida" en el Game Over (transición
+inválida `DEFEAT → CHARACTER_CREATION`), el `GameOverUI` sin referencia que nunca se liberaba, y
+los accesos privados a `_entity_skills` en `CharacterCreationViewModel` y en
+`PartyManager._register_in_systems()` (solo el `.has()`). Lo que deja abierto:
+
+**Motor / código:**
+
+- **`CombatSystem._active_buffs` no se limpia al terminar un combate.** `clear_buffs()` no tenía
+  ningún llamador antes del Spike 14. `SessionReset` solo la llama para las entidades
+  registradas en `Characters`: los buffs de entidades ya dadas de baja (p. ej. un enemigo de un
+  combate anterior con el mismo id) no se tocan. Los ids de companion son fijos
+  (`companion_mira`), así que el problema es real aunque el reinicio lo tape al cambiar de
+  partida.
+- **`PartyManager._register_in_systems()` conserva un acceso privado:**
+  `skills_node._entity_skills.get(...).keys()`. Cerrarlo exige un listador público en
+  `SkillSystem`.
+- **Entidad registrada solo en `Skills` o `Resources`:** `CombatProductionScene` registra en
+  `Skills` antes que en `Characters`; si el segundo registro fallara, el reinicio no vería la
+  entidad (no hay listador público fuera de `Characters`). Improbable, sin cubrir.
+- **`CombatLootSpawner.spawn_pending_loot()` no tiene ningún llamador:** el botín de combate no
+  se materializa en producción. Relacionado: `WorldObjectSystem` no tiene registradores reales
+  (solo el spawner y el tutorial descartado) y `SaveSystem` no lo guarda.
+- **`EnemyWorldLink.register_fled_cleanup()` sin llamadores.**
+
+**Limpieza (sin urgencia):**
+
+- **`ItemCharacterIntegration` (`item_character_integration.gd`) es código muerto:** no es
+  autoload ni se instancia; el autoload `Bridge` es `item_character_bridge.gd`.
+- **`menus.csv`:** la fila `MENU_CONFIRM_YES` tiene comas sin comillas y se lee con más de tres
+  columnas.
+
+**Contenido y avisos:**
+
+- **Aviso en cada carga de la exploración:** `telmori_village/exit_final: escena narrativa
+  inexistente: telmori_village_departure`. Es el marcador del punto 10 (qué ocurre al salir del
+  pueblo con la aventura completada); desaparecerá al decidirlo.
+- **Botón del Game Over:** puede ensancharse porque "Volver al menú principal" es más largo que
+  "Nueva partida". El rediseño visual queda para el spike 24.
+
+**Validación sin ejercitar:** el rescate narrativo de un companion y la muerte permanente no
+tienen camino jugable en la aventura actual, así que no se pudieron probar en partida real. El
+código común (`PartyManager._unregister_from_systems()` → `EntityLifecycle`) sí se ejercitó por
+la carga con party y por la baja con `leave_party`.
 
 ---
 
