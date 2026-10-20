@@ -1,0 +1,41 @@
+id,en,es
+SKILL_ENEMY_BASIC_ATTACK_NAME,Basic Attack,Ataque básico
+SKILL_ENEMY_BASIC_ATTACK_DESC,A simple strike with whatever the enemy carries.,Un golpe sencillo con lo que lleve el enemigo.
+SKILL_LOCKPICK_NAME,Lockpicking,Forzar cerraduras
+SKILL_LOCKPICK_DESC,Open locks without the proper key.,Abrir cerraduras sin la llave adecuada.
+SKILL_PERCEPTION_NAME,Perception,Percepción
+SKILL_PERCEPTION_DESC,"Notice details, sounds and dangers around you.","Advertir detalles, sonidos y peligros a tu alrededor."
+SKILL_SEARCH_NAME,Search,Buscar
+SKILL_SEARCH_DESC,Examine a place carefully for hidden things.,Examinar un lugar a fondo en busca de cosas ocultas.
+SKILL_SPRINT_NAME,Sprint,Carrera
+SKILL_SPRINT_DESC,Run at full speed over a short distance.,Correr a toda velocidad una distancia corta.
+SKILL_STEALTH_NAME,Stealth,Sigilo
+SKILL_STEALTH_DESC,Move unseen and unheard.,Moverse sin ser visto ni oído.
+SKILL_TRACK_NAME,Tracking,Rastrear
+SKILL_TRACK_DESC,Follow the trail of creatures and people.,Seguir el rastro de criaturas y personas.
+SKILL_DASH_NAME,Dash,Impulso
+SKILL_DASH_DESC,Quick burst of speed,Ráfaga rápida de velocidad
+SKILL_ATTACK_RANGED_NAME,Ranged Attack,Ataque a distancia
+SKILL_ATTACK_RANGED_DESC,A precise ranged attack using a bow or thrown weapon.,Un ataque preciso a distancia usando un arco o arma arrojadiza.
+SKILL_ATTACK_SWEEP_NAME,Sweep Attack,Ataque en barrido
+SKILL_ATTACK_SWEEP_DESC,A wide melee swing that strikes up to 2 adjacent enemies.,Un amplio golpe cuerpo a cuerpo que alcanza hasta 2 enemigos adyacentes.
+SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
+SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.
+SKILL_ATTACK_LIGHT_NAME,Light Attack,Ataque Ligero
+SKILL_ATTACK_LIGHT_DESC,A light atack,Un ataque ligero
+SKILL_BLEEDING_STRIKE_NAME,Bleeding Strike,Golpe Sangrante
+SKILL_BLEEDING_STRIKE_DESC,A strike that causes the target to bleed for several rounds.,Un golpe que hace sangrar al objetivo durante varias rondas.
+SKILL_ATTACK_HEAVY_NAME,Heavy Attack,Ataque Pesado
+SKILL_ATTACK_HEAVY_DESC,A powerful blow that deals high damage at the cost of stamina.,Un golpe poderoso que causa gran daño a costa de stamina.
+SKILL_POWER_STRIKE_NAME,Power Strike,Golpe de Poder
+SKILL_POWER_STRIKE_DESC,A focused strike that concentrates all strength into a single hit.,Un golpe concentrado que canaliza toda la fuerza en un único impacto.
+SKILL_RECKLESS_STRIKE_NAME,Reckless Strike,Golpe Temerario
+SKILL_RECKLESS_STRIKE_DESC,An aggressive attack that deals extra damage but leaves you exposed.,Un ataque agresivo que causa daño adicional pero te deja expuesto.
+SKILL_STUNNING_BLOW_NAME,Stunning Blow,Golpe Aturdidor
+SKILL_STUNNING_BLOW_DESC,A heavy impact that staggers the target and delays their next action.,Un impacto contundente que desestabiliza al objetivo y retrasa su próxima acción.
+SKILL_DODGE_NAME,Dodge,Esquiva
+SKILL_DODGE_DESC,A swift evasive movement that avoids an incoming attack.,Un movimiento evasivo rápido que evita un ataque entrante.
+SKILL_FIREBALL_NAME,Fireball,Bola de Fuego
+SKILL_FIREBALL_DESC,A concentrated sphere of fire hurled at the enemy.,Una esfera concentrada de fuego lanzada contra el enemigo.
+SKILL_TANNING_NAME,Tanning,Curtido
+SKILL_TANNING_DESC,The craft of treating hides into usable leather.,El oficio de tratar pieles para convertirlas en cuero utilizable.

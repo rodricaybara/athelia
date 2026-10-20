@@ -18,7 +18,11 @@ contenido y validaciones sin confirmar.
 Actualizado tras el Spike 14: reinicio de sesión y teardown HECHOS (el Game Over lleva al
 menú principal y `SessionReset` deja los sistemas como en un arranque en frío); nuevo punto 11
 con lo que el spike deja abierto — sobre todo los buffs de combate que nunca se limpian y
-código sin uso descubierto en la Fase 0; F9 queda desestimado de forma definitiva.*
+código sin uso descubierto en la Fase 0; F9 queda desestimado de forma definitiva.
+Actualizado tras el Spike 15 (cimientos del Design System, cerrado): resueltos la clave
+cruda de habilidades, la discrepancia de `UIPanel.Variant.OVERLAY`, la esquinera del diálogo,
+los duplicados de localización y la decisión de resolución (sin estiramiento); nuevo punto 12
+con lo que el spike deja abierto.*
 
 ---
 
@@ -158,7 +162,7 @@ Cerrado y validado en el Spike 9.
 
 ## 7. Pendientes surgidos en el Spike 10
 
-- **Claves sin traducir en el panel de habilidades:** `SKILL_PERCEPTION_NAME`,
+- **RESUELTO en el Spike 15 (`skills.csv`, 7 habilidades con nombre y descripción).** ~~**Claves sin traducir en el panel de habilidades:**~~  `SKILL_PERCEPTION_NAME`,
   `SKILL_SEARCH_NAME`, `SKILL_STEALTH_NAME` y `SKILL_TRACK_NAME` se ven como
   clave cruda en la pestaña de exploración (Esquiva y Curtido sí están
   traducidas). Anteriores al Spike 10, vistas al validar. Probablemente solo
@@ -209,13 +213,13 @@ partida real de principio a fin, apertura desde escena narrativa y desde
   callback conectado acepta menos, así que deberían seguir compilando y
   pasando, pero no se ha confirmado ejecutándolos. Decidir si se adaptan
   a la firma nueva o se dejan así conscientemente.
-- **Resolución de ventana pequeña (1153×643).** Con 5 opciones, el panel
+- **DECIDIDO en el Spike 15: sin estiramiento, ventana mínima 1152×648; el diálogo reserva su altura y pasa a 2 columnas desde 4 opciones (6 opciones caben sin scroll).** Texto original: **Resolución de ventana pequeña (1153×643).** Con 5 opciones, el panel
   de diálogo necesita scroll incluso con la altura ya corregida (caben 3
   sin scroll). Subir la resolución base daría más margen, pero afecta a
   toda pantalla con posiciones en píxeles fijos, no solo a este panel —
   se aparcó deliberadamente como tarea de proyecto propia, fuera de
   alcance de este spike.
-- **`UIPanel.Variant.OVERLAY` documentada como semitransparente pero con
+- **RESUELTO en el Spike 15 (docstring corregido: OVERLAY es opaco).** Texto original: **`UIPanel.Variant.OVERLAY` documentada como semitransparente pero con
   stylebox opaco en la práctica** — discrepancia menor de documentación,
   detectada en la comprobación de código previa (Fase 0) de este spike,
   sin corregir.
@@ -392,8 +396,7 @@ los accesos privados a `_entity_skills` en `CharacterCreationViewModel` y en
 
 - **`ItemCharacterIntegration` (`item_character_integration.gd`) es código muerto:** no es
   autoload ni se instancia; el autoload `Bridge` es `item_character_bridge.gd`.
-- **`menus.csv`:** la fila `MENU_CONFIRM_YES` tiene comas sin comillas y se lee con más de tres
-  columnas.
+- **`menus.csv`:** ~~la fila `MENU_CONFIRM_YES` tiene comas sin comillas~~ — **corregido en el Spike 15:** `MENU_CONFIRM_YES` estaba bien; la fila realmente mal formada era `DLG_SHERIFF_REWARD_01_GREET` (ya entrecomillada).
 
 **Contenido y avisos:**
 
@@ -407,6 +410,35 @@ los accesos privados a `_entity_skills` en `CharacterCreationViewModel` y en
 tienen camino jugable en la aventura actual, así que no se pudieron probar en partida real. El
 código común (`PartyManager._unregister_from_systems()` → `EntityLifecycle`) sí se ejercitó por
 la carga con party y por la baja con `leave_party`.
+
+---
+
+
+## 12. Pendientes surgidos en el Spike 15
+
+Cimientos del Design System cerrados y validados en partida real (ver
+`docs/spike_15_cimientos_design_system.md`).
+
+**Resuelto en el Spike 15:** claves `SKILL_*` sin traducir (nuevo `skills.csv`); discrepancia de
+`OVERLAY`; `push_warning` de `UIPanel` en `_draw()`; esquinera del diálogo; fila de CSV mal
+formada (`DLG_SHERIFF_REWARD_01_GREET`), 29 duplicados de `translations.csv` y
+`WORLD_OBJECT_DEPLETED` repetida; decisión de resolución (sin estiramiento).
+
+**Nuevos:**
+
+- **Retrato del posadero:** muestra el del sheriff (provisional desde el Spike 13).
+- **Árbol de habilidades:** la pestaña `companion_mira` y `T1` salen sin localizar (spike 21).
+- **Claves por revisar:** `SKILL_META_COST_`, `SKILL_NOT_FOUND`, `SKILL_NOT_LEARNED`,
+  `SKILL_SLOTS`, `SKILL_A`, `SKILL_B`, `SKILL_CATEGORY`.
+- **`SKILL_ATTACK_LIGHT_DESC`:** texto por corregir a mano en `skills.csv`.
+- **Posible recorte de ~4 px** con un saludo de 3 líneas y 6 opciones a 648 (sin reproducir).
+- **Comentario erróneo** en `interactive_scene_view.gd:15` sobre `main_theme.tres`.
+- **Fuentes y tema sin aplicar** (`main_theme.tres`).
+- **Inventory:** la View de producción es `inventory_ui.gd` sin ViewModel; `InventoryScreen` e
+  `InventoryViewModel` no se usan (corrección en el Spike 17).
+- **Sin confirmar:** comprobación en inglés y en partida del saludo del sheriff y del nombre del
+  posadero tras reimportar; comando de comprobación de columnas de la Fase 0 sin re-ejecutar.
+- **Temporales a borrar:** `test_tokens_alias.gd`, los `.ps1` de la Fase D y los `.bak`.
 
 ---
 

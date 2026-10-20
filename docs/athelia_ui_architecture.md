@@ -12,7 +12,8 @@
 8. [Reglas que no se rompen](#reglas-que-no-rompen)
 9. [Antipatrones conocidos](#antipatrones-conocidos)
 10. [Design System — `UIPanel`: marco decorativo opt-in](#design-system--uipanel-marco-decorativo-opt-in-spike-9)
-11. [Referencia de pantallas existentes](#referencia-de-pantallas-existentes)
+11. [Contrato de pantalla y resolución de referencia (Spike 15)](#contrato-de-pantalla-y-resolución-de-referencia-spike-15)
+12. [Referencia de pantallas existentes](#referencia-de-pantallas-existentes)
 
 ---
 
@@ -711,6 +712,13 @@ mejor un `ScrollContainer` alrededor de ese contenido, para que el panel
 se quede en su tamaño anclado y el desbordamiento se resuelva con scroll,
 no cambiando el tamaño del panel en cada apertura.
 
+**Actualizado en el Spike 15:** el `ScrollContainer` de `DialoguePanel` evita que
+el panel crezca, pero por sí solo no basta: con `size_flags_vertical = 3` en el
+texto y en el `ScrollContainer`, el hueco se reparte a partes iguales y a 648 de
+alto se cortaba la tercera opción. La franja de opciones reserva ahora su altura
+natural (`custom_minimum_size.y` = filas × alto de botón + separaciones) y el
+scroll queda solo como red de seguridad.
+
 ---
 
 ### ❌ `TextureRect` de contenido con `expand_mode` por defecto
@@ -937,7 +945,7 @@ su fondo. Se activa por instancia, nunca por defecto.
 | Propiedad | Tipo | Por defecto | Descripción |
 |-----------|------|-------------|-------------|
 | `decorative_frame` | `bool` | `false` | Activa el marco. Cualquier `Variant` lo admite |
-| `corner_texture` | `Texture2D` | `null` | Esquinera única (diseñada para la esquina superior izquierda), rotada en las 4 esquinas. Sin asignar: solo filetes + `push_warning` |
+| `corner_texture` | `Texture2D` | `null` | Esquinera única (diseñada para la esquina superior izquierda), rotada en las 4 esquinas. Sin asignar se usa la esquinera por defecto del Design System (`UITokens.FRAME_CORNER_TEXTURE_PATH`, 64×64); solo si tampoco carga esa, se dibujan los filetes sin esquinas y se avisa **una vez por ejecución** (`push_warning` fuera de `_draw()`, Spike 15) |
 
 - **Dibujo:** `_draw()` sobre el propio `UIPanel` (un `StyleBoxFlat` solo
   admite un borde de un color, así que no puede producir varios filetes
@@ -950,21 +958,33 @@ su fondo. Se activa por instancia, nunca por defecto.
   a 0): evita duplicar líneas y fondo redondeado bajo un marco de esquina viva.
 - **Tokens** (`UITokens`): `COLOR_FRAME_OUTER`, `COLOR_FRAME_FILLET`,
   `COLOR_FRAME_INNER`, `FRAME_OUTER_WIDTH`, `FRAME_FILLET_WIDTH`,
-  `FRAME_INNER_WIDTH`, `FRAME_GAP`.
+  `FRAME_INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING` (16, Spike 15) y `FRAME_CORNER_TEXTURE_PATH` (esquinera por defecto, Spike 15).
 - **Arte:** `res://ui/design_system/assets/frames/frame_corner_64x64.png`
   (en uso) y `frame_corner_96x96.png` (reserva; invadía el texto del panel
   narrativo).
 - **Cómo activarlo en una pantalla:** en el inspector de la instancia de
   `ui_panel.tscn`, grupo «Marco decorativo (Spike 9)»: marcar
-  `Decorative Frame`, asignar `Corner Texture` y **guardar la escena**. Ningún
+  `Decorative Frame` (`Corner Texture` es opcional desde el Spike 15: sin
+  asignar se usa la esquinera por defecto) y **guardar la escena**. Ningún
   cambio de script en la View.
-- **Cuidado con el padding:** la esquinera de 64 px es mayor que el padding
-  por defecto (`SPACE_LG` = 16). Si el contenido queda pegado al borde,
-  subir `padding` de esa instancia.
+- **Padding con marco (Spike 15):** con `padding = -1` (por defecto) y
+  `decorative_frame = true`, el padding efectivo no baja de
+  `UITokens.FRAME_MIN_PADDING` (16, = `SPACE_LG`): la esquinera de 64 px es
+  mayor que el padding por defecto. Un `padding` explícito (≥ 0) nunca se
+  modifica.
+- **Activación en runtime (Spike 15):** `decorative_frame` y `corner_texture`
+  tienen setter y reaplican estilo y redibujan. Los setters de un `@export`
+  se ejecutan al cargar la escena **antes de `_ready()`**, así que comprueban
+  `is_node_ready()`.
+- **Variantes con consumidores reales (Spike 15):** `DEFAULT` lo usan
+  Character Creation (3 paneles), Diálogo, Narrativa y los sub-paneles del
+  menú principal. `POPUP` y `OVERLAY` no tienen consumidores. **`OVERLAY` es
+  opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0); antes se documentaba
+  como semitransparente, y nunca lo fue.
 - **Diagnóstico si «no cambia nada»:** un `print` en `_ready()` con
   `decorative_frame` distingue «el script nuevo no carga» de «el flag no
   está activo en esa instancia» en una sola ejecución.
-- **Activado en:** `NarrativeScenePanel` (`Root/UIPanel`, Spike 9) y `DialoguePanel` (`Root/Panel`, Spike 11). Validado en ambos: la ventana de inventario no cambia.
+- **Activado en:** `NarrativeScenePanel` (`Root/UIPanel`, Spike 9) y `DialoguePanel` (`Root/Panel`, Spike 11). Validado en ambos: la ventana de inventario no cambia. Desde el Spike 15 el diálogo muestra además la esquinera por defecto sin asignar nada (antes no se veía por no tener `corner_texture`).
 
 ---
 
@@ -988,16 +1008,69 @@ Reglas que se descubrieron:
 - `UICombatToken` (la "ficha de combate") **no** es reutilizable como icono de mapa: está acoplado al combate (anillos de vida/energía, triángulo de turno, retícula). Los iconos de hotspot son PNG propios.
 
 
+## Contrato de pantalla y resolución de referencia (Spike 15)
+
+Reglas que cumple toda pantalla nueva o rediseñada del hito (spikes 16-24):
+
+1. **MVVM.** La View no accede a sistemas core (`Inventory`, `Equipment`,
+   `Characters`, `Resources`, `Party`…). Todo pasa por el ViewModel
+   (`changed(reason)`, intenciones `request_X()`). El ViewModel es hijo de la View.
+2. **`closed`.** Toda pantalla anidable expone su señal `closed`, emitida junto
+   a su `visible = false`; quien la instancia hace `queue_free()` al recibirla.
+3. **Nodos por nombre único.** La View referencia sus nodos con `%Nombre`
+   (`unique_name_in_owner`), nunca con rutas `$A/B/C/D` ni `get_node("X")`. Nada
+   depende del **nombre del nodo raíz** de la pantalla (el orquestador puede
+   renombrarlo).
+4. **Marco decorativo opt-in.** `UIPanel.decorative_frame` apagado por defecto,
+   activado por pantalla.
+5. **Tokens.** Sin `Color(...)` literales ni tamaños de fuente sueltos; tokens
+   del vocabulario fusionado (ver README del Design System): `BG_*`/`BORDER_*`/
+   `TEXT_*` para superficies, bordes y texto; `COLOR_*` para marca, semánticos,
+   recursos y slots.
+6. **Texto.** Todo texto visible con `tr()` y clave en la localización, formato
+   `PANTALLA_ELEMENTO` (prefijo de pantalla en mayúsculas). Los textos de las
+   habilidades (`SKILL_<ID>_NAME`/`_DESC`) viven en `skills.csv`; los textos de
+   pantalla (`SKILL_TREE_*`…) en el CSV de la pantalla o en `translations.csv`.
+   Un `.csv` nuevo necesita alta manual en Project Settings → Localization.
+7. **Layout.** Anclas y fracciones, no píxeles fijos, para una ventana mínima de
+   1152×648. Si una medida depende de otro nodo (p. ej. el hueco de un retrato),
+   se calcula desde el borde real de ese nodo, no con un número fijo.
+8. **Contenido variable.** Si el número de hijos varía de una apertura a otra
+   (opciones de diálogo, listas), se reserva su altura natural con
+   `custom_minimum_size` y se deja un `ScrollContainer` como red de seguridad. Un
+   `ScrollContainer` con `size_flags_vertical = 3` junto a otro hijo expansivo
+   reparte el hueco **a partes iguales**: sin reserva, el contenido se corta.
+9. **Teclado.** Si la pantalla tiene opciones seleccionables, un control toma el
+   foco al abrirse (`grab_focus`, diferido) y el foco se ve (el estilo `focus`
+   por defecto de un `Button` puede recortarse: usar el estilo `hover`).
+10. Se conservan los contratos públicos de cada pantalla (`open()`,
+    `open_inventory()`, `show_shop_direct()`, `closed`…) salvo que el spike
+    declare lo contrario.
+
+### Resolución de referencia
+
+Decidida en el Spike 15 con un experimento (ver
+`docs/spike_15_cimientos_design_system.md`): **sin estiramiento**, valores por
+defecto (ventana de 1152×648, sin `stretch/mode`). `canvas_items` con base
+1280×720 ablandaba el texto (≈ 15 % en la medición) y se descartó. Consecuencias:
+
+- Las pantallas se diseñan con anclas para una ventana mínima de 1152×648 y deben
+  adaptarse al crecer (p. ej. 1680×1050 a pantalla completa).
+- Las pantallas de píxeles fijos (lista en el plan del hito, §3.2) no se adaptan y
+  se corrigen en el spike de cada una.
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
 |----------|-----------|------|-------------|
 | MainMenu | `main_menu_viewmodel.gd` | `main_menu_screen.gd` | Menú principal del juego. Main Scene del proyecto. Pantalla única con sub-paneles internos (opciones, créditos, confirmación de salida). No instanciada por SceneOrchestrator — arranca directamente. |
 | WorldObject | `world_object_panel_viewmodel.gd` | `world_object_interaction_panel.gd` | Panel piloto del patrón. El más simple. Buen punto de partida para entender el flujo. |
-| Inventory | `inventory_viewmodel.gd` | `inventory_screen.gd` | Pantalla con dos columnas (equipo + mochila), detalle de ítem y acciones. |
+| Inventory | — (sin ViewModel en producción) | `inventory_ui.gd` | **La View de producción es `inventory_ui.gd`, sin ViewModel** (dos columnas: equipo + mochila, detalle de ítem y acciones). `InventoryScreen` + `InventoryViewModel` (`inventory_screen.gd` / `inventory_viewmodel.gd`) existen pero **no se usan**. La corrección completa del contrato llega con el Spike 17. |
 | Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable. Abierta desde `SceneOrchestrator` via `show_shop_direct()`. |
-| Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. **Spike 11** lo rediseñó por completo: base de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`, marco del Spike 9); único retrato (se descarta el layout de dos retratos original), hermano del panel — no hijo — para poder sobresalir por encima del marco (layout C: franja inferior, anclas por fracción de pantalla `0.04/0.57/0.96/0.96`, no píxeles fijos); fondo de ambiente propio (`BackgroundImage` + `Background` como velo, mismo patrón que `CombatArenaViewModel`/Grupo 4, razón `"background"` de `changed()` emitida solo cuando cambia el path); exports de configuración visual sin efecto real retirados. `dialogue_node_shown` pasa de 4 a 7 argumentos (`mood`, `portrait_folder`, `background_id`) sin romper los oyentes existentes — GDScript descarta los argumentos de más al emitir si el callback conectado acepta menos. Ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2. Antipatrón nuevo, ver sección propia: `OptionsContainer` dentro de un `ScrollContainer` — un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, y con `grow_vertical = BEGIN` un número variable de opciones lo hacía crecer invadiendo pantalla en vez de quedarse en su franja fija. |
+| Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. **Spike 11** lo rediseñó por completo: base de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`, marco del Spike 9); único retrato (se descarta el layout de dos retratos original), hermano del panel — no hijo — para poder sobresalir por encima del marco (layout C: franja inferior, anclas por fracción de pantalla `0.04/0.57/0.96/0.96`, no píxeles fijos); fondo de ambiente propio (`BackgroundImage` + `Background` como velo, mismo patrón que `CombatArenaViewModel`/Grupo 4, razón `"background"` de `changed()` emitida solo cuando cambia el path); exports de configuración visual sin efecto real retirados. `dialogue_node_shown` pasa de 4 a 7 argumentos (`mood`, `portrait_folder`, `background_id`) sin romper los oyentes existentes — GDScript descarta los argumentos de más al emitir si el callback conectado acepta menos. Ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2. Antipatrón nuevo, ver sección propia: `OptionsContainer` dentro de un `ScrollContainer` — un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, y con `grow_vertical = BEGIN` un número variable de opciones lo hacía crecer invadiendo pantalla en vez de quedarse en su franja fija. **Spike 15:** opciones en `GridContainer` (`OptionsContainer`): 1 columna hasta 3 opciones, 2 desde 4, relleno por filas; la franja `OptionsScroll` reserva su altura natural (`custom_minimum_size.y`) para cualquier número de opciones y el `ScrollContainer` queda como red de seguridad; el margen izquierdo del texto se calcula desde el borde derecho real del retrato (`+ PORTRAIT_TEXT_GAP` = 3 px) y se recalcula en `resized`, ya no es un 240 fijo; la primera opción toma el foco y el foco usa el estilo `hover` del botón. `MarginContainer` y `OptionsScroll` son nodos con nombre único (`%`). Sin cambios en el contrato MVVM ni en `closed`. |
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
 | PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
 | NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). Spike 3, Grupo C reutilizó el contrato tal cual para el contenido de la guarida (4 escenas más, `combat_encounter` inline con refuerzos por primera vez) sin necesitar ningún cambio en el ViewModel ni en la View. **Spike 3, Grupo D** extendió `_apply_outcome()` con `grant_resource_*` ("otorgar recurso", análogo a `grant_item_*` vía `Resources.add_resource()`) — cambio interno del ViewModel, resuelto en el mismo bloque silencioso que `grant_item_*`, sin ninguna razón `changed()` nueva ni cambio en `narrative_scene_panel.gd` (a diferencia de `"streak_progress"` en Grupo B, esto no necesita renderizarse — es una entrega puntual, no un estado que la View deba mostrar). **Mejoras post-Spike 3, Grupo 3** añadió tres razones más de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`), emitidas por tres intenciones nuevas (`request_open_inventory/party/player_menu`) con el mismo guard que `request_option()` — no tocan `current_node` ni la racha, así que el estado del ViewModel no se entera de que hay un sub-overlay abierto encima. `narrative_scene_panel.gd` gana `_unhandled_input()` (antes no tenía ninguno) y gestión propia de sub-overlay (`_open_sub_overlay`/`_close_sub_overlay`, ver antipatrón "Overlay/subpantalla anidable sin señal `closed` propia" más arriba) para Inventory/Party/PlayerMenu, instanciados como hijos directos del panel — nunca vía `SceneOrchestrator`, precisamente para no pisar su `_current_overlay` de slot único (que en `NARRATIVE_SCENE` apunta al propio panel narrativo). **Mejoras post-Spike 3, Grupo 2** extendió el mismo mecanismo de sub-overlay a Diálogo: `NarrativeSceneOutcome.dialogue_id` (nuevo campo) abre `DialoguePanel` igual que Inventory/Party/PlayerMenu, pero con una diferencia deliberada — al cerrarse, si el outcome traía `next_scene_id`, la escena avanza (`resume_after_dialogue()`) en vez de quedarse en el mismo nodo como hacen los otros tres. La View distingue cuál de los cuatro sub-overlays se cerró (`_sub_overlay_is_dialogue`) para decidir si llama a ese método o no. `DialoguePanel` ganó su propia `signal closed` en este grupo (no la tenía, a diferencia de las cuatro pantallas ya arregladas en Grupo 3). **Mejoras post-Spike 3, Grupo 1** añadió `DialogueOptionDefinition.triggers_save` — sin ningún cambio al contrato MVVM ni a `DialoguePanel`/`NarrativeScenePanel`: la opción de diálogo marcada como savepoint guarda la partida desde `DialogueSystem.select_option()` (capa de sistemas, no de View), el sub-overlay de Diálogo se abre/cierra exactamente igual que antes. **Mejoras post-Spike 3, Grupo 4** cambió solo el `.tscn` (layout B1: `SceneImage` a pantalla completa detrás, `UIPanel` en el tercio inferior con texto y opciones en `HBoxContainer`) — el script no cambió porque los tres nodos se siguen resolviendo por nombre único (`%`). Ninguna razón de `changed()` nueva. **Spike 9** activó el marco decorativo de `UIPanel` en esta pantalla (`decorative_frame = true` + esquinera 64×64 desde el inspector del nodo `Root/UIPanel`) — solo `.tscn`, cero cambios en `narrative_scene_panel.gd`. **Spike 10** reutilizó el sub-overlay de Diálogo de Grupo 2 para los dos diálogos restantes del sheriff sin tocar la View ni el contrato: el único cambio en el ViewModel es interno a `_apply_outcome()` — se restauró el bloque `grant_item_*` que se había perdido (resuelto en el mismo bloque silencioso que `grant_resource_*`, antes del retorno temprano de `dialogue_id`, sin ninguna razón `changed()` nueva). |
@@ -1030,6 +1103,8 @@ Ningún antipatrón nuevo de arquitectura UI: el patrón es una variante de los 
 
 
 ---
+
+*Última actualización: Spike 15 — Cimientos del Design System (cerrado y validado en partida real). Nueva sección «Contrato de pantalla y resolución de referencia»: reglas de pantalla para el hito (MVVM, `closed`, nombres únicos `%`, marco opt-in, tokens, `tr()` con claves `PANTALLA_ELEMENTO`, anclas para 1152×648, reserva de altura, foco de teclado) y la decisión de resolución (sin estiramiento). `UIPanel`: esquinera por defecto, padding mínimo con marco, activación en runtime, `OVERLAY` documentado como opaco. `DialoguePanel`: opciones en rejilla, altura reservada, margen del texto proporcional al retrato, foco de teclado. Corregida la fila de Inventory (la View de producción es `inventory_ui.gd`, sin ViewModel). Ningún cambio al contrato MVVM. Ver `docs/spike_15_cimientos_design_system.md` y el README del Design System. Godot 4.7.x.*
 
 *Última actualización: Spike 13 — Reautoría del pueblo de "Los Telmori" sobre el motor de escenas interactivas — ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura UI. Los hotspots de `InteractiveSceneView` pasan de `Button` estándar a `UIButton` (cerrando la deuda que dejó el Spike 12): con `icon_path` válido son botones de solo icono con el nombre en tooltip, sin él botones de texto. `UIButton` gana `min_square` e `icon_backdrop` (opt-in, apagados por defecto; sección propia "`UIButton`: modo solo icono") y una regla de uso: sus propiedades se fijan antes de `add_child()` porque se leen en `_ready()`. `InteractiveSceneViewModel` expone `request_first_visit()` (acción de primera visita, llamada diferida desde la escena raíz). Las fichas de combate (`UICombatToken`) se descartaron como icono de mapa por estar acopladas al combate. Ver `docs/spike_13_reautoria_pueblo_telmori.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico. Godot 4.7.2.*
 

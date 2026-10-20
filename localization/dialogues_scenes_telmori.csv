@@ -1,5 +1,6 @@
 id,en,es
 SPEAKER_SHERIFF,Sheriff,Sheriff
+SPEAKER_INNKEEPER,Innkeeper,Posadero
 DLG_SHERIFF_01_GREET,"Ah, you're the one they sent about the wolf trouble. Good — we need every hand we can get. What do you want to know before you head out?","Ah, tú eres quien enviaron por el asunto de los lobos. Bien — necesitamos toda la ayuda posible. ¿Qué quieres saber antes de partir?"
 DLG_SHERIFF_OPT_SAVE,"Save my progress.","Guardar partida."
 DLG_SHERIFF_OPT_ASK_PROBLEM,"Tell me about the problem.","Cuéntame el problema."
@@ -10,7 +11,7 @@ DLG_SHERIFF_02_PROBLEM,"Wolves have been raiding the hills north of the village 
 DLG_SHERIFF_03_REWARD,"Clear out whatever's denned up in those hills and there's good coin in it for you, plus first pick of anything worth keeping from the den. Do it well, and the village won't forget it.","Limpia lo que sea que anide en esas colinas y habrá buena paga para ti, además de primera elección de lo que valga la pena de la guarida. Hazlo bien y el pueblo no lo olvidará."
 DLG_SHERIFF_04_WEAPONS,"Go and see the smith. He keeps an enchanted spear and silver arrows, just what you'll need against those creatures. The spear is on loan from the village, and I'll want it back when this is over. The arrows he'll charge you for, but they're cheap.","Ve a ver al herrero. Guarda una lanza encantada y flechas de plata, justo lo que necesitarás contra esas criaturas. La lanza es un préstamo de la aldea y la querré de vuelta cuando esto acabe. Las flechas te las cobrará, pero no son caras."
 DLG_OPT_BACK,"Ask something else.","Preguntar otra cosa."
-DLG_SHERIFF_REWARD_01_GREET,Give me back the spear, it belongs to the village,Devuélveme la lanza, que es de la aldea.
+DLG_SHERIFF_REWARD_01_GREET,"Give me back the spear, it belongs to the village","Devuélveme la lanza, que es de la aldea."
 DLG_SHERIFF_REWARD_OPT_ASK_TROPHY,About this wolf tail...,Sobre este rabo de lobo...
 DLG_SHERIFF_REWARD_OPT_ASK_VILLAGE,How is the village taking it?,¿Cómo se lo ha tomado el pueblo?
 DLG_SHERIFF_REWARD_OPT_DONE,That's all for now.,Eso es todo por ahora.

@@ -8,6 +8,29 @@ extends Node
 ## Uso:
 ##   panel.add_theme_color_override("bg_color", UITokens.COLOR_PANEL)
 ##   margin.add_theme_constant_override("margin_left", UITokens.SPACE_MD)
+##
+## VOCABULARIOS (Spike 15) — hay dos familias de nombres en este fichero:
+##   · COLOR_*                    → marca, semánticos, recursos del personaje,
+##                                  slots y la paleta base original.
+##   · BG_* / BORDER_* / TEXT_* / ACCENT_* / RADIUS_*
+##                                → vocabulario de superficies, bordes y texto
+##                                  con más capas (VOID, BASE, PANEL, SURFACE,
+##                                  RAISED, SELECTED). Nació en el árbol de
+##                                  habilidades.
+##
+## REGLA DE USO:
+##   · Código NUEVO: para superficies, bordes y texto usa BG_* / BORDER_* /
+##     TEXT_*. Para marca, semánticos, recursos y slots usa COLOR_*.
+##   · Nada se migra: los nombres antiguos siguen funcionando.
+##   · Lo que existe en las dos familias con el mismo valor es UN alias, no dos
+##     valores: los BG_* / BORDER_* / TEXT_* duplicados apuntan a su COLOR_*
+##     (los alias siempre apuntan hacia ATRÁS, a una constante ya declarada).
+##     Para cambiar el valor, se edita el COLOR_* de origen.
+##
+## ALIAS ENTRE FAMILIAS:
+##   BG_BASE → COLOR_BG · BG_PANEL → COLOR_PANEL · BG_SURFACE → COLOR_PANEL_ALT
+##   BORDER_DEFAULT → COLOR_BORDER · TEXT_PRIMARY → COLOR_TEXT
+##   TEXT_MUTED → COLOR_TEXT_MUTED · COLOR_SLOT_OCCUPIED → COLOR_PANEL_ALT
 
 
 # ============================================================
@@ -58,7 +81,7 @@ const COLOR_ACCENT_SOFT := Color("#B09060")
 const COLOR_TEXT        := Color("#E0D8C3")
 
 ## Texto secundario / muted
-const COLOR_TEXT_MUTED  := Color("#7A756A")
+const COLOR_TEXT_MUTED  := Color("#9A8E78")  # Spike 15: antes #7A756A; ahora igual que TEXT_MUTED
 
 ## Texto deshabilitado
 const COLOR_TEXT_DISABLED := Color("#4A4640")
@@ -116,7 +139,7 @@ const COLOR_SLOT_EMPTY      := Color("#1E1C1A")
 const COLOR_SLOT_EMPTY_BORDER := Color("#2E2A26")
 
 ## Slot ocupado
-const COLOR_SLOT_OCCUPIED   := Color("#252220")
+const COLOR_SLOT_OCCUPIED: Color = COLOR_PANEL_ALT  # alias (mismo valor, #252220)
 const COLOR_SLOT_OCCUPIED_BORDER := Color("#4A4030")
 
 ## Slot seleccionado
@@ -213,9 +236,9 @@ const ANIM_DURATION_SLOW   := 0.25
 # FONDOS — capas de profundidad
 # ============================================
 const BG_VOID     := Color("#111009")  ## Fondo más profundo — detrás de todo
-const BG_BASE     := Color("#1A1816")  ## Fondo de pantalla base
-const BG_PANEL    := Color("#2E2A26")  ## Fondo de paneles (header, detail)
-const BG_SURFACE  := Color("#252118")  ## Fondo de tarjetas de skill
+const BG_BASE: Color = COLOR_BG  ## Fondo de pantalla base
+const BG_PANEL: Color = COLOR_PANEL  ## Fondo de paneles (header, detail)
+const BG_SURFACE: Color = COLOR_PANEL_ALT  ## Fondo de tarjetas de skill
 const BG_RAISED   := Color("#3A3428")  ## Fondo de elementos elevados (btn activo)
 const BG_SELECTED := Color("#332C24")  ## Fondo de skill seleccionada
  
@@ -223,7 +246,7 @@ const BG_SELECTED := Color("#332C24")  ## Fondo de skill seleccionada
 # BORDES — jerarquía de énfasis
 # ============================================
 const BORDER_SUBTLE  := Color("#2A2620")  ## Separadores muy sutiles
-const BORDER_DEFAULT := Color("#3D3830")  ## Borde por defecto de tarjetas
+const BORDER_DEFAULT: Color = COLOR_BORDER  ## Borde por defecto de tarjetas
 const BORDER_PANEL   := Color("#5C4E38")  ## Borde de paneles principales
 const BORDER_ACCENT  := Color("#8A7050")  ## Borde de elementos activos/seleccionados
 const BORDER_GOLD    := Color("#D4C49A")  ## Borde decorativo (usar con moderación)
@@ -231,9 +254,9 @@ const BORDER_GOLD    := Color("#D4C49A")  ## Borde decorativo (usar con moderaci
 # ============================================
 # TEXTO
 # ============================================
-const TEXT_PRIMARY   := Color("#E0D8C3")  ## Texto principal
+const TEXT_PRIMARY: Color = COLOR_TEXT  ## Texto principal
 const TEXT_SECONDARY := Color("#B8A98A")  ## Texto secundario
-const TEXT_MUTED     := Color("#9A8E78")  ## Texto apagado (labels, hints)
+const TEXT_MUTED: Color = COLOR_TEXT_MUTED  ## Texto apagado (labels, hints)
 const TEXT_GOLD      := Color("#D4C49A")  ## Porcentaje en panel lateral — usar solo ahí
  
 # ============================================
@@ -260,6 +283,11 @@ const ACCENT_INFO_BG   := Color("#1A2030")  ## Fondo badge info
 const RADIUS_CARD  : int = 4   ## Tarjetas de skill, badges
 const RADIUS_PANEL : int = 6   ## Paneles y overlays
 ## Sin border-radius > 8px — piedra y madera no son suaves.
+##
+## Equivalencias entre las dos familias de radios (NO se fusionan, Spike 15):
+##   BORDER_RADIUS_SM = 3 · RADIUS_CARD  = 4 · BORDER_RADIUS_MD = 5
+##   RADIUS_PANEL = 6 · BORDER_RADIUS_LG = 8
+## Ninguno es un alias de otro: los valores son distintos a propósito.
 
 # ============================================
 # UIRadialGauge (instancias de PV/EN en fichas de combate)
@@ -315,6 +343,16 @@ const FRAME_OUTER_WIDTH: int = 2
 const FRAME_FILLET_WIDTH: int = 2
 const FRAME_INNER_WIDTH: int = 1
 const FRAME_GAP: int = 2  ## Separación entre cada par de filetes concéntricos
+
+## Padding mínimo del panel cuando decorative_frame está activo (Spike 15):
+## evita que el contenido pise las esquineras. Igual al padding por defecto de
+## UIPanel (SPACE_LG), así que los paneles con marco actuales no se mueven.
+## Solo se aplica cuando UIPanel.padding = -1 (por defecto).
+const FRAME_MIN_PADDING: int = SPACE_LG
+
+## Esquinera por defecto del Design System (Spike 15). UIPanel la usa cuando
+## decorative_frame está activo y corner_texture no está asignada.
+const FRAME_CORNER_TEXTURE_PATH: String = "res://ui/design_system/assets/frames/frame_corner_64x64.png"
 
 # ============================================================
 # UTILIDADES

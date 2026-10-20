@@ -28,7 +28,6 @@ INTERACTION_INSPECT_FAILURE,You find nothing relevant at first glance.,No encuen
 INTERACTION_INSPECT_FUMBLE,While clumsily handling the chest you almost trigger something inside.,Al manipular el cofre torpemente casi activas algo en su interior.
 LORE_CHEST_01_INSPECT_BASIC,A forged iron chest. The lock bears the seal of a local blacksmith.,Un cofre de hierro forjado. La cerradura lleva el sello de un herrero local.
 LORE_CHEST_01_INSPECT_FULL,"A forged iron chest from decades ago. It has a poisoned needle trap in the left mechanism, already disarmed.","Un cofre de hierro forjado hace décadas. Lleva una trampa de aguja envenenada en el mecanismo izquierdo, ya desactivada."
-WORLD_OBJECT_DEPLETED,Nothing left to interact with.,No queda nada con lo que interactuar.
 SKILL_BRUTE_FORCE_NAME,Brute Force,Fuerza bruta
 SKILL_BRUTE_FORCE_DESC,Use raw physical strength to force open or destroy obstacles.,Usar la fuerza física bruta para abrir o destruir obstáculos.
 ITEM_LOCKPICK_QUALITY_NAME,Quality Lockpick,Ganzúa de calidad

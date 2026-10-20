@@ -333,27 +333,32 @@ athelia/
 │   ├── mejoras_grupo3_overlays_narrativa_informe_cierre.md
 │   ├── mejoras_grupo5_combate_produccion_informe_cierre.md  # ← NUEVO: pantalla de combate de producción completa — UIRadialGauge/UICombatToken, CombatArenaViewModel/Panel, combat_production_scene.gd, integración real en SceneOrchestrator, jugado de principio a fin en "Los Telmori"
 │   ├── spike_13_reautoria_pueblo_telmori.md  # ← NUEVO (Spike 13): el pueblo de Los Telmori sobre el motor de escenas interactivas — resultado, plan frente a lo hecho, validación
-│   └── spike_14_reinicio_sesion.md  # ← NUEVO (Spike 14): reinicio de sesión y teardown — causa raíz, `SessionReset`/`EntityLifecycle`, Game Over con ViewModel, validación en partida real y pendientes
+│   ├── spike_14_reinicio_sesion.md  # ← NUEVO (Spike 14): reinicio de sesión y teardown — causa raíz, `SessionReset`/`EntityLifecycle`, Game Over con ViewModel, validación en partida real y pendientes
+│   └── spike_15_cimientos_design_system.md  # ← NUEVO (Spike 15): cimientos del Design System — resolución (sin estiramiento, con el experimento), tokens fusionados con alias, `UIPanel`, diálogo en rejilla, localización (`skills.csv`), validación y pendientes
 │
 ├── localization/                   # Sistema de localización (ES/EN)
-│   ├── translations.csv            # Textos generales
+│   ├── translations.csv            # Textos generales — **Spike 15:** 29 claves duplicadas eliminadas (idénticas a su primera copia) y las `SKILL_<ID>_NAME`/`_DESC` movidas a `skills.csv`; se quedan aquí `SKILL_TREE_*`, `SKILL_SUBCATEGORY_*` y `SKILL_FILTER_*` (textos de pantalla)
 │   ├── translations.en.translation
 │   ├── translations.es.translation
 │   ├── dialogues.csv               # Textos de diálogos
 │   ├── dialogues.en.translation
 │   ├── dialogues.es.translation
-│   ├── dialogues_scenes_telmori.csv    # Grupo 2 (briefing del sheriff) + Spike 10 (+12 claves: los dos diálogos de recompensa y entrenamiento) — CSV propio por aventura — **Spike 13:** +7 claves (`DLG_SHERIFF_OPT_LEAVE` y las 6 del posadero `DLG_TAVERN_*`); modificadas `DLG_SHERIFF_04_WEAPONS` (ahora remite a la herrería) y `DLG_SHERIFF_REWARD_01_GREET` (frase de devolución de la lanza)
+│   ├── dialogues_scenes_telmori.csv    # Grupo 2 (briefing del sheriff) + Spike 10 (+12 claves: los dos diálogos de recompensa y entrenamiento) — CSV propio por aventura — **Spike 13:** +7 claves (`DLG_SHERIFF_OPT_LEAVE` y las 6 del posadero `DLG_TAVERN_*`); modificadas `DLG_SHERIFF_04_WEAPONS` (ahora remite a la herrería) y `DLG_SHERIFF_REWARD_01_GREET` (frase de devolución de la lanza) — **Spike 15:** `DLG_SHERIFF_REWARD_01_GREET` entrecomillada (la fila tenía comas sin comillas: 5 columnas en vez de 3) y + `SPEAKER_INNKEEPER` (Innkeeper / Posadero)
 │   ├── dialogues_scenes_telmori.en.translation
 │   ├── dialogues_scenes_telmori.es.translation
+│   ├── skills.csv                  # ← NUEVO (Spike 15) — `SKILL_<ID>_NAME` / `SKILL_<ID>_DESC` de TODAS las habilidades (formato `id,en,es`): 13 que estaban en `translations.csv` + 7 que no tenían traducción (`ENEMY_BASIC_ATTACK`, `LOCKPICK`, `PERCEPTION`, `SEARCH`, `SPRINT`, `STEALTH`, `TRACK`). Requiere alta manual en Project Settings → Localization → Translations
+│   ├── skills.en.translation
+│   ├── skills.es.translation
 │   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
 │   ├── items.en.translation
 │   ├── items.es.translation
-│   ├── world_objects.csv           # Textos de objetos del mundo
+│   ├── world_objects.csv           # Textos de objetos del mundo — **Spike 15:** eliminada la segunda `WORLD_OBJECT_DEPLETED`; se conserva «Nothing more to do here» / «No queda nada más que hacer aquí»
 │   ├── world_objects.en.translation
 │   ├── world_objects.es.translation
 │   ├── menus.csv                   # Textos de menús (menú principal, opciones, créditos) — **Spike 14:** + `GAMEOVER_TITLE`, `GAMEOVER_MESSAGE`, `GAMEOVER_BUTTON_MENU` (esta hoja tiene el orden de columnas `id,es,en`, al revés que el resto)
 │   ├── menus.en.translation
 │   ├── menus.es.translation
+│   │                                  # Convención de claves (Spike 15): `PANTALLA_ELEMENTO`, prefijo de pantalla en mayúsculas; los campos con comas van entrecomillados; todos los CSV son `id,en,es` salvo `menus.csv` (`id,es,en`)
 │   ├── character_creation.csv      # Textos de creación de personaje
 │   ├── character_creation.en.translation
 │   ├── character_creation.es.translation
@@ -453,11 +458,11 @@ athelia/
     │   │   ├── ui_button/
     │   │   │   ├── ui_button.gd   # Spike 13: + `min_square` (botón cuadrado de solo icono) e `icon_backdrop` (disco oscuro semitransparente tras el icono) — ambos opt-in, apagados por defecto
     │   │   │   └── ui_button.tscn
-    │   │   ├── ui_panel/           # Spike 9: + decorative_frame / corner_texture (marco ornamental opt-in, _draw() sobre el propio panel; con el marco activo anula borde y corner_radius del stylebox)
+    │   │   ├── ui_panel/           # Spike 9: + decorative_frame / corner_texture (marco ornamental opt-in, _draw() sobre el propio panel; con el marco activo anula borde y corner_radius del stylebox) — **Spike 15:** esquinera por defecto (`UITokens.FRAME_CORNER_TEXTURE_PATH`) si no hay `corner_texture`, padding mínimo con marco (`FRAME_MIN_PADDING`), setters con `is_node_ready()` (activación en runtime), `push_warning` fuera de `_draw()` y una sola vez, docstring corregido (`OVERLAY` es opaco)
     │   │   │   ├── ui_panel.gd
     │   │   │   └── ui_panel.tscn
     │   │   ├── ui_slot/
-    │   │   │   ├── ui_slot.gd
+    │   │   │   ├── ui_slot.gd             # Spike 15: solo el docstring (ruta `components/ui_slot/`)
     │   │   │   └── ui_slot.tscn
     │   │   ├── ui_resource_bar/
     │   │   │   ├── ui_resource_bar.gd
@@ -478,12 +483,12 @@ athelia/
     │   ├── theme/
     │   │   └── main_theme.tres     # Tema global de UI
     │   └── tokens/
-    │       └── ui_tokens.gd        # [Autoload: UITokens] Tokens de diseño — Grupo 5: + COLOR_GAUGE_HP_PARTY/EN_PARTY/HP_ENEMY, COLOR_TURN_INDICATOR, COLOR_TOKEN_FILL_DEFAULT, COLOR_LOG_FUMBLE/FAILURE/CRITICAL (SPECIAL reutiliza COLOR_TURN_INDICATOR, SUCCESS reutiliza el font_color normal del tema). Spike 9: + COLOR_FRAME_OUTER/FILLET/INNER, FRAME_OUTER_WIDTH/FILLET_WIDTH/INNER_WIDTH/GAP (marco decorativo de UIPanel)
+    │       └── ui_tokens.gd        # [Autoload: UITokens] Tokens de diseño — Grupo 5: + COLOR_GAUGE_HP_PARTY/EN_PARTY/HP_ENEMY, COLOR_TURN_INDICATOR, COLOR_TOKEN_FILL_DEFAULT, COLOR_LOG_FUMBLE/FAILURE/CRITICAL (SPECIAL reutiliza COLOR_TURN_INDICATOR, SUCCESS reutiliza el font_color normal del tema). Spike 9: + COLOR_FRAME_OUTER/FILLET/INNER, FRAME_OUTER_WIDTH/FILLET_WIDTH/INNER_WIDTH/GAP (marco decorativo de UIPanel). **Spike 15:** dos vocabularios fusionados con alias (`BG_BASE→COLOR_BG`, `BG_PANEL→COLOR_PANEL`, `BG_SURFACE→COLOR_PANEL_ALT`, `BORDER_DEFAULT→COLOR_BORDER`, `TEXT_PRIMARY→COLOR_TEXT`, `TEXT_MUTED→COLOR_TEXT_MUTED`, `COLOR_SLOT_OCCUPIED→COLOR_PANEL_ALT`); `COLOR_TEXT_MUTED` → `#9A8E78` y `COLOR_PANEL_ALT`/`BG_SURFACE` → `#252220`; tabla de equivalencias de radios; + `FRAME_MIN_PADDING` y `FRAME_CORNER_TEXTURE_PATH`
     │
     ├── dialogue/                   # Panel de diálogo (patrón MVVM)
     │   ├── dialogue_viewmodel.gd
-    │   ├── dialogue_panel.gd
-    │   ├── dialogue_panel.tscn
+    │   ├── dialogue_panel.gd       # **Spike 15:** opciones en `GridContainer` (1 columna hasta 3, 2 desde 4) con altura natural reservada, margen del texto calculado desde el borde derecho real del retrato (`PORTRAIT_TEXT_GAP`), foco inicial en la primera opción con estilo de hover; `MarginContainer` y `OptionsScroll` referenciados por nombre único (`%`)
+    │   ├── dialogue_panel.tscn     # **Spike 15:** `OptionsContainer` es un `GridContainer` (`columns = 1`, `h_separation`/`v_separation` 4); `MarginContainer` y `OptionsScroll` con nombre único; sin `margin_left` fijo en el editor
     │   ├── dialogue_panel_test.gd
     │   ├── dialogue_panel_test.tscn
     │   └── option_button.tscn
@@ -494,9 +499,9 @@ athelia/
     │   └── game_over_ui.tscn       # Spike 14: `TitleLabel`/`MessageLabel`/`ReturnToMenuButton` por nombre único, textos vacíos en el .tscn
     │
     ├── inventory/                  # Pantalla de inventario (patrón MVVM)
-    │   ├── inventory_viewmodel.gd
-    │   ├── inventory_screen.gd
-    │   ├── inventory_ui.gd
+    │   ├── inventory_viewmodel.gd   # **Spike 15 (corrección):** SIN USO en producción — la View real es `inventory_ui.gd`, sin ViewModel; la corrección del contrato llega con el Spike 17
+    │   ├── inventory_screen.gd      # SIN USO en producción (ver arriba)
+    │   ├── inventory_ui.gd          # View de producción de Inventory
     │   ├── inventory_ui.tscn
     │   ├── item_slot.gd
     │   ├── item_slot.tscn
@@ -558,4 +563,4 @@ athelia/
         └── world_object_interaction_panel.tscn
 ```
  
----
+---

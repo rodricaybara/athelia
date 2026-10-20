@@ -5,32 +5,8 @@ RESOURCE_STAMINA_NAME,Stamina,Resistencia
 RESOURCE_STAMINA_DESC,Physical energy,Energía física
 RESOURCE_GOLD_NAME,Gold,Oro
 RESOURCE_GOLD_DESC,Currency,Moneda
-SKILL_DASH_NAME,Dash,Impulso
-SKILL_DASH_DESC,Quick burst of speed,Ráfaga rápida de velocidad
 SHOP_BLACKSMITH_NAME,Blacksmith,Herrería
 SHOP_BLACKSMITH_DESC,A sturdy blacksmith shop,Una robusta herrería
-SKILL_ATTACK_RANGED_NAME,Ranged Attack,Ataque a distancia
-SKILL_ATTACK_RANGED_DESC,A precise ranged attack using a bow or thrown weapon.,Un ataque preciso a distancia usando un arco o arma arrojadiza.
-SKILL_ATTACK_SWEEP_NAME,Sweep Attack,Ataque en barrido
-SKILL_ATTACK_SWEEP_DESC,A wide melee swing that strikes up to 2 adjacent enemies.,Un amplio golpe cuerpo a cuerpo que alcanza hasta 2 enemigos adyacentes.
-SKILL_THROW_ROCK_NAME,Throw Rock,Lanzar piedra
-SKILL_THROW_ROCK_DESC,Hurl a rock at all enemies in range. Low damage but hits everyone.,Lanza una piedra contra todos los enemigos en rango. Poco daño pero golpea a todos.
-SKILL_ATTACK_LIGHT_NAME, Light Atack, Ataque Ligero
-SKILL_ATTACK_LIGHT_DESC, A light atack, Un ataque ligero
-SKILL_BLEEDING_STRIKE_NAME,Bleeding Strike,Golpe Sangrante
-SKILL_BLEEDING_STRIKE_DESC,A strike that causes the target to bleed for several rounds.,Un golpe que hace sangrar al objetivo durante varias rondas.
-SKILL_ATTACK_HEAVY_NAME,Heavy Attack,Ataque Pesado
-SKILL_ATTACK_HEAVY_DESC,A powerful blow that deals high damage at the cost of stamina.,Un golpe poderoso que causa gran daño a costa de stamina.
-SKILL_POWER_STRIKE_NAME,Power Strike,Golpe de Poder
-SKILL_POWER_STRIKE_DESC,A focused strike that concentrates all strength into a single hit.,Un golpe concentrado que canaliza toda la fuerza en un único impacto.
-SKILL_RECKLESS_STRIKE_NAME,Reckless Strike,Golpe Temerario
-SKILL_RECKLESS_STRIKE_DESC,An aggressive attack that deals extra damage but leaves you exposed.,Un ataque agresivo que causa daño adicional pero te deja expuesto.
-SKILL_STUNNING_BLOW_NAME,Stunning Blow,Golpe Aturdidor
-SKILL_STUNNING_BLOW_DESC,A heavy impact that staggers the target and delays their next action.,Un impacto contundente que desestabiliza al objetivo y retrasa su próxima acción.
-SKILL_DODGE_NAME,Dodge,Esquiva
-SKILL_DODGE_DESC,A swift evasive movement that avoids an incoming attack.,Un movimiento evasivo rápido que evita un ataque entrante.
-SKILL_FIREBALL_NAME,Fireball,Bola de Fuego
-SKILL_FIREBALL_DESC,A concentrated sphere of fire hurled at the enemy.,Una esfera concentrada de fuego lanzada contra el enemigo.
 SHOP_TRADE_SUCCESS,Purchased: %s x%d,Comprado: %s x%d
 SHOP_ERROR_NO_MONEY,Not enough gold,Oro insuficiente
 SHOP_ERROR_NO_STOCK,Item out of stock,Ítem agotado
@@ -76,35 +52,6 @@ SKILL_FILTER_TRAINABLE,Trainable now,Mejorables ahora
 SKILL_FILTER_UNLOCKED,Unlocked,Desbloqueadas
 SKILL_FILTER_LOCKED,Locked,Bloqueadas
 SKILL_TREE_TRAIN_OK,Training complete,Entrenamiento completado
-SKILL_TREE_PLAYER_LABEL,Player,Jugador
-SKILL_TREE_MODE_PARTY,Party view →,Vista party →
-SKILL_TREE_MODE_INDIVIDUAL,← Individual,← Individual
-SKILL_TREE_SELECT_HINT,Select a skill,Selecciona una habilidad
-SKILL_TREE_NO_SKILLS,No skills in this category,Sin habilidades en esta categoría
-SKILL_TREE_NO_PREREQS,None,Ninguno
-SKILL_TREE_AI_BADGE,AI suggests,IA sugiere
-SKILL_TREE_BTN_TRAIN,Train,Entrenar
-SKILL_TREE_BTN_LOCKED,Locked,Bloqueada
-SKILL_TREE_SECTION_REQS,Requirements,Requisitos
-SKILL_TREE_SECTION_LAST_TRAIN,Last trained,Último entreno
-SKILL_TREE_SECTION_COST,Cost,Coste
-SKILL_TREE_ERROR_NO_SKILL_SELECTED,No skill selected,Ninguna habilidad seleccionada
-SKILL_TREE_ERROR_SKILL_LOCKED,Skill is locked,La habilidad está bloqueada
-SKILL_TREE_ERROR_NO_PROGRESSION,Skill has no progression,La habilidad no tiene progresión
-SKILL_TREE_ERROR_CHALLENGE_TOO_LOW,Already mastered — find a better trainer,Ya dominada — busca un entrenador mejor
-SKILL_TREE_ERROR_SYSTEM,System error,Error del sistema
-SKILL_TREE_ERROR_UNKNOWN,Unknown error,Error desconocido
-SKILL_SUBCATEGORY_MELEE,Melee,Melee
-SKILL_SUBCATEGORY_RANGED,Ranged,Distancia
-SKILL_SUBCATEGORY_EXPLORATION,Exploration,Exploración
-SKILL_SUBCATEGORY_DIALOGUE,Dialogue,Diálogo
-SKILL_SUBCATEGORY_NARRATIVE,Narrative,Narrativa
-SKILL_SUBCATEGORY_ENEMY,Enemy,Enemigo
-SKILL_SUBCATEGORY_NONE,General,General
-SKILL_FILTER_ALL,All,Todas
-SKILL_FILTER_TRAINABLE,Trainable now,Mejorables ahora
-SKILL_FILTER_UNLOCKED,Unlocked,Desbloqueadas
-SKILL_FILTER_LOCKED,Locked,Bloqueadas
 SKILL_TREE_SECTION_DESC,Description,Descripción
 SKILL_TREE_SECTION_EFFECTS,Effects,Efectos
 SKILL_TREE_SECTION_COMBAT_USE,Combat use,Uso en combate
@@ -145,5 +92,3 @@ MENU_GOLD,Gold,Oro
 MENU_LOADOUT,Loadout,Loadout
 MENU_INVENTORY,Inventory,Inventario
 MENU_SKILL_TREE,Skills,Habilidades
-SKILL_TANNING_NAME,Tanning,Curtido
-SKILL_TANNING_DESC,The craft of treating hides into usable leather.,El oficio de tratar pieles para convertirlas en cuero utilizable.

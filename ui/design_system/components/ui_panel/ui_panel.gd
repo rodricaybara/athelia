@@ -6,12 +6,19 @@ class_name UIPanel
 ##   Instanciar ui_panel.tscn como raíz visual de cualquier pantalla.
 ##   Configurar padding y variant desde el inspector o por código.
 ##
-## Variantes:
-##   DEFAULT  → panel estándar (inventario, shop, party)
-##   POPUP    → panel pequeño flotante (tooltips, confirmaciones)
-##   OVERLAY  → panel de fondo semitransparente (diálogo)
+## Variantes (docstring corregido en el Spike 15 contra los consumidores reales):
+##   DEFAULT  → panel estándar: fondo COLOR_PANEL con borde. Lo usan Character
+##              Creation (3 paneles), Dialogue, Narrative y los sub-paneles del
+##              menú principal. Inventario, tienda, party y menú del jugador
+##              NO usan UIPanel todavía.
+##   POPUP    → panel pequeño flotante: fondo COLOR_PANEL_ALT, borde de foco,
+##              padding 8. Sin consumidores hoy.
+##   OVERLAY  → fondo OPACO (COLOR_BG oscurecido un 20 %, alfa 1,0), sin borde,
+##              padding 24. Sin consumidores hoy. Antes se documentaba como
+##              "semitransparente", pero nunca lo fue; si hiciera falta
+##              transparencia habría que añadirla de forma explícita.
 ##
-## Marco decorativo (Spike 9):
+## Marco decorativo (Spike 9, ampliado en el Spike 15):
 ##   decorative_frame = true añade un marco ornamental (doble filete +
 ##   esquineras) dibujado POR ENCIMA del stylebox de fondo. Opt-in
 ##   explícito, false por defecto — ningún panel existente cambia de
@@ -21,10 +28,17 @@ class_name UIPanel
 ##   (pasan a 0): el marco los sustituye, evita duplicar líneas y evita
 ##   fondo redondeado bajo un marco de esquina viva.
 ##
-##   corner_texture es la esquinera única del Design System (arte
-##   pendiente en el momento de este spike). Sin asignar, el marco se
-##   dibuja solo con los tres filetes concéntricos, sin esquineras, y se
-##   avisa por warning — no bloquea, no rompe nada.
+##   Esquinera: si corner_texture no está asignada, se usa la esquinera por
+##   defecto del Design System (UITokens.FRAME_CORNER_TEXTURE_PATH, 64x64).
+##   Solo si tampoco se puede cargar esa, el marco se dibuja solo con los
+##   filetes y se avisa UNA vez por warning (no bloquea, no rompe nada).
+##
+##   Padding con marco: cuando padding = -1 (valor por defecto), el padding
+##   efectivo no baja de UITokens.FRAME_MIN_PADDING. Un padding explícito
+##   (>= 0) nunca se modifica.
+##
+##   Activación en runtime: decorative_frame y corner_texture tienen setter;
+##   cambiarlos con el nodo ya en el árbol reaplica el estilo y redibuja.
 
 
 enum Variant { DEFAULT, POPUP, OVERLAY }
@@ -33,18 +47,36 @@ enum Variant { DEFAULT, POPUP, OVERLAY }
 @export var padding: int = -1  # -1 = usar default según variante
 
 @export_group("Marco decorativo (Spike 9)")
-@export var decorative_frame: bool = false
-@export var corner_texture: Texture2D
+@export var decorative_frame: bool = false:
+	set(value):
+		if decorative_frame == value:
+			return
+		decorative_frame = value
+		_on_frame_config_changed()
+@export var corner_texture: Texture2D:
+	set(value):
+		if corner_texture == value:
+			return
+		corner_texture = value
+		_on_frame_config_changed()
+
+
+## Esquinera que realmente se dibuja: corner_texture, o la por defecto del
+## Design System, o null (solo filetes). Se resuelve fuera de _draw().
+var _active_corner: Texture2D = null
+
+## El aviso de "no hay esquinera por defecto" sale una sola vez por ejecución.
+static var _warned_missing_default_corner: bool = false
 
 
 func _ready() -> void:
+	resized.connect(_on_resized)
+	_refresh_frame()
 	_apply_style()
-	if decorative_frame:
-		resized.connect(queue_redraw)
 
 
 func _apply_style() -> void:
-	var effective_padding := padding if padding >= 0 else _default_padding()
+	var effective_padding: int = _effective_padding()
 
 	match variant:
 		Variant.DEFAULT:
@@ -75,6 +107,15 @@ func _apply_style() -> void:
 			))
 
 
+func _effective_padding() -> int:
+	if padding >= 0:
+		return padding
+	var base_padding: int = _default_padding()
+	if decorative_frame:
+		return maxi(base_padding, UITokens.FRAME_MIN_PADDING)
+	return base_padding
+
+
 func _default_padding() -> int:
 	match variant:
 		Variant.POPUP:    return UITokens.SPACE_SM
@@ -89,8 +130,46 @@ func set_variant(new_variant: Variant) -> void:
 
 
 # ============================================
-# MARCO DECORATIVO (Spike 9)
+# MARCO DECORATIVO (Spike 9 / Spike 15)
 # ============================================
+
+## Los setters se ejecutan también al cargar la escena, ANTES de _ready():
+## en ese caso no hacen nada y _ready() aplica el estado inicial.
+func _on_frame_config_changed() -> void:
+	if not is_node_ready():
+		return
+	_refresh_frame()
+	_apply_style()
+	queue_redraw()
+
+
+func _on_resized() -> void:
+	if decorative_frame:
+		queue_redraw()
+
+
+## Resuelve la esquinera efectiva. Aquí —y no en _draw()— es donde se avisa.
+func _refresh_frame() -> void:
+	_active_corner = null
+	if not decorative_frame:
+		return
+
+	if corner_texture != null:
+		_active_corner = corner_texture
+		return
+
+	_active_corner = _load_default_corner()
+	if _active_corner == null and not _warned_missing_default_corner:
+		_warned_missing_default_corner = true
+		push_warning("UIPanel: decorative_frame activo, sin corner_texture y sin esquinera por defecto en '%s' — solo se dibujan los filetes." % UITokens.FRAME_CORNER_TEXTURE_PATH)
+
+
+func _load_default_corner() -> Texture2D:
+	var path: String = UITokens.FRAME_CORNER_TEXTURE_PATH
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
 
 func _draw() -> void:
 	if decorative_frame:
@@ -111,10 +190,8 @@ func _draw_decorative_frame() -> void:
 	rect = rect.grow(-(UITokens.FRAME_FILLET_WIDTH + UITokens.FRAME_GAP))
 	draw_rect(rect, UITokens.COLOR_FRAME_INNER, false, UITokens.FRAME_INNER_WIDTH)
 
-	if corner_texture:
+	if _active_corner != null:
 		_draw_frame_corners()
-	else:
-		push_warning("UIPanel (%s): decorative_frame activo sin corner_texture — solo se dibujan los filetes." % name)
 
 
 ## Esquinera única rotada en las 4 esquinas (sin estirar, sin 4 variantes
@@ -131,5 +208,5 @@ func _draw_frame_corners() -> void:
 	]
 	for corner in corners:
 		draw_set_transform(corner[0], corner[1])
-		draw_texture(corner_texture, Vector2.ZERO)
+		draw_texture(_active_corner, Vector2.ZERO)
 	draw_set_transform(Vector2.ZERO, 0.0)

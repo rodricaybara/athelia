@@ -1,0 +1,15 @@
+id,en,es
+SKILL_ENEMY_BASIC_ATTACK_NAME,Basic Attack,Ataque básico
+SKILL_ENEMY_BASIC_ATTACK_DESC,A simple strike with whatever the enemy carries.,Un golpe sencillo con lo que lleve el enemigo.
+SKILL_LOCKPICK_NAME,Lockpicking,Forzar cerraduras
+SKILL_LOCKPICK_DESC,Open locks without the proper key.,Abrir cerraduras sin la llave adecuada.
+SKILL_PERCEPTION_NAME,Perception,Percepción
+SKILL_PERCEPTION_DESC,"Notice details, sounds and dangers around you.","Advertir detalles, sonidos y peligros a tu alrededor."
+SKILL_SEARCH_NAME,Search,Buscar
+SKILL_SEARCH_DESC,Examine a place carefully for hidden things.,Examinar un lugar a fondo en busca de cosas ocultas.
+SKILL_SPRINT_NAME,Sprint,Carrera
+SKILL_SPRINT_DESC,Run at full speed over a short distance.,Correr a toda velocidad una distancia corta.
+SKILL_STEALTH_NAME,Stealth,Sigilo
+SKILL_STEALTH_DESC,Move unseen and unheard.,Moverse sin ser visto ni oído.
+SKILL_TRACK_NAME,Tracking,Rastrear
+SKILL_TRACK_DESC,Follow the trail of creatures and people.,Seguir el rastro de criaturas y personas.
