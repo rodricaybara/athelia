@@ -37,7 +37,6 @@ layout_mode = 2
 [node name="UseButton" type="Button" parent="MarginContainer/VBoxContainer" unique_id=78495662]
 unique_name_in_owner = true
 layout_mode = 2
-text = "USE"
 
 [node name="HSeparator4" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=415157827]
 layout_mode = 2
@@ -52,6 +51,5 @@ layout_mode = 2
 [node name="EmptyMessage" type="Label" parent="MarginContainer/VBoxContainer" unique_id=949574173]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Selecciona un ítem"
 horizontal_alignment = 1
 vertical_alignment = 1

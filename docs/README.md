@@ -1,6 +1,6 @@
 # Athelia — Design System: Guía de implementación
 
-*Última actualización: Spike 16 — Tienda, primera pantalla del Design System (2026-10-21). Anterior: Spike 15 — Cimientos del Design System (2026-10-20).*
+*Última actualización: Spike 17 — el inventario cumple el contrato MVVM, sin usar aún el Design System (2026-10-21). Anterior: Spike 16 — Tienda, primera pantalla del Design System (2026-10-21). Anterior: Spike 15 — Cimientos del Design System (2026-10-20).*
 
 ## Estructura de archivos
 
@@ -318,8 +318,10 @@ Inventario (Spike 18).
 - Todo texto visible con `tr()` y clave de localización, formato `PANTALLA_ELEMENTO`
   (prefijo de pantalla en mayúsculas)
 
-*Las pantallas anteriores al hito (inventario, party, menú del jugador…)
+*Las pantallas anteriores al hito (party, menú del jugador…)
 todavía no usan `UIPanel` (la tienda ya migró en el Spike 16); migran en el spike de cada una (ver plan del hito).*
+
+*El inventario cumple el contrato MVVM desde el Spike 17 (View pasiva, `InventoryViewModel` como hijo, claves `INVENTORY_*`), pero sigue sin usar `UIPanel`, `UISlot` ni tokens: se rediseña en el Spike 18. Se abre en tres contextos: overlay vía `SceneOrchestrator` (tecla `I`, toggle; el orquestador conecta `closed` y libera), subpantalla de PlayerMenu y sub-overlay de narrativa (ambos conectan `closed` y liberan).*
 
 ### ❌ Prohibido
 
@@ -363,7 +365,7 @@ Design System durante la transición. La migración es pantalla a pantalla:
 
 | Componente actual    | Migrar a   | Cuando                        |
 |----------------------|------------|-------------------------------|
-| `item_slot.gd`       | `UISlot`   | Al refactorizar InventoryScreen |
-| `equip_slot.gd`      | `UISlot`   | Al refactorizar InventoryScreen |
+| `item_slot.gd`       | `UISlot`   | Spike 18 (rediseño del inventario) |
+| `equip_slot.gd`      | `UISlot`   | Spike 18 (rediseño del inventario) |
 | Buttons inline       | `UIButton` | Al refactorizar cada pantalla   |
 | PanelContainer raw   | `UIPanel`  | Al refactorizar cada pantalla   |

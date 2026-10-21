@@ -395,6 +395,11 @@ func open_inventory() -> void:
 		return
 
 	_show_overlay(OVERLAY_INVENTORY)
+	# El inventario se oculta al cerrarse, pero seguiría ocupando _current_overlay
+	# y la siguiente pulsación de la tecla lo destruiría (había que pulsar dos veces).
+	# Quien instancia la pantalla es quien la libera al recibir "closed".
+	if _current_overlay and _current_overlay.has_signal("closed"):
+		_current_overlay.closed.connect(_on_overlay_closed.bind(_current_overlay))
 
 	# InventoryUI nace con visible=false — hay que abrirlo explícitamente
 	if _current_overlay and _current_overlay.has_method("open_inventory"):
@@ -403,9 +408,13 @@ func open_inventory() -> void:
 	print("[SceneOrchestrator] Inventory overlay shown")
 
 
-func close_inventory() -> void:
-	if _current_overlay and _current_overlay.name == "InventoryUI":
+## Un overlay ligero (inventario, party) avisa con "closed": se libera aquí.
+## Quien instancia es quien libera; la pantalla nunca se destruye a sí misma.
+func _on_overlay_closed(overlay: Node) -> void:
+	if overlay == _current_overlay:
 		_hide_current_overlay()
+	elif is_instance_valid(overlay):
+		overlay.queue_free()
 
 ## Grupo 3: mismo criterio que open_inventory() — ver comentario de ese
 ## método para el porqué del guard de NARRATIVE_SCENE.
@@ -425,6 +434,8 @@ func open_party() -> void:
 		return
 
 	_show_overlay(OVERLAY_PARTY)
+	if _current_overlay and _current_overlay.has_signal("closed"):
+		_current_overlay.closed.connect(_on_overlay_closed.bind(_current_overlay))
 	if _current_overlay and _current_overlay.has_method("open"):
 		_current_overlay.open()
 

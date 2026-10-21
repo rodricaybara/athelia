@@ -17,7 +17,7 @@ athelia/
 ├── core/                           # Núcleo del juego — sistemas puros sin UI
 │   ├── event_bus.gd                # [Autoload: EventBus] Bus de eventos
 │   ├── game_loop_system.gd         # [Autoload: GameLoop] Máquina de estados global + fases de turno — **Spike 13:** `VALID_STATE_TRANSITIONS`: `VICTORY → NARRATIVE_SCENE`; `start_combat(enemy_ids, encounter, victory_scene_id = "")` + `consume_pending_victory_scene()`; `_start_player_turn()` sale si el combate terminó dentro de `player_turn_started` (huida)
-│   ├── scene_orchestrator.gd       # [Autoload: SceneOrchestrator] Gestión de overlays y escenas — **Spike 13:** `_on_combat_ended` abre la escena de victoria pendiente (valida que exista; si no, `push_error` y vuelve a `EXPLORATION`) y no repite `enter_exploration()` tras una huida — **Spike 14:** al entrar en `MENU`, `_handle_main_menu()` libera las escenas de la partida (`_free_session_scenes()`: GameOverUI, CombatHud, CombatScene, ExplorationScene) y lanza `_run_session_reset()` (espera un frame, comprueba que el estado sigue en `MENU`/`CHARACTER_CREATION` y llama a `SessionReset.apply()`); `_game_over_ui` guarda la referencia al Game Over; `_show_game_over()` no lo instancia dos veces
+│   ├── scene_orchestrator.gd       # [Autoload: SceneOrchestrator] Gestión de overlays y escenas — **Spike 13:** `_on_combat_ended` abre la escena de victoria pendiente (valida que exista; si no, `push_error` y vuelve a `EXPLORATION`) y no repite `enter_exploration()` tras una huida — **Spike 14:** al entrar en `MENU`, `_handle_main_menu()` libera las escenas de la partida (`_free_session_scenes()`: GameOverUI, CombatHud, CombatScene, ExplorationScene) y lanza `_run_session_reset()` (espera un frame, comprueba que el estado sigue en `MENU`/`CHARACTER_CREATION` y llama a `SessionReset.apply()`); `_game_over_ui` guarda la referencia al Game Over; `_show_game_over()` no lo instancia dos veces — **Spike 17:** `open_inventory()` y `open_party()` conectan `closed` a `_on_overlay_closed(overlay)` (libera la instancia; evita las dos pulsaciones de tecla); `close_inventory()` retirada
 │   │
 │   ├── characters/                 # Sistema de personajes
 │   │   ├── character_system.gd     # [Autoload: Characters]
@@ -335,7 +335,8 @@ athelia/
 │   ├── spike_13_reautoria_pueblo_telmori.md  # ← NUEVO (Spike 13): el pueblo de Los Telmori sobre el motor de escenas interactivas — resultado, plan frente a lo hecho, validación
 │   ├── spike_14_reinicio_sesion.md  # ← NUEVO (Spike 14): reinicio de sesión y teardown — causa raíz, `SessionReset`/`EntityLifecycle`, Game Over con ViewModel, validación en partida real y pendientes
 │   ├── spike_15_cimientos_design_system.md  # ← NUEVO (Spike 15): cimientos del Design System — resolución (sin estiramiento, con el experimento), tokens fusionados con alias, `UIPanel`, diálogo en rejilla, localización (`skills.csv`), validación y pendientes
-│   └── spike_16_tienda.md  # ← NUEVO (Spike 16, incluye la 16b): tienda sobre el Design System — decisiones y correcciones de la Fase 0, préstamo `quest_loan`, 23 claves `SHOP_*`, validación en partida real, lecciones y pendientes (16c: devolución del préstamo al sheriff, sin planificar)
+│   ├── spike_16_tienda.md  # ← NUEVO (Spike 16, incluye la 16b): tienda sobre el Design System — decisiones y correcciones de la Fase 0, préstamo `quest_loan`, 23 claves `SHOP_*`, validación en partida real, lecciones y pendientes (16c: devolución del préstamo al sheriff, sin planificar)
+│   └── spike_17_inventario_mvvm.md  # ← NUEVO (Spike 17): inventario con contrato MVVM — decisión 5.A, accesos movidos al ViewModel, hallazgos de motor (dos pulsaciones, Esc), validación y pendientes
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales — **Spike 15:** 29 claves duplicadas eliminadas (idénticas a su primera copia) y las `SKILL_<ID>_NAME`/`_DESC` movidas a `skills.csv`; se quedan aquí `SKILL_TREE_*`, `SKILL_SUBCATEGORY_*` y `SKILL_FILTER_*` (textos de pantalla)
@@ -353,6 +354,9 @@ athelia/
 │   ├── shops.csv                   # **Spike 16:** + 23 claves `SHOP_*` de la pantalla de tienda (formato `id,en,es`): título, cabeceras (oro, huecos), precio/cantidad, botones Comprar/Vender/Cerrar, tooltips (`NO_GOLD`, `NO_BUDGET`, `NO_STOCK`, `NO_SLOTS`), listas vacías y `SHOP_TRADE_SOLD`; **16b:** `SHOP_PRICE_LOAN`, `SHOP_TAKE`, `SHOP_TOOLTIP_LOAN`, `SHOP_TRADE_LOANED`, `SHOP_ERROR_LOAN_ITEM`. Ya contenía `SHOP_TELMORI_BLACKSMITH_NAME/DESC`. `translations.csv` conserva `SHOP_BLACKSMITH_*`, `SHOP_TRADE_SUCCESS` y `SHOP_ERROR_*`. Registrado en Project Settings → Localization → Translations
 │   ├── shops.en.translation
 │   ├── shops.es.translation
+│   ├── inventory.csv               # ← NUEVO (Spike 17) — 29 claves `INVENTORY_*` (formato `id,en,es`): título, cabeceras, etiquetas de estadísticas, nombres de slot, detalle, botones y mensajes de feedback/error. Requiere alta manual en Project Settings → Localization → Translations (sin ella, `tr(key) % args` falla con error de formato)
+│   ├── inventory.en.translation
+│   ├── inventory.es.translation
 │   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
 │   ├── items.en.translation
 │   ├── items.es.translation
@@ -503,17 +507,16 @@ athelia/
     │   └── game_over_ui.tscn       # Spike 14: `TitleLabel`/`MessageLabel`/`ReturnToMenuButton` por nombre único, textos vacíos en el .tscn
     │
     ├── inventory/                  # Pantalla de inventario (patrón MVVM)
-    │   ├── inventory_viewmodel.gd   # **Spike 15 (corrección):** SIN USO en producción — la View real es `inventory_ui.gd`, sin ViewModel; la corrección del contrato llega con el Spike 17
-    │   ├── inventory_screen.gd      # SIN USO en producción (ver arriba)
-    │   ├── inventory_ui.gd          # View de producción de Inventory
+    │   ├── inventory_viewmodel.gd   # **Spike 17:** reconstruido. `InventoryState { HIDDEN, BROWSING, ITEM_SELECTED }`, `DetailData`, `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`), intenciones `request_*()`, refrescos agrupados con `call_deferred`, feedback ya traducido. Único punto de la pantalla que habla con `Inventory`, `Equipment`, `Items`, `Resources`, `Characters` y `EventBus`
+    │   ├── inventory_ui.gd          # **Spike 17:** View pasiva de producción (`CanvasLayer`, raíz `InventoryUi`); crea el ViewModel como hijo; conserva `closed`, `open_inventory()`, `close_inventory()`, `toggle()` y `@export entity_id`; maneja `ui_cancel`
     │   ├── inventory_ui.tscn
     │   ├── item_slot.gd
     │   ├── item_slot.tscn
     │   ├── equip_slot.gd
     │   ├── equip_slot.tscn
-    │   ├── item_detail_panel.gd
+    │   ├── item_detail_panel.gd     # Spike 17: textos con tr()
     │   ├── item_detail_panel.tscn
-    │   ├── feedback_popup.gd
+    │   ├── feedback_popup.gd        # Spike 17: se oculta solo a los 2 s (Timer por código)
     │   └── feedback_popup.tscn
     │
     ├── loadout/                    # Pantalla de loadout (patrón MVVM)

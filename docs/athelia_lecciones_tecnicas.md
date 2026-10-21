@@ -94,4 +94,15 @@ de cada spike, ver `athelia_historial_spikes.md`.
 - Un valor nuevo en un `String` de contrato (`trade_type = "loan"`) solo es seguro si se comprueba quién escucha la señal.
 - Parchear funciones largas de ficheros grandes: bloques buscar → sustituir, vigilando las comas al añadir claves a un diccionario.
 - Mover objetos entre entidades invalida las acciones narrativas que asumen el inventario del jugador: `take_item` falla en silencio.
+
+### Spike 17 — Inventario A (MVVM)
+- Un orquestador con un único `_current_overlay` debe escuchar `closed` de cada overlay que lo exponga y liberarlo; si no, la instancia oculta sigue contando como «abierta» y la siguiente pulsación de la tecla (toggle) la destruye en vez de abrir una nueva. Síntoma: hay que pulsar dos veces. El log lo delata: `Overlay shown` solo aparece en la segunda pulsación.
+- En pantallas anidadas, `ui_cancel` se consume con `set_input_as_handled()` en la propia pantalla: el input no manejado se propaga de hijo a padre, así que cierra solo la capa más profunda.
+- Una spec puede dar por hecho un comportamiento que nadie implementó (Esc en el inventario): comprobarlo con `Select-String 'ui_cancel'` antes de validar.
+- El puente de ítems emite `item_use_success` también al equipar. El mensaje de «equipado» sale del evento de equipo y el éxito del puente se ignora para ese ítem.
+- Un widget con ocultado automático lleva su propio `Timer` hijo (creado en `_ready()`): sin `await`, sin tocar la escena, y un mensaje nuevo reinicia la cuenta.
+- `Select-String` no distingue mayúsculas por defecto: `Items\.` casa con `bag_items.`. Para auditar el contrato MVVM usar `-CaseSensitive`.
+- Un snapshot de mochila no debe asumir que el equipo sale del inventario: `equip_item` no lo quita, así que un ítem equipado aparece también en la mochila.
+- Al reconstruir un ViewModel muerto, comprobar primero qué cubre frente a lo que hace la pantalla real (estado de espera, listas fijas de slots, funciones que no existen en producción): se descartó casi todo y se reescribió.
+
 ---

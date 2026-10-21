@@ -79,10 +79,10 @@ ui/
 | Tipo | Ejemplo |
 |------|---------|
 | ViewModel | `inventory_viewmodel.gd` |
-| View script | `inventory_screen.gd` |
+| View script | `inventory_ui.gd` |
 | View scene | `inventory_ui.tscn` |
 | ViewModel class | `class_name InventoryViewModel` |
-| View class | `class_name InventoryScreen` |
+| View class | `class_name MiPantalla` |
 
 ---
 
@@ -494,6 +494,7 @@ Godot genera los `.translation` automáticamente al recargar el proyecto cuando 
 | Un overlay/subpantalla anidable expone su propia señal `closed`, nunca depende de `tree_exiting` | Ninguna pantalla del proyecto se auto-libera al cerrarse (solo `visible = false`) — sin `closed`, quien la instancia nunca se entera de que cerró (mejoras post-Spike 3, Grupo 3) |
 | Un `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()`, igual que `ExplorationController` | Un segundo punto de entrada sin el mismo guard procesa el evento aunque el `GameState` no sea `EXPLORATION` (mejoras post-Spike 3, Grupo 3) |
 | Toda opción visual nueva de un componente compartido del Design System (`UIPanel`, etc.) entra como flag apagado por defecto | Los paneles ya en producción no pueden cambiar de aspecto sin decisión explícita por pantalla (Spike 9) |
+| Un overlay del orquestador que expone `closed` tiene su oyente en `SceneOrchestrator` | Con slot único, una pantalla oculta pero no liberada hace que la siguiente tecla la destruya en lugar de abrir una nueva (Spike 17) |
 
 ---
 
@@ -1102,13 +1103,28 @@ defecto (ventana de 1152×648, sin `stretch/mode`). `canvas_items` con base
 
 ---
 
+### Contextos de apertura del inventario (Spike 17)
+
+| Contexto | Quién instancia | `closed` | Quién libera |
+|---|---|---|---|
+| Overlay en exploración (tecla `I`) | `SceneOrchestrator.open_inventory()` (toggle) | conectada por el orquestador | `_on_overlay_closed()` |
+| Subpantalla de PlayerMenu | `PlayerMenuScreen._open_subscreen()` | conectada | PlayerMenu |
+| Sub-overlay de narrativa | `NarrativeScenePanel._open_sub_overlay()` (nunca vía orquestador) | conectada | el panel |
+
+Reglas derivadas:
+- `SceneOrchestrator` tiene un único `_current_overlay`. Si no conecta `closed`, una pantalla cerrada (solo oculta) sigue ocupando el slot y la siguiente pulsación de la tecla la destruye en vez de abrirla (dos pulsaciones). `open_inventory()` y `open_party()` conectan `closed` a `_on_overlay_closed(overlay)`.
+- `ui_cancel`: la pantalla lo consume con `set_input_as_handled()` y cierra; el input no manejado se propaga de hijo a padre, así que en el anidado cierra solo la capa más profunda.
+- Una pantalla con `closed` nunca se libera a sí misma.
+
+---
+
 ## Referencia de pantallas existentes
 
 | Pantalla | ViewModel | View | Descripción |
 |----------|-----------|------|-------------|
 | MainMenu | `main_menu_viewmodel.gd` | `main_menu_screen.gd` | Menú principal del juego. Main Scene del proyecto. Pantalla única con sub-paneles internos (opciones, créditos, confirmación de salida). No instanciada por SceneOrchestrator — arranca directamente. |
 | WorldObject | `world_object_panel_viewmodel.gd` | `world_object_interaction_panel.gd` | Panel piloto del patrón. El más simple. Buen punto de partida para entender el flujo. |
-| Inventory | — (sin ViewModel en producción) | `inventory_ui.gd` | **La View de producción es `inventory_ui.gd`, sin ViewModel** (dos columnas: equipo + mochila, detalle de ítem y acciones). `InventoryScreen` + `InventoryViewModel` (`inventory_screen.gd` / `inventory_viewmodel.gd`) existen pero **no se usan**. La corrección completa del contrato llega con el Spike 17. |
+| Inventory | `inventory_viewmodel.gd` | `inventory_ui.gd` | **Spike 17:** cumple el contrato MVVM (ver «Contextos de apertura del inventario» arriba). View pasiva (`CanvasLayer`, raíz `InventoryUi`, nodos `%`, textos `tr()` con claves `INVENTORY_*`), ViewModel como hijo con `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`). Dos columnas (equipo + mochila de 20 `ItemSlot` + estadísticas) y detalle de ítem con acciones. Feedback decidido por el ViewModel (usado/equipado/desequipado/errores) y mostrado en `FeedbackPopup`, que se oculta solo. Esc cierra (la View consume `ui_cancel`). `equip_slot` e `item_slot` se comparten con Party. Pendiente de rediseño en el Spike 18. |
 | Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable, abierta desde `SceneOrchestrator` vía `show_shop_direct()`. **Spike 16:** primera pantalla del hito que adopta el Design System. Panel `UIPanel` `OVERLAY` con marco (anclas 0.05–0.95), `layer = 10` fijado por el script; dos columnas (inventario del jugador a la izquierda, tienda a la derecha), cada una con cabecera `UIPanel` (título + oro; la tienda añade huecos), `ScrollContainer` y `VBoxContainer` de filas; botón Cerrar arriba a la derecha (`UIButton` secundario SM) y tira de mensaje de altura reservada. Mensajes de lista vacía. Textos `SHOP_*` en `shops.csv`; tokens, sin `Color(...)` ni tamaños de fuente literales. Conserva `show_shop_direct()`, el cierre por `shop_closed` y los nombres `%`. **Spike 16b:** `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible) y añade `is_loan` a las entradas del snapshot; `trade_type` gana el valor `"loan"`. `ShopViewModel` cambia `_on_trade_success` (distingue compra, venta y préstamo y usa el nombre visible) y traduce `LOAN_ITEM`. Ver la sección «Fila de lista del Design System». |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. **Spike 11** lo rediseñó por completo: base de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`, marco del Spike 9); único retrato (se descarta el layout de dos retratos original), hermano del panel — no hijo — para poder sobresalir por encima del marco (layout C: franja inferior, anclas por fracción de pantalla `0.04/0.57/0.96/0.96`, no píxeles fijos); fondo de ambiente propio (`BackgroundImage` + `Background` como velo, mismo patrón que `CombatArenaViewModel`/Grupo 4, razón `"background"` de `changed()` emitida solo cuando cambia el path); exports de configuración visual sin efecto real retirados. `dialogue_node_shown` pasa de 4 a 7 argumentos (`mood`, `portrait_folder`, `background_id`) sin romper los oyentes existentes — GDScript descarta los argumentos de más al emitir si el callback conectado acepta menos. Ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2. Antipatrón nuevo, ver sección propia: `OptionsContainer` dentro de un `ScrollContainer` — un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, y con `grow_vertical = BEGIN` un número variable de opciones lo hacía crecer invadiendo pantalla en vez de quedarse en su franja fija. **Spike 15:** opciones en `GridContainer` (`OptionsContainer`): 1 columna hasta 3 opciones, 2 desde 4, relleno por filas; la franja `OptionsScroll` reserva su altura natural (`custom_minimum_size.y`) para cualquier número de opciones y el `ScrollContainer` queda como red de seguridad; el margen izquierdo del texto se calcula desde el borde derecho real del retrato (`+ PORTRAIT_TEXT_GAP` = 3 px) y se recalcula en `resized`, ya no es un 240 fijo; la primera opción toma el foco y el foco usa el estilo `hover` del botón. `MarginContainer` y `OptionsScroll` son nodos con nombre único (`%`). Sin cambios en el contrato MVVM ni en `closed`. |
@@ -1145,7 +1161,9 @@ Ningún antipatrón nuevo de arquitectura UI: el patrón es una variante de los 
 
 ---
 
-*Última actualización: Spike 16 — Tienda (cerrado y validado en partida real; incluye la 16b). Primera adopción real del Design System por una pantalla del hito: `UIPanel` `OVERLAY` con marco, `UIButton`, tokens, dos columnas por anclas, claves `SHOP_*` en `shops.csv` y fila de lista `ShopItemSlot` (nueva sección). Parte B: `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible), primer cambio del hito que toca el core. `ShopViewModel` cambia el mensaje de éxito (compra, venta y préstamo, con nombre visible) y traduce `LOAN_ITEM`. Antipatrón nuevo: nodo colgado del padre equivocado en un `PanelContainer`. Ningún cambio al contrato MVVM. Ver `docs/spike_16_tienda.md`. Godot 4.7.x.*
+*Última actualización: Spike 17 — Inventario A (17a cerrada). El inventario cumple el contrato MVVM (fila Inventory y sección «Contextos de apertura del inventario»). `SceneOrchestrator` conecta `closed` en inventario y party (dos pulsaciones). Ningún cambio al contrato en sí. Ver `docs/spike_17_inventario_mvvm.md`. Godot 4.7.x.*
+
+*Última actualización anterior: Spike 16 — Tienda (cerrado y validado en partida real; incluye la 16b). Primera adopción real del Design System por una pantalla del hito: `UIPanel` `OVERLAY` con marco, `UIButton`, tokens, dos columnas por anclas, claves `SHOP_*` en `shops.csv` y fila de lista `ShopItemSlot` (nueva sección). Parte B: `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible), primer cambio del hito que toca el core. `ShopViewModel` cambia el mensaje de éxito (compra, venta y préstamo, con nombre visible) y traduce `LOAN_ITEM`. Antipatrón nuevo: nodo colgado del padre equivocado en un `PanelContainer`. Ningún cambio al contrato MVVM. Ver `docs/spike_16_tienda.md`. Godot 4.7.x.*
 
 *Última actualización anterior: Spike 15 — Cimientos del Design System (cerrado y validado en partida real). Nueva sección «Contrato de pantalla y resolución de referencia»: reglas de pantalla para el hito (MVVM, `closed`, nombres únicos `%`, marco opt-in, tokens, `tr()` con claves `PANTALLA_ELEMENTO`, anclas para 1152×648, reserva de altura, foco de teclado) y la decisión de resolución (sin estiramiento). `UIPanel`: esquinera por defecto, padding mínimo con marco, activación en runtime, `OVERLAY` documentado como opaco. `DialoguePanel`: opciones en rejilla, altura reservada, margen del texto proporcional al retrato, foco de teclado. Corregida la fila de Inventory (la View de producción es `inventory_ui.gd`, sin ViewModel). Ningún cambio al contrato MVVM. Ver `docs/spike_15_cimientos_design_system.md` y el README del Design System. Godot 4.7.x.*
 

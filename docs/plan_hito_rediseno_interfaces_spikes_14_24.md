@@ -1,6 +1,6 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-10-21 (cierre del Spike 16, partes A y B)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-10-21 (cierre del Spike 17, parte de código)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
@@ -8,7 +8,8 @@ cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
 código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15
 y 16 (partes A y B) están cerrados y validados en partida real** (informes en
 `docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md` y
-`docs/spike_16_tienda.md`); el resto está sin implementar. La **16c** (devolución del
+`docs/spike_16_tienda.md`); el **Spike 17** (inventario con contrato MVVM) está cerrado en su parte de código
+(informe en `docs/spike_17_inventario_mvvm.md`); el resto está sin implementar. La **16c** (devolución del
 préstamo) queda abierta, sin planificar.
 
 ---
@@ -21,7 +22,7 @@ préstamo) queda abierta, sin planificar.
 | 15 | Cimientos del Design System — **cerrado** | Medio | — |
 | 16 | Tienda (piloto de adopción del DS) — **cerrado (A y B)**; 16c pendiente | Bajo | 15 |
 | 16c | Devolución del préstamo `quest_loan` al sheriff (sin planificar) | Bajo-medio | 16 |
-| 17 | Inventario A: contrato MVVM, sin cambio visual | Alto | 15 |
+| 17 | Inventario A: contrato MVVM, sin cambio visual — **cerrado** (17a) | Alto | 15 |
 | 18 | Inventario B: rediseño con `UISlot` | Medio | 17 |
 | 19 | Party | Medio-alto | 18 |
 | 20 | Loadout | Medio | 18 |
@@ -34,7 +35,7 @@ préstamo) queda abierta, sin planificar.
   sesión reiniciada, y el Design System está listo (tokens fusionados, `UIPanel`
   corregido, diálogo con rejilla de opciones). **El 16 también:** la tienda ya usa el
   DS y el préstamo de la lanza funciona (la devolución, 16c, sigue abierta). Lo que
-  sigue empieza por el 17.
+  sigue empieza por el 18 (el 17, inventario con contrato MVVM, también está cerrado).
 - **Orden flexible:** entre 16, 19, 20, 21 y 23 se puede reordenar siempre que
   se respeten las dependencias. 23 (pantalla de inicio) no depende de ninguna
   otra pantalla.
@@ -396,7 +397,18 @@ entidad que la tomó; si `take_item` admite un destino «cualquiera de la party�
 hardcodear lógica; qué ocurre si la lanza está equipada. Se abrirá aparte, con su propia
 Fase 0; no bloquea el 17.
 
-### Spike 17 — Inventario A: contrato MVVM
+### Spike 17 — Inventario A: contrato MVVM — CERRADO
+
+**Estado:** cerrado (17a) el 2026-10-21. Informe en `docs/spike_17_inventario_mvvm.md`. Lo que sigue es la
+spec original; resultado real: se **reconstruyó el `InventoryViewModel`** sobre el esqueleto muerto y
+`inventory_ui.gd` quedó como única View (pasiva); se borraron `inventory_screen.gd` y
+`SceneOrchestrator.close_inventory()`; 29 claves `INVENTORY_*` en `inventory.csv`. La Fase 0 corrigió la
+spec: Esc no cerraba el inventario (nadie manejaba `ui_cancel`); `SceneOrchestrator` no escuchaba `closed`,
+así que la instancia oculta seguía ocupando `_current_overlay` y hacían falta dos pulsaciones de la tecla
+(afectaba también a Party; arreglado en `open_inventory()` y `open_party()` con `_on_overlay_closed()`);
+la comparación de ítems y el companion no existen en producción (puntos 7 y 9 de la validación retirados).
+Se añadió de paso feedback al equipar/desequipar y ocultado automático del popup. **Sin confirmar en
+partida:** contextos PlayerMenu y narrativa, y Esc en el anidado.
 
 **Objetivo:** que la pantalla de inventario de producción cumpla el contrato
 MVVM, sin cambio visual. Es el spike de más riesgo del hito.
@@ -417,6 +429,13 @@ arrastre; usar consumible; fallo de uso; cierre correcto de la capa más profund
 en el anidado narrativa → PlayerMenu → Inventory.
 
 ### Spike 18 — Inventario B: rediseño
+
+**Heredado del 17:** boceto de Fernando basado en una captura de The Witcher 3 (pendiente de recibir; al
+recibirlo, preguntar por categorías/pestañas, peso/capacidad, comparación, orden y aspecto de slots y ficha
+de ítem); comparación de ítems (no existe en producción); marca de «equipado» en la mochila
+(`DetailData.is_equipped` ya existe; hoy el ítem equipado aparece también en su hueco); más de 20 ítems
+(hoy solo `push_warning`); `equip_item` ignora el slot de destino al arrastrar; motivos de fallo y
+modificadores sin localizar; rediseño de `feedback_popup` (hoy con `Timer` y `AnimationPlayer` sin uso).
 
 **Heredado del 16:** la fila de lista (`ShopItemSlot`) y el patrón de dos columnas con
 cabecera son reutilizables; añadir iconos/descripción al snapshot de `EconomySystem`
@@ -529,7 +548,7 @@ sesión, `GameOverUI` sin referencia y accesos privados de `PartyManager`
 
 **Abiertos del hito:**
 - **Documentación:** `athelia_ui_architecture.md` describe una View de
-  Inventory que no es la de producción → 15 y 17. (El flujo del Game Over ya
+  Inventory que no es la de producción → 15 y 17. **Resuelto en el Spike 17** (con la actualización de `athelia_ui_architecture.md`). (El flujo del Game Over ya
   está corregido por el spike 14.)
 - **Marcador:** al cargar la exploración sale `telmori_village/exit_final:
   escena narrativa inexistente: telmori_village_departure`. Es el marcador de
@@ -584,7 +603,9 @@ _(Las del Spike 15 quedaron resueltas: el `sheriff_briefing` con 6 opciones cabe
 2 columnas × 3 filas a 1152×648 y hubo scroll también con ventanas altas;
 resolución decidida sin estiramiento.)_
 
-- Cobertura del `InventoryViewModel` muerto (arrastre, comparación). → 17.
+- ~~Cobertura del `InventoryViewModel` muerto (arrastre, comparación).~~ **Resuelto en el Spike 17:** se
+  reconstruyó cubriendo arrastre, equipar/desequipar y usar; la comparación no existe en producción y pasa
+  al Spike 18.
 - Resolución del arte 848×1264: ¿retratos? → spike de la pantalla que los use.
 - Saludo del sheriff de 3 líneas con las 6 opciones a 648 de alto: previsto un
   recorte de ~4 px, no observado. → revisar en partida.
@@ -592,7 +613,9 @@ resolución decidida sin estiramiento.)_
   `NO_BUDGET`/`NO_SLOTS`; tienda vacía; camino `LOAN_ITEM` de `sell_item`.
 - **Vender un objeto equipado** (inferido): `equip_item` no saca el objeto del inventario
   y `sell_item` solo comprueba `has_item`; podría quedar un slot de equipo apuntando a un
-  objeto vendido. → 17/18.
+  objeto vendido. **Sin cambios en el Spike 17** (solo registrado). Observación: `equip_item` no saca el
+  objeto del inventario y la mochila lo muestra también en su hueco, sin marca de «equipado»
+  (`DetailData.is_equipped` ya existe). → 18.
 - **Comprar con inventario lleno:** `buy_item` omite la validación de espacio
   (`InventorySystem` no tiene `can_add_item`).
 - **`accepted_tags`** sin aplicar en `ShopInstance.can_buy_from_player` (hay un `TODO`) e
@@ -609,6 +632,14 @@ resolución decidida sin estiramiento.)_
 - Retrato del posadero: es un placeholder (muestra el del sheriff); se diseñará uno propio más adelante. No entra en el Spike 16 (la tienda no usa retratos).
 - Idioma inglés de lo tocado en el Spike 15 y comando de columnas de los `.csv`
   tras los cambios: sin confirmar.
+- **Spike 17 (sin confirmar en partida):** inventario como subpantalla de PlayerMenu y como sub-overlay de
+  narrativa; Esc en el anidado narrativa → PlayerMenu → Inventory; mochila con más de 20 ítems (solo
+  `push_warning`); arrastre de un ítem a su slot correcto.
+- **Detectados en el Spike 17, sin spike asignado:** `equip_item` ignora el slot de destino al arrastrar
+  (elige el primer slot con tag coincidente); `item_use_failed`/`equip_failed` traen el motivo como texto
+  libre en inglés (y `equip_failed` no se escucha); nombres de modificadores del panel de detalle sin
+  localizar; `ItemSlot` pierde el resaltado al salir el ratón y un ítem sin icono muestra el logo de
+  Godot; `AnimationPlayer` de `feedback_popup.tscn` sin uso.
 
 ## 8. Fuera del hito (barrido opcional tras el spike 24)
 

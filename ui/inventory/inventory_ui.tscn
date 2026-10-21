@@ -37,9 +37,9 @@ layout_mode = 2
 layout_mode = 2
 
 [node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/Header" unique_id=79342375]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "INVENTARIO"
 
 [node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/Header" unique_id=1555361259]
 unique_name_in_owner = true
@@ -58,46 +58,46 @@ size_flags_vertical = 3
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 
-[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=330350379]
+[node name="EquipmentHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=330350379]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "EQUIPO"
 
 [node name="EquipSlot_head" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=844412102 instance=ExtResource("2_m8s8u")]
 unique_name_in_owner = true
 layout_mode = 2
 slot_id = "head"
-slot_label_key = "head"
+slot_label_key = "INVENTORY_SLOT_HEAD"
 
 [node name="EquipSlot_body" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=3605394 instance=ExtResource("2_m8s8u")]
 unique_name_in_owner = true
 layout_mode = 2
 slot_id = "body"
-slot_label_key = "body"
+slot_label_key = "INVENTORY_SLOT_BODY"
 
 [node name="EquipSlot_hands" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=22106605 instance=ExtResource("2_m8s8u")]
 unique_name_in_owner = true
 layout_mode = 2
 slot_id = "hands"
-slot_label_key = "hands"
+slot_label_key = "INVENTORY_SLOT_HANDS"
 
 [node name="EquipSlot_feet" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=344963278 instance=ExtResource("2_m8s8u")]
 unique_name_in_owner = true
 layout_mode = 2
 slot_id = "feet"
-slot_label_key = "feet"
+slot_label_key = "INVENTORY_SLOT_FEET"
 
 [node name="EquipSlot_weapon" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=1969642429 instance=ExtResource("2_m8s8u")]
 unique_name_in_owner = true
 layout_mode = 2
 slot_id = "weapon"
-slot_label_key = "weapon"
+slot_label_key = "INVENTORY_SLOT_WEAPON"
 
 [node name="EquipSlot_shield" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=947613564 instance=ExtResource("2_m8s8u")]
 unique_name_in_owner = true
 layout_mode = 2
 slot_id = "shield"
-slot_label_key = "shield"
+slot_label_key = "INVENTORY_SLOT_SHIELD"
 
 [node name="VSeparator2" type="VSeparator" parent="Panel/MarginContainer/VBoxContainer/Content" unique_id=279291560]
 layout_mode = 2
@@ -106,10 +106,10 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=2015276585]
+[node name="BagHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=2015276585]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "MOCHILA"
 
 [node name="SlotsGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=835709538]
 unique_name_in_owner = true
@@ -179,58 +179,58 @@ layout_mode = 2
 [node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=974387733]
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=604820057]
+[node name="StatsHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=604820057]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "STATS"
 
 [node name="GridContainer" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=1689229280]
 layout_mode = 2
 columns = 6
 
-[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1670427972]
+[node name="StatsHPCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1670427972]
+unique_name_in_owner = true
 layout_mode = 2
-text = "HP:"
 
 [node name="StatsHP" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1643891222]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1299213597]
+[node name="StatsStaminaCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1299213597]
+unique_name_in_owner = true
 layout_mode = 2
-text = "ST:"
 
 [node name="StatsStamina" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=630000700]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label3" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=177300997]
+[node name="StatsGoldCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=177300997]
+unique_name_in_owner = true
 layout_mode = 2
-text = "GOLD:"
 
 [node name="StatsGold" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1324258289]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label4" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1475983522]
+[node name="StatsSTRCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1475983522]
+unique_name_in_owner = true
 layout_mode = 2
-text = "STR:"
 
 [node name="StatsSTR" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1267850055]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label5" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=961296871]
+[node name="StatsDEXCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=961296871]
+unique_name_in_owner = true
 layout_mode = 2
-text = "DEX:"
 
 [node name="StatsDEX" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1530968290]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label6" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=953793920]
+[node name="StatsCONCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=953793920]
+unique_name_in_owner = true
 layout_mode = 2
-text = "CON:"
 
 [node name="StatsCON" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1101977921]
 unique_name_in_owner = true

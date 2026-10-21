@@ -1,7 +1,8 @@
 extends PanelContainer
 
 ## ItemDetailPanel - Panel de información del ítem seleccionado
-## ACTUALIZACIÓN: añadido botón EQUIPAR / DESEQUIPAR
+## Pasivo: recibe datos de la View que lo contiene y emite intenciones.
+## Spike 17: todos los textos pasan por tr() (claves INVENTORY_*); sin otros cambios.
 
 @onready var item_name_label: Label        = %ItemNameLabel
 @onready var item_description_label: Label = %ItemDescriptionLabel
@@ -21,7 +22,13 @@ signal unequip_pressed(item_id: String)
 func _ready() -> void:
 	use_button.pressed.connect(_on_use_button_pressed)
 	equip_button.pressed.connect(_on_equip_button_pressed)
+	_setup_static_text()
 	clear()
+
+
+func _setup_static_text() -> void:
+	use_button.text = tr("INVENTORY_BUTTON_USE")
+	empty_message.text = tr("INVENTORY_DETAIL_EMPTY")
 
 
 ## Muestra información de un ítem
@@ -30,18 +37,18 @@ func show_item(item_def: ItemDefinition, quantity: int, is_equipped: bool = fals
 	if not item_def:
 		clear()
 		return
-	
+
 	current_item_id = item_def.id
 	_is_equipped = is_equipped
-	
+
 	item_name_label.text = tr(item_def.name_key)
 	item_description_label.text = tr(item_def.description_key)
-	
+
 	var stats_text := ""
-	stats_text += "Peso: %.1f kg\n" % item_def.weight
-	stats_text += "Valor: %d oro\n" % item_def.base_value
-	stats_text += "Cantidad: %d" % quantity
-	
+	stats_text += tr("INVENTORY_DETAIL_WEIGHT") % item_def.weight + "\n"
+	stats_text += tr("INVENTORY_DETAIL_VALUE") % item_def.base_value + "\n"
+	stats_text += tr("INVENTORY_DETAIL_QUANTITY") % quantity
+
 	# Mostrar modificadores si los tiene
 	var mods := item_def.get_modifiers_for_condition("equipped")
 	if not mods.is_empty():
@@ -49,23 +56,23 @@ func show_item(item_def: ItemDefinition, quantity: int, is_equipped: bool = fals
 		for mod in mods:
 			var sign_str := "+" if mod.value >= 0 else ""
 			stats_text += "\n%s %s%.0f" % [mod.target.split(".")[-1].capitalize(), sign_str, mod.value]
-	
+
 	item_stats_label.text = stats_text
-	
+
 	# Botón USAR: solo para consumibles
 	use_button.visible = item_def.usable and item_def.item_type == "CONSUMABLE"
 	use_button.disabled = false
-	
+
 	# Botón EQUIPAR/DESEQUIPAR: solo para equipment
 	equip_button.visible = item_def.item_type == "EQUIPMENT"
 	equip_button.disabled = false
 	if is_equipped:
-		equip_button.text = "DESEQUIPAR"
+		equip_button.text = tr("INVENTORY_BUTTON_UNEQUIP")
 		equip_button.modulate = Color(1.0, 0.6, 0.4, 1.0)  # tinte anaranjado
 	else:
-		equip_button.text = "EQUIPAR"
+		equip_button.text = tr("INVENTORY_BUTTON_EQUIP")
 		equip_button.modulate = Color.WHITE
-	
+
 	empty_message.visible = false
 	item_name_label.visible = true
 	item_description_label.visible = true

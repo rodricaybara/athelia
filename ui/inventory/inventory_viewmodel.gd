@@ -1,91 +1,39 @@
 class_name InventoryViewModel
 extends Node
 
-## InventoryViewModel
-## Gestiona el estado completo de la pantalla de inventario.
+## InventoryViewModel (Spike 17)
 ##
-## Responsabilidades:
-##   - Mantener estado explícito (enum InventoryState)
-##   - Construir snapshots de inventario y equipamiento listos para renderizar
-##   - Gestionar selección de ítems y comparación con slot equipado
-##   - Emitir intenciones al EventBus (usar, equipar, desequipar)
-##   - Escuchar cambios de sistema y notificar a la View
+## Único punto de la pantalla de inventario que habla con los sistemas de
+## ítems, equipo, recursos y personajes. La View lee el estado público y
+## traduce el input del jugador en llamadas request_*().
 ##
-## NO hace:
-##   - Renderizar nada
-##   - Instanciar nodos
-##   - Modificar inventario/equipamiento directamente
+## Reconstruido tomando como base el ViewModel anterior (sin uso). Cambios:
+##   - Sin estado de espera: las peticiones son síncronas, no hay nada que
+##     esperar, y un estado de espera podía quedarse atascado.
+##   - La mochila es una lista sin relleno; cuántos huecos pinta es cosa de la View.
+##   - El equipo se lee del sistema de equipo, sin lista fija de slots.
+##   - Los refrescos se agrupan y se difieren un frame (equipar sobre un slot
+##     ocupado emite dos eventos seguidos).
+##   - Sin comparación de ítems: no existe en producción (candidata al Spike 18).
+##
+## NO hace: renderizar, instanciar nodos, conocer rutas de escena.
 
 
 # ============================================
-# ENUMS
+# ENUMS Y DATA CLASSES
 # ============================================
 
 enum InventoryState {
-	HIDDEN,          ## Pantalla cerrada
-	BROWSING,        ## Inventario visible, ningún ítem seleccionado
-	ITEM_SELECTED,   ## Ítem seleccionado, detalle visible
-	ACTION_PENDING,  ## Acción emitida, esperando respuesta del sistema
+	HIDDEN,         ## Cerrado
+	BROWSING,       ## Abierto, sin ítem seleccionado
+	ITEM_SELECTED,  ## Abierto, con un ítem seleccionado
 }
 
-
-# ============================================
-# DATA CLASSES (structs ligeros para la View)
-# ============================================
-
-## Datos de un slot del grid de mochila
-class SlotData:
-	var item_id: String = ""
-	var item_def: ItemDefinition = null
-	var quantity: int = 0
-	var is_equipped: bool = false
-	var is_empty: bool = true
-
-	static func from_instance(instance: ItemInstance, equipped: bool) -> SlotData:
-		var d := SlotData.new()
-		d.item_id  = instance.definition.id
-		d.item_def = instance.definition
-		d.quantity = instance.quantity
-		d.is_equipped = equipped
-		d.is_empty = false
-		return d
-
-	static func empty() -> SlotData:
-		return SlotData.new()
-
-
-## Datos de un slot de equipamiento
-class EquipSlotData:
-	var slot_id: String = ""
-	var item_id: String = ""
-	var item_def: ItemDefinition = null
-	var is_empty: bool = true
-
-	static func from_equipped(slot: String, item: ItemDefinition) -> EquipSlotData:
-		var d := EquipSlotData.new()
-		d.slot_id  = slot
-		d.item_id  = item.id
-		d.item_def = item
-		d.is_empty = false
-		return d
-
-	static func empty(slot: String) -> EquipSlotData:
-		var d := EquipSlotData.new()
-		d.slot_id = slot
-		return d
-
-
-## Datos del panel de detalle
+## Datos del panel de detalle (lo que consume ItemDetailPanel.show_item)
 class DetailData:
 	var item_def: ItemDefinition = null
 	var quantity: int = 0
 	var is_equipped: bool = false
-	## Ítem actualmente en el slot que ocuparía este ítem (para comparación)
-	var competing_item_def: ItemDefinition = null
-	## Acciones disponibles para este ítem
-	var can_use: bool = false
-	var can_equip: bool = false
-	var can_unequip: bool = false
 
 
 # ============================================
@@ -93,46 +41,52 @@ class DetailData:
 # ============================================
 
 ## Razones:
-##   "opened"          → construir layout completo
-##   "inventory"       → solo refrescar grid de mochila
-##   "equipment"       → solo refrescar slots de equipo
-##   "selection"       → solo refrescar panel de detalle
-##   "stats"           → solo refrescar stats del personaje
-##   "action_pending"  → bloquear botones de acción
-##   "action_resolved" → desbloquear + refrescar según acción
-##   "closed"          → ocultar pantalla
+##   "opened"    → pintar todo
+##   "inventory" → mochila
+##   "equipment" → slots de equipo
+##   "stats"     → cabecera de recursos y atributos
+##   "selection" → resaltado del slot + panel de detalle
+##   "feedback"  → mensaje (feedback_message / feedback_is_error)
+##   "closed"    → ocultar y emitir closed
 signal changed(reason: String)
 
 
 # ============================================
-# ESTADO PÚBLICO (read-only para la View)
+# ESTADO PÚBLICO (solo lectura para la View)
 # ============================================
+
+## Recursos cuyo cambio refresca la cabecera
+const STAT_RESOURCES: Array[String] = ["health", "stamina", "gold"]
 
 var state: InventoryState = InventoryState.HIDDEN
 var entity_id: String = "player"
 
-## Slots del grid — siempre MAX_SLOTS elementos, los vacíos son SlotData.empty()
-const MAX_SLOTS: int = 20
-const EQUIPMENT_SLOTS: Array[String] = ["head", "body", "hands", "feet", "weapon", "shield"]
-
-var inventory_slots: Array = []     ## Array[SlotData], tamaño MAX_SLOTS
-var equipment_slots: Array = []     ## Array[EquipSlotData], tamaño EQUIPMENT_SLOTS.size()
-var detail: DetailData = null       ## null si no hay selección
+## Ítems de la mochila, sin relleno de huecos vacíos
+var bag_items: Array[ItemInstance] = []
+## slot_id → ItemDefinition (solo slots ocupados)
+var equipped_items: Dictionary = {}
+## null si no hay selección válida
+var detail: DetailData = null
 var selected_item_id: String = ""
 
-## Stats del personaje para mostrar en el panel izquierdo
-var stat_hp: float = 0.0
-var stat_hp_max: float = 0.0
+var stat_health: float = 0.0
 var stat_stamina: float = 0.0
-var stat_stamina_max: float = 0.0
 var stat_gold: float = 0.0
 var stat_strength: float = 0.0
 var stat_dexterity: float = 0.0
 var stat_constitution: float = 0.0
 
-## Mensaje de feedback temporal (uso de ítem, error, etc.)
+## Mensaje ya traducido; la View lo lee al recibir "feedback"
 var feedback_message: String = ""
 var feedback_is_error: bool = false
+
+## Refrescos pendientes de agrupar ("inventory", "equipment", "stats").
+## No es estado de pantalla: solo evita emitir varias veces lo mismo.
+var _dirty: Dictionary = {}
+
+## Ítem cuyo EQUIPAR pasa por el puente de ítems, que también emite
+## item_use_success. Se ignora ese éxito: el mensaje lo da el evento de equipo.
+var _equip_request_item_id: String = ""
 
 
 # ============================================
@@ -140,211 +94,273 @@ var feedback_is_error: bool = false
 # ============================================
 
 func _ready() -> void:
-	EventBus.item_added.connect(_on_inventory_changed)
-	EventBus.item_removed.connect(_on_inventory_changed)
+	EventBus.item_added.connect(_on_item_changed)
+	EventBus.item_removed.connect(_on_item_changed)
 	EventBus.item_use_success.connect(_on_item_use_success)
 	EventBus.item_use_failed.connect(_on_item_use_failed)
-	Equipment.item_equipped.connect(_on_equipment_changed)
-	Equipment.item_unequipped.connect(_on_equipment_changed)
-
-	print("[InventoryVM] Ready")
+	EventBus.resource_changed.connect(_on_resource_changed)
+	# El equipo tiene sus propias señales (no pasan por el bus de eventos)
+	Equipment.item_equipped.connect(_on_item_equipped)
+	Equipment.item_unequipped.connect(_on_item_unequipped)
 
 
 # ============================================
 # INTENCIONES (llamadas desde la View)
 # ============================================
 
-## Abrir el inventario para una entidad
 func open(p_entity_id: String = "player") -> void:
 	entity_id = p_entity_id
 	selected_item_id = ""
 	detail = null
-	_refresh_all()
+	feedback_message = ""
+	feedback_is_error = false
+	_equip_request_item_id = ""
+	_dirty.clear()
+	_rebuild_bag()
+	_rebuild_equipment()
+	_rebuild_stats()
 	state = InventoryState.BROWSING
 	changed.emit("opened")
 
 
-## Seleccionar un ítem del grid
-func select_item(item_id: String) -> void:
-	if state == InventoryState.ACTION_PENDING:
-		return
-
-	if item_id == selected_item_id:
-		# Deseleccionar al pulsar el mismo
-		selected_item_id = ""
-		detail = null
-		state = InventoryState.BROWSING
-	else:
-		selected_item_id = item_id
-		_refresh_detail()
-		state = InventoryState.ITEM_SELECTED
-
-	changed.emit("selection")
-
-
-## Usar el ítem seleccionado
-func request_use() -> void:
-	if selected_item_id.is_empty() or state == InventoryState.ACTION_PENDING:
-		return
-	state = InventoryState.ACTION_PENDING
-	changed.emit("action_pending")
-	EventBus.item_use_requested.emit(entity_id, selected_item_id)
-
-
-## Equipar/desequipar el ítem seleccionado
-func request_toggle_equip() -> void:
-	if selected_item_id.is_empty() or state == InventoryState.ACTION_PENDING:
-		return
-	state = InventoryState.ACTION_PENDING
-	changed.emit("action_pending")
-	EventBus.item_use_requested.emit(entity_id, selected_item_id)
-
-
-## Cerrar el inventario
 func request_close() -> void:
 	selected_item_id = ""
 	detail = null
 	state = InventoryState.HIDDEN
+	_dirty.clear()
 	changed.emit("closed")
+
+
+## Seleccionar un ítem de la mochila (volver a pulsar el mismo lo mantiene)
+func select_item(item_id: String) -> void:
+	if state == InventoryState.HIDDEN:
+		return
+	selected_item_id = item_id
+	_rebuild_detail()
+	changed.emit("selection")
+
+
+## Botón USAR. El sistema de ítems valida (existe, es usable) y emite la petición.
+func request_use(item_id: String) -> void:
+	if state == InventoryState.HIDDEN or item_id.is_empty():
+		return
+	Inventory.request_use_item(entity_id, item_id)
+
+
+## Botón EQUIPAR. Mismo camino que USAR: el puente de ítems decide equipar o consumir.
+func request_equip(item_id: String) -> void:
+	if state == InventoryState.HIDDEN or item_id.is_empty():
+		return
+	_equip_request_item_id = item_id
+	Inventory.request_use_item(entity_id, item_id)
+
+
+## Botón DESEQUIPAR del panel de detalle
+func request_unequip_item(item_id: String) -> void:
+	if state == InventoryState.HIDDEN or item_id.is_empty():
+		return
+	Equipment.unequip_item(entity_id, item_id)
+
+
+## Clic en un slot de equipo ocupado
+func request_unequip_slot(slot_id: String) -> void:
+	if state == InventoryState.HIDDEN or slot_id.is_empty():
+		return
+	Equipment.unequip_slot(entity_id, slot_id)
+
+
+## Arrastrar un ítem de la mochila sobre un slot de equipo
+func request_equip_drop(slot_id: String, item_id: String) -> void:
+	if state == InventoryState.HIDDEN:
+		return
+
+	if not Inventory.has_item(entity_id, item_id):
+		_set_feedback(tr("INVENTORY_ERROR_NOT_IN_INVENTORY"), true)
+		return
+
+	if not Equipment.can_equip_in_slot(entity_id, item_id, slot_id):
+		var item_def: ItemDefinition = Items.get_item(item_id)
+		var item_name: String = tr(item_def.name_key) if item_def else item_id
+		_set_feedback(tr("INVENTORY_ERROR_SLOT_MISMATCH") % [item_name, _slot_display_name(slot_id)], true)
+		return
+
+	Equipment.equip_item(entity_id, item_id)
 
 
 # ============================================
 # CALLBACKS DE SISTEMAS
 # ============================================
 
-func _on_inventory_changed(ent_id: String, _item_id: String, _qty: int) -> void:
+func _on_item_changed(ent_id: String, _item_id: String, _qty: int) -> void:
 	if ent_id != entity_id or state == InventoryState.HIDDEN:
 		return
-	_refresh_inventory_slots()
-	_refresh_stats()
-	# Si el ítem seleccionado ya no existe, limpiar selección
-	if not selected_item_id.is_empty() and not Inventory.has_item(entity_id, selected_item_id):
-		selected_item_id = ""
-		detail = null
-		state = InventoryState.BROWSING
-		changed.emit("inventory")
-	else:
-		if not selected_item_id.is_empty():
-			_refresh_detail()
-		changed.emit("inventory")
+	_mark_dirty("inventory")
 
 
-func _on_equipment_changed(ent_id: String, _item_id: String, _slot: String) -> void:
+func _on_item_equipped(ent_id: String, item_id: String, _slot: String) -> void:
 	if ent_id != entity_id or state == InventoryState.HIDDEN:
 		return
-	_refresh_equipment_slots()
-	_refresh_stats()
-	if not selected_item_id.is_empty():
-		_refresh_detail()
-	changed.emit("equipment")
+	_mark_equipment_dirty()
+	_set_feedback(tr("INVENTORY_FEEDBACK_EQUIPPED") % _item_name(item_id), false)
+
+
+func _on_item_unequipped(ent_id: String, item_id: String, _slot: String) -> void:
+	if ent_id != entity_id or state == InventoryState.HIDDEN:
+		return
+	_mark_equipment_dirty()
+	_set_feedback(tr("INVENTORY_FEEDBACK_UNEQUIPPED") % _item_name(item_id), false)
+
+
+func _mark_equipment_dirty() -> void:
+	_mark_dirty("equipment")
+	# Los atributos cambian con los modificadores del equipo
+	_mark_dirty("stats")
+
+
+func _on_resource_changed(ent_id: String, resource_id: String, _old_value: float, _new_value: float) -> void:
+	if ent_id != entity_id or state == InventoryState.HIDDEN:
+		return
+	if resource_id in STAT_RESOURCES:
+		_mark_dirty("stats")
 
 
 func _on_item_use_success(ent_id: String, item_id: String) -> void:
-	if ent_id != entity_id:
+	if ent_id != entity_id or state == InventoryState.HIDDEN:
 		return
-
+	# Equipar pasa por el mismo camino que usar; su mensaje lo da item_equipped
+	if item_id == _equip_request_item_id:
+		_equip_request_item_id = ""
+		return
 	var item_def: ItemDefinition = Items.get_item(item_id)
 	if item_def:
-		feedback_message  = tr(item_def.name_key) + " usado"
-		feedback_is_error = false
-	state = InventoryState.BROWSING if selected_item_id.is_empty() else InventoryState.ITEM_SELECTED
-	changed.emit("action_resolved")
+		_set_feedback(tr("INVENTORY_FEEDBACK_USED") % tr(item_def.name_key), false)
 
 
 func _on_item_use_failed(ent_id: String, _item_id: String, reason: String) -> void:
-	if ent_id != entity_id:
+	if ent_id != entity_id or state == InventoryState.HIDDEN:
 		return
-	feedback_message  = reason
-	feedback_is_error = true
-	state = InventoryState.BROWSING if selected_item_id.is_empty() else InventoryState.ITEM_SELECTED
-	changed.emit("action_resolved")
+	_equip_request_item_id = ""
+	# El motivo llega como texto libre del sistema que falla (pendiente: códigos)
+	_set_feedback(tr("INVENTORY_ERROR_PREFIX") % reason, true)
 
 
 # ============================================
-# REFRESH INTERNOS
+# REFRESCO AGRUPADO
 # ============================================
 
-func _refresh_all() -> void:
-	_refresh_inventory_slots()
-	_refresh_equipment_slots()
-	_refresh_stats()
-	if not selected_item_id.is_empty():
-		_refresh_detail()
+func _mark_dirty(kind: String) -> void:
+	var was_empty: bool = _dirty.is_empty()
+	_dirty[kind] = true
+	if was_empty:
+		call_deferred("_flush_dirty")
 
 
-func _refresh_inventory_slots() -> void:
-	inventory_slots.clear()
-	var inv: Dictionary = Inventory.get_inventory(entity_id)
+func _flush_dirty() -> void:
+	if state == InventoryState.HIDDEN:
+		_dirty.clear()
+		return
 
-	for item_id in inv.keys():
-		var instance: ItemInstance = inv[item_id]
-		var is_eq: bool = Equipment.is_item_equipped(entity_id, item_id)
-		inventory_slots.append(SlotData.from_instance(instance, is_eq))
+	var equipment_dirty: bool = _dirty.has("equipment")
+	var bag_dirty: bool = _dirty.has("inventory")
+	var stats_dirty: bool = _dirty.has("stats")
+	_dirty.clear()
 
-	# Rellenar hasta MAX_SLOTS con slots vacíos
-	while inventory_slots.size() < MAX_SLOTS:
-		inventory_slots.append(SlotData.empty())
+	if equipment_dirty:
+		_rebuild_equipment()
+	if bag_dirty:
+		_rebuild_bag()
+	if stats_dirty:
+		_rebuild_stats()
+
+	# Si cambió la mochila o el equipo, el detalle (cantidad, equipado) puede
+	# estar obsoleto; si el ítem ya no existe, se limpia la selección.
+	var selection_dirty: bool = false
+	if (bag_dirty or equipment_dirty) and not selected_item_id.is_empty():
+		if not Inventory.has_item(entity_id, selected_item_id):
+			selected_item_id = ""
+		_rebuild_detail()
+		selection_dirty = true
+
+	# Todo el estado ya es coherente: ahora se avisa a la View
+	if equipment_dirty:
+		changed.emit("equipment")
+	if bag_dirty:
+		changed.emit("inventory")
+	if stats_dirty:
+		changed.emit("stats")
+	if selection_dirty:
+		changed.emit("selection")
 
 
-func _refresh_equipment_slots() -> void:
-	equipment_slots.clear()
-	for slot_id in EQUIPMENT_SLOTS:
-		var item_id: String = Equipment.get_equipped_item(entity_id, slot_id)
+# ============================================
+# CONSTRUCCIÓN DE SNAPSHOTS
+# ============================================
+
+func _rebuild_bag() -> void:
+	bag_items.clear()
+	var inventory: Dictionary = Inventory.get_inventory(entity_id)
+	for item_id in inventory.keys():
+		var instance: ItemInstance = inventory[item_id]
+		if instance:
+			bag_items.append(instance)
+
+
+func _rebuild_equipment() -> void:
+	equipped_items.clear()
+	var all_equipment: Dictionary = Equipment.get_all_equipment(entity_id)
+	for slot_id in all_equipment.keys():
+		var item_id: String = all_equipment[slot_id]
 		if item_id.is_empty():
-			equipment_slots.append(EquipSlotData.empty(slot_id))
-		else:
-			var item_def: ItemDefinition = Items.get_item(item_id)
-			if item_def:
-				equipment_slots.append(EquipSlotData.from_equipped(slot_id, item_def))
-			else:
-				equipment_slots.append(EquipSlotData.empty(slot_id))
+			continue
+		var item_def: ItemDefinition = Items.get_item(item_id)
+		if item_def:
+			equipped_items[slot_id] = item_def
 
 
-func _refresh_stats() -> void:
-	stat_hp           = Resources.get_resource_amount(entity_id, "health")
-	stat_stamina      = Resources.get_resource_amount(entity_id, "stamina")
-	stat_gold         = Resources.get_resource_amount(entity_id, "gold")
-	stat_strength     = Characters.get_base_attribute(entity_id, "strength")
-	stat_dexterity    = Characters.get_base_attribute(entity_id, "dexterity")
+func _rebuild_stats() -> void:
+	stat_health = Resources.get_resource_amount(entity_id, "health")
+	stat_stamina = Resources.get_resource_amount(entity_id, "stamina")
+	stat_gold = Resources.get_resource_amount(entity_id, "gold")
+	stat_strength = Characters.get_base_attribute(entity_id, "strength")
+	stat_dexterity = Characters.get_base_attribute(entity_id, "dexterity")
 	stat_constitution = Characters.get_base_attribute(entity_id, "constitution")
 
-	var hp_state = Resources.get_resource_state(entity_id, "health")
-	var st_state = Resources.get_resource_state(entity_id, "stamina")
-	stat_hp_max      = hp_state.max_effective if hp_state else 100.0
-	stat_stamina_max = st_state.max_effective if st_state else 100.0
+
+func _rebuild_detail() -> void:
+	detail = null
+	var item_def: ItemDefinition = null
+	if not selected_item_id.is_empty():
+		item_def = Items.get_item(selected_item_id)
+
+	if item_def:
+		var data := DetailData.new()
+		data.item_def = item_def
+		data.quantity = Inventory.get_item_quantity(entity_id, selected_item_id)
+		data.is_equipped = Equipment.is_item_equipped(entity_id, selected_item_id)
+		detail = data
+
+	if state != InventoryState.HIDDEN:
+		state = InventoryState.ITEM_SELECTED if detail != null else InventoryState.BROWSING
 
 
-func _refresh_detail() -> void:
-	if selected_item_id.is_empty():
-		detail = null
-		return
+# ============================================
+# AUXILIARES
+# ============================================
 
-	var item_def: ItemDefinition = Items.get_item(selected_item_id)
-	if not item_def:
-		detail = null
-		return
-
-	detail = DetailData.new()
-	detail.item_def   = item_def
-	detail.quantity   = Inventory.get_item_quantity(entity_id, selected_item_id)
-	detail.is_equipped = Equipment.is_item_equipped(entity_id, selected_item_id)
-
-	# Ítem en competencia (para comparación de equipamiento)
-	if item_def.item_type == "EQUIPMENT":
-		var slot: String = _find_slot_for_item(item_def)
-		if not slot.is_empty():
-			var current_id: String = Equipment.get_equipped_item(entity_id, slot)
-			if not current_id.is_empty() and current_id != selected_item_id:
-				detail.competing_item_def = Items.get_item(current_id)
-
-	# Acciones disponibles
-	detail.can_use     = item_def.usable and item_def.item_type == "CONSUMABLE"
-	detail.can_equip   = item_def.item_type == "EQUIPMENT" and not detail.is_equipped
-	detail.can_unequip = item_def.item_type == "EQUIPMENT" and detail.is_equipped
+func _set_feedback(message: String, is_error: bool) -> void:
+	feedback_message = message
+	feedback_is_error = is_error
+	changed.emit("feedback")
 
 
-func _find_slot_for_item(item_def: ItemDefinition) -> String:
-	for slot_id in EQUIPMENT_SLOTS:
-		if item_def.has_tag(slot_id):
-			return slot_id
-	return ""
+## Nombre traducido de un ítem; si no existe la definición, su id
+func _item_name(item_id: String) -> String:
+	var item_def: ItemDefinition = Items.get_item(item_id)
+	return tr(item_def.name_key) if item_def else item_id
+
+
+## Nombre visible de un slot de equipo; si no hay clave, el id capitalizado
+func _slot_display_name(slot_id: String) -> String:
+	var key: String = "INVENTORY_SLOT_" + slot_id.to_upper()
+	var text: String = tr(key)
+	return text if text != key else slot_id.capitalize()
