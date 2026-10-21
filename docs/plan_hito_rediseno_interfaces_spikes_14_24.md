@@ -1,14 +1,15 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-10-20 (cierre del Spike 15)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-10-21 (cierre del Spike 16, partes A y B)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
 cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
-código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14 y 15
-están cerrados y validados en partida real** (informes en
-`docs/spike_14_reinicio_sesion.md` y `docs/spike_15_cimientos_design_system.md`);
-el resto está sin implementar.
+código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15
+y 16 (partes A y B) están cerrados y validados en partida real** (informes en
+`docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md` y
+`docs/spike_16_tienda.md`); el resto está sin implementar. La **16c** (devolución del
+préstamo) queda abierta, sin planificar.
 
 ---
 
@@ -18,7 +19,8 @@ el resto está sin implementar.
 |---|---|---|---|
 | 14 | Reinicio de sesión y teardown (motor) — **cerrado** | Medio | — |
 | 15 | Cimientos del Design System — **cerrado** | Medio | — |
-| 16 | Tienda (piloto de adopción del DS) | Bajo | 15 |
+| 16 | Tienda (piloto de adopción del DS) — **cerrado (A y B)**; 16c pendiente | Bajo | 15 |
+| 16c | Devolución del préstamo `quest_loan` al sheriff (sin planificar) | Bajo-medio | 16 |
 | 17 | Inventario A: contrato MVVM, sin cambio visual | Alto | 15 |
 | 18 | Inventario B: rediseño con `UISlot` | Medio | 17 |
 | 19 | Party | Medio-alto | 18 |
@@ -30,7 +32,9 @@ el resto está sin implementar.
 
 - **14 y 15 están cerrados:** perder un combate lleva al menú principal con la
   sesión reiniciada, y el Design System está listo (tokens fusionados, `UIPanel`
-  corregido, diálogo con rejilla de opciones). Lo que sigue empieza por el 16.
+  corregido, diálogo con rejilla de opciones). **El 16 también:** la tienda ya usa el
+  DS y el préstamo de la lanza funciona (la devolución, 16c, sigue abierta). Lo que
+  sigue empieza por el 17.
 - **Orden flexible:** entre 16, 19, 20, 21 y 23 se puede reordenar siempre que
   se respeten las dependencias. 23 (pantalla de inicio) no depende de ninguna
   otra pantalla.
@@ -352,20 +356,45 @@ anunciado; el diálogo muestra esquineras y no escupe warnings; el diálogo del
 sheriff cabe sin scroll en ventana de 648; el experimento de resolución queda
 documentado con capturas.
 
-### Spike 16 — Tienda
+### Spike 16 — Tienda — CERRADO (partes A y B; 16c pendiente)
 
-**Objetivo:** primera adopción real del Design System; riesgo bajo.
+**Informe de cierre:** `docs/spike_16_tienda.md`. Cerrado y validado en partida real
+el 2026-10-21.
 
-**Alcance:** maqueta de 2-3 layouts; `UIPanel` con marco; `UIButton`; tokens;
-sustituir `Color(...)` literales; localizar "Gold", "Shop", "Slots"; rediseñar
-`ShopItemSlot` como fila del DS. Mantener `show_shop_direct()`, la señal de
-cierre por `shop_closed` y los nombres `%`. Layout con anclas y fracciones
-(`shop_ui.tscn` tiene 4 offsets fijos grandes); claves `SHOP_*`.
+**Parte A — rediseño con el DS.** `UIPanel` `OVERLAY` con marco, `UIButton`, `UITokens`,
+anclas y fracciones (panel al 90 % × 90 %), textos `SHOP_*` y `ShopItemSlot` como fila
+(`extends UIPanel`). Dos columnas: inventario del jugador a la izquierda, tienda a la
+derecha, oro en la cabecera de cada columna, cierre arriba a la derecha (sin pie). Se
+conservan `show_shop_direct()`, `shop_closed` y los nombres `%`. `set_busy(bool)` sustituye
+a `has_method("_update_display")`; `%IconRect` es ahora un `TextureRect` oculto (gancho
+para iconos); `layer = 10`; el mensaje de éxito distingue compra/venta con el nombre
+visible. 23 claves nuevas en `shops.csv` (`id,en,es`).
 
-**Validación:** comprar, vender, oro insuficiente, tienda sin hueco, Esc, cierre
-devuelve a exploración, herrería de Los Telmori. **Absorbe de la
-recopilación (§6, Spike 13):** lanza equipada frente a lanza vendida
-(comportamiento del préstamo `quest_loan`).
+**Parte B (16b) — préstamo `quest_loan`.** La lanza encantada tenía `base_value = 0` y
+daba `INVALID_ITEM`: bloqueaba la aventura. `EconomySystem` trata ahora el tag
+`quest_loan`: se toma sin coste, no se vende, la fila muestra "Préstamo"/"Tomar".
+`trade_type` gana el valor `"loan"`. Primer cambio del hito que toca el core.
+
+**Lo que la Fase 0 corrigió de la spec:** los botones nunca quedaban deshabilitados
+(`_render_snapshot` los reactivaba); snapshot no homogéneo (`shop_can_afford`,
+`shop_has_slot`, `total_price` solo en `player_items_sellable`; sin icono); tooltip
+equivocado en venta; `ShopUI` sin `layer`; rutas reales `core/economy/`.
+
+**Sin confirmar en partida:** parte B puntos 4-7 (warning de `PriceCalculator`,
+lanza equipada no vendible, derrota → partida nueva, compra/venta normales tras el
+parche), tooltips `NO_BUDGET`/`NO_SLOTS`, tienda vacía y el camino `LOAN_ITEM`.
+
+### Spike 16c — Devolución del préstamo (sin planificar)
+
+**Problema (confirmado en partida):** `take_item` del sheriff
+(`narrative_scene_viewmodel.gd:365-374`) solo actúa sobre `take_item_target`
+(`"player"`). Si la lanza está en el inventario de un compañero (se interpreta, sin
+confirmar, que con Mira), imprime "nada que quitar" y la aventura termina sin devolverla.
+
+**Fase 0 prevista:** quién tiene la lanza; si debe buscarse en toda la party o en la
+entidad que la tomó; si `take_item` admite un destino «cualquiera de la party» sin
+hardcodear lógica; qué ocurre si la lanza está equipada. Se abrirá aparte, con su propia
+Fase 0; no bloquea el 17.
 
 ### Spike 17 — Inventario A: contrato MVVM
 
@@ -388,6 +417,10 @@ arrastre; usar consumible; fallo de uso; cierre correcto de la capa más profund
 en el anidado narrativa → PlayerMenu → Inventory.
 
 ### Spike 18 — Inventario B: rediseño
+
+**Heredado del 16:** la fila de lista (`ShopItemSlot`) y el patrón de dos columnas con
+cabecera son reutilizables; añadir iconos/descripción al snapshot de `EconomySystem`
+(tienda) si se quiere mostrarlos allí.
 
 **Alcance:** maqueta de 2-3 layouts; `UISlot` (primer consumidor real, pueden
 aparecer huecos: arrastre, `equipment_slot_id`, estados); `UIPanel` con marco;
@@ -484,7 +517,7 @@ cambia.
 | Pantalla de Loadout: pista visual del primer clic (§4) | 20 |
 | Claves `LOADOUT_*` sin traducir (§5) | 20 |
 | Claves `SKILL_*_NAME` sin traducir (§5) | 15 — **resuelto** (`skills.csv`); revisión de textos en 21 |
-| Lanza equipada frente a lanza vendida (§6) | 16 |
+| Lanza equipada frente a lanza vendida (§6) | 16 — **resuelto en parte**: el préstamo no se vende (16b); vender un objeto equipado queda sin probar; devolución → 16c |
 | Hito de rediseño de interfaces (§8) | todo el documento |
 
 ## 6. Pendientes nuevos detectados en esta ronda
@@ -555,6 +588,24 @@ resolución decidida sin estiramiento.)_
 - Resolución del arte 848×1264: ¿retratos? → spike de la pantalla que los use.
 - Saludo del sheriff de 3 líneas con las 6 opciones a 648 de alto: previsto un
   recorte de ~4 px, no observado. → revisar en partida.
+- **Spike 16 (sin confirmar en partida):** parte B puntos 4-7; tooltips
+  `NO_BUDGET`/`NO_SLOTS`; tienda vacía; camino `LOAN_ITEM` de `sell_item`.
+- **Vender un objeto equipado** (inferido): `equip_item` no saca el objeto del inventario
+  y `sell_item` solo comprueba `has_item`; podría quedar un slot de equipo apuntando a un
+  objeto vendido. → 17/18.
+- **Comprar con inventario lleno:** `buy_item` omite la validación de espacio
+  (`InventorySystem` no tiene `can_add_item`).
+- **`accepted_tags`** sin aplicar en `ShopInstance.can_buy_from_player` (hay un `TODO`) e
+  **`INSUFFICIENT_STOCK`** sin traducir en `ShopViewModel._error_message`.
+- Limpieza de la tienda: doble `create_shop_snapshot` al abrir y `print` de depuración
+  en `_get_player_items_sellable`.
+- **Contraste de botones deshabilitados** (`COLOR_TEXT_DISABLED` sobre bronce oscuro):
+  es de `UIButton`/DS, decisión aplazada.
+- **Poción de vida:** `ITEM_HEALTH_POTION_DESC` (`items.csv`, línea 5) con espacio inicial
+  en ES y efecto inconsistente (EN "10", ES "50", `health_potion.tres` `value = 10.0`).
+- **Iconos y descripción en el snapshot de la tienda:** `ItemDefinition.icon` y
+  `description_key` existen pero `EconomySystem` no los transporta; la fila ya muestra
+  `icon` si llega. → 18.
 - Retrato del posadero: es un placeholder (muestra el del sheriff); se diseñará uno propio más adelante. No entra en el Spike 16 (la tienda no usa retratos).
 - Idioma inglés de lo tocado en el Spike 15 y comando de columnas de los `.csv`
   tras los cambios: sin confirmar.

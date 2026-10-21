@@ -1,6 +1,6 @@
 # Athelia — Design System: Guía de implementación
 
-*Última actualización: Spike 15 — Cimientos del Design System (2026-10-20).*
+*Última actualización: Spike 16 — Tienda, primera pantalla del Design System (2026-10-21). Anterior: Spike 15 — Cimientos del Design System (2026-10-20).*
 
 ## Estructura de archivos
 
@@ -121,9 +121,9 @@ Configuración en Inspector:
 
 | Variante | Qué es | Consumidores hoy |
 |---|---|---|
-| `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation (3 paneles), Diálogo, Narrativa, sub-paneles del menú principal |
+| `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation (3 paneles), Diálogo, Narrativa, sub-paneles del menú principal, cabeceras de columna y filas (`ShopItemSlot`) de la tienda |
 | `POPUP` | Fondo `COLOR_PANEL_ALT`, borde de foco, padding 8 | ninguno |
-| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | ninguno |
+| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda (panel principal, con marco decorativo) |
 
 `OVERLAY` se documentaba como semitransparente, pero nunca lo fue. Si hiciera falta
 transparencia, hay que añadirla de forma explícita.
@@ -271,6 +271,40 @@ global de Button solo para botones que NO usen `UIButton`:
 
 ---
 
+## Tienda — primera pantalla del Design System (Spike 16)
+
+Ejemplo de referencia de una pantalla completa con `UIPanel` `OVERLAY` + marco
+decorativo (anclas 0.05–0.95), cabeceras `UIPanel`, `UIButton` y tokens, y del
+patrón de **fila de lista** (`ShopItemSlot`). Reutilizable en Party (Spike 19) e
+Inventario (Spike 18).
+
+### Fila de lista: `ShopItemSlot`
+
+`[icono opcional] [nombre] [xN] [precio] [botón]`
+
+- **Raíz:** `PanelContainer` con script que `extends UIPanel` (variante `DEFAULT`).
+  Fija `padding = UITokens.SPACE_XS` **antes** de `super._ready()`: el estilo se
+  aplica en el `_ready()` de `UIPanel` con el padding que tenga en ese momento.
+- **Contrato:** `setup(item_data, buy_mode)` **después** de `add_child()`; señal
+  `item_clicked(item_id, is_buy)`; `set_busy(bool)` bloquea la acción durante una
+  transacción y nunca habilita lo que la fila no permite.
+- **Estados con tokens, sin `modulate`:** no asequible (precio `COLOR_DANGER_SOFT`,
+  botón deshabilitado, tooltip) y no disponible (`TEXT_MUTED`).
+- **Préstamo:** la clave opcional `"is_loan"` cambia el precio por «Préstamo»
+  (`COLOR_INFO`) y el botón por «Tomar»; en venta el botón queda bloqueado.
+- **Gancho de icono:** `%IconRect` está oculto hasta que la entrada traiga la clave
+  `"icon"` (`Texture2D`).
+- **Hover:** `BG_RAISED` + `BORDER_ACCENT`; `mouse_exited` se emite también al entrar
+  en un hijo, así que solo cuenta como salida fuera de `get_global_rect()`.
+- **Listas:** `VBoxContainer` en `ScrollContainer` (scroll horizontal desactivado);
+  al reconstruir, `remove_child()` antes de `queue_free()`; mensaje de lista vacía
+  en un `Label` hermano del scroll.
+- **Cuidado al montar la escena a mano:** un `PanelContainer` apila todos sus hijos
+  en el mismo rectángulo. El contenido de un panel va dentro de un único
+  `VBoxContainer`/`HBoxContainer`.
+
+---
+
 ## Reglas de uso
 
 ### ✅ Obligatorio
@@ -284,8 +318,8 @@ global de Button solo para botones que NO usen `UIButton`:
 - Todo texto visible con `tr()` y clave de localización, formato `PANTALLA_ELEMENTO`
   (prefijo de pantalla en mayúsculas)
 
-*Las pantallas anteriores al hito (inventario, tienda, party, menú del jugador…)
-todavía no usan `UIPanel`; migran en el spike de cada una (ver plan del hito).*
+*Las pantallas anteriores al hito (inventario, party, menú del jugador…)
+todavía no usan `UIPanel` (la tienda ya migró en el Spike 16); migran en el spike de cada una (ver plan del hito).*
 
 ### ❌ Prohibido
 

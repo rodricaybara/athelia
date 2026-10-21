@@ -15,6 +15,11 @@ extends Node
 ##   - Calcular precios ni validar reglas
 ##   - Renderizar nada
 ##   - Instanciar nodos
+##
+## Spike 16: el mensaje de éxito distingue compra de venta y muestra el nombre
+## visible del objeto (antes decía siempre "Comprado" y mostraba el id interno).
+## Spike 16b: trade_type "loan" (objeto de préstamo tomado de la tienda) y
+## código de error LOAN_ITEM (intento de vender un préstamo).
 
 
 # ============================================
@@ -115,7 +120,7 @@ func request_close() -> void:
 # ============================================
 
 func _on_trade_success(
-		_trade_type: String,
+		trade_type: String,
 		p_shop_id: String,
 		item_id: String,
 		quantity: int,
@@ -124,8 +129,12 @@ func _on_trade_success(
 	if p_shop_id != shop_id:
 		return
 
+	# El nombre visible se busca en el snapshot ANTERIOR: tras vender el último
+	# ejemplar, el objeto ya no aparece en la lista del jugador.
+	var item_name: String = _find_display_name(item_id)
+
 	snapshot          = new_snapshot
-	feedback_message  = tr("SHOP_TRADE_SUCCESS") % [item_id, quantity]
+	feedback_message  = tr(_success_message_key(trade_type)) % [item_name, quantity]
 	feedback_is_error = false
 	state             = ShopState.BROWSING
 	changed.emit("trade_success")
@@ -152,6 +161,24 @@ func _on_snapshot_updated(p_shop_id: String, new_snapshot: Dictionary) -> void:
 # HELPERS
 # ============================================
 
+## Clave de localización del mensaje de éxito según el tipo de transacción.
+func _success_message_key(trade_type: String) -> String:
+	match trade_type:
+		"buy":  return "SHOP_TRADE_SUCCESS"
+		"loan": return "SHOP_TRADE_LOANED"
+		_:      return "SHOP_TRADE_SOLD"
+
+
+## Nombre visible de un objeto según el snapshot actual; el id si no aparece.
+func _find_display_name(item_id: String) -> String:
+	for list_key: String in ["items_for_sale", "player_items_sellable"]:
+		var entries: Array = snapshot.get(list_key, [])
+		for entry: Dictionary in entries:
+			if entry.get("item_id", "") == item_id:
+				return entry.get("display_name", item_id) as String
+	return item_id
+
+
 func _error_message(reason_code: String) -> String:
 	match reason_code:
 		"NO_MONEY":        return tr("SHOP_ERROR_NO_MONEY")
@@ -160,4 +187,5 @@ func _error_message(reason_code: String) -> String:
 		"NO_BUDGET":       return tr("SHOP_ERROR_NO_BUDGET")
 		"PLAYER_NO_ITEM":  return tr("SHOP_ERROR_PLAYER_NO_ITEM")
 		"INVALID_ITEM":    return tr("SHOP_ERROR_INVALID_ITEM")
+		"LOAN_ITEM":       return tr("SHOP_ERROR_LOAN_ITEM")
 		_:                 return tr("SHOP_ERROR_GENERIC") % reason_code

@@ -51,7 +51,7 @@ athelia/
 │   │   └── dialogue_option_definition.gd
 │   │
 │   ├── economy/                    # Sistema económico
-│   │   ├── economy_system.gd       # [Autoload: Economy] — **Spike 14:** `reset_session()` descarta las `ShopInstance` (stock y presupuesto mutados) y recarga las definiciones de `res://data/shops/`
+│   │   ├── economy_system.gd       # [Autoload: Economy] — **Spike 14:** `reset_session()` descarta las `ShopInstance` (stock y presupuesto mutados) y recarga las definiciones de `res://data/shops/` — **Spike 16b:** el tag `quest_loan` (`ItemDefinition.has_tag`) se trata como préstamo: `LOAN_TAG`, `_is_loan_item()`, `_take_loan()` y `_execute_loan_transaction()` (se toma sin coste y sin `PriceCalculator`, `trade_type = "loan"`); `sell_item` lo rechaza con `LOAN_ITEM`; las entradas de `items_for_sale` y `player_items_sellable` llevan `is_loan`
 │   │   ├── price_calculator.gd     # Cálculo de precios dinámicos
 │   │   ├── shop_definition.gd      # Resource: definición de tienda
 │   │   ├── shop_instance.gd        # Estado de instancia de tienda
@@ -192,7 +192,7 @@ athelia/
 │   │       ├── weapon/
 │   │       │   ├── iron_sword.tres / .png
 │   │       │   ├── shortbow.tres
-│   │       │   └── enchanted_spear.tres   # Spike 3, Grupo B — ítem de ranura manda sobre aventura
+│   │       │   └── enchanted_spear.tres   # Spike 3, Grupo B — ítem de ranura manda sobre aventura — **Spike 16b:** tag `quest_loan` (`base_value = 0`): la tienda lo trata como préstamo (se toma sin coste, no se vende)
 │   │       ├── body/
 │   │       │   └── leather_armor.tres / .png
 │   │       ├── head/
@@ -270,7 +270,7 @@ athelia/
 │   │
 │   ├── shops/                      # Definiciones de tiendas
 │   │   ├── blacksmith_01.tres
-│   │   └── blacksmith_telmori.tres   # ← NUEVO (Spike 13) — tienda propia de la aventura: stock de blacksmith_01 + `enchanted_spear` (valor 0, `quest_loan`: sale gratis) y 20 `silver_arrow` (2 de oro c/u); `max_slots` 16 (con 12 no cabían las dos armas nuevas)
+│   │   └── blacksmith_telmori.tres   # ← NUEVO (Spike 13) — tienda propia de la aventura: stock de blacksmith_01 + `enchanted_spear` (valor 0, `quest_loan`: **Spike 16b** — se toma en préstamo desde la tienda, sin coste y sin poder venderse) y 20 `silver_arrow` (2 de oro c/u); `max_slots` 16 (con 12 no cabían las dos armas nuevas)
 │   │
 │   ├── skills/                     # Habilidades por categoría
 │   │   ├── combat/
@@ -334,7 +334,8 @@ athelia/
 │   ├── mejoras_grupo5_combate_produccion_informe_cierre.md  # ← NUEVO: pantalla de combate de producción completa — UIRadialGauge/UICombatToken, CombatArenaViewModel/Panel, combat_production_scene.gd, integración real en SceneOrchestrator, jugado de principio a fin en "Los Telmori"
 │   ├── spike_13_reautoria_pueblo_telmori.md  # ← NUEVO (Spike 13): el pueblo de Los Telmori sobre el motor de escenas interactivas — resultado, plan frente a lo hecho, validación
 │   ├── spike_14_reinicio_sesion.md  # ← NUEVO (Spike 14): reinicio de sesión y teardown — causa raíz, `SessionReset`/`EntityLifecycle`, Game Over con ViewModel, validación en partida real y pendientes
-│   └── spike_15_cimientos_design_system.md  # ← NUEVO (Spike 15): cimientos del Design System — resolución (sin estiramiento, con el experimento), tokens fusionados con alias, `UIPanel`, diálogo en rejilla, localización (`skills.csv`), validación y pendientes
+│   ├── spike_15_cimientos_design_system.md  # ← NUEVO (Spike 15): cimientos del Design System — resolución (sin estiramiento, con el experimento), tokens fusionados con alias, `UIPanel`, diálogo en rejilla, localización (`skills.csv`), validación y pendientes
+│   └── spike_16_tienda.md  # ← NUEVO (Spike 16, incluye la 16b): tienda sobre el Design System — decisiones y correcciones de la Fase 0, préstamo `quest_loan`, 23 claves `SHOP_*`, validación en partida real, lecciones y pendientes (16c: devolución del préstamo al sheriff, sin planificar)
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales — **Spike 15:** 29 claves duplicadas eliminadas (idénticas a su primera copia) y las `SKILL_<ID>_NAME`/`_DESC` movidas a `skills.csv`; se quedan aquí `SKILL_TREE_*`, `SKILL_SUBCATEGORY_*` y `SKILL_FILTER_*` (textos de pantalla)
@@ -349,6 +350,9 @@ athelia/
 │   ├── skills.csv                  # ← NUEVO (Spike 15) — `SKILL_<ID>_NAME` / `SKILL_<ID>_DESC` de TODAS las habilidades (formato `id,en,es`): 13 que estaban en `translations.csv` + 7 que no tenían traducción (`ENEMY_BASIC_ATTACK`, `LOCKPICK`, `PERCEPTION`, `SEARCH`, `SPRINT`, `STEALTH`, `TRACK`). Requiere alta manual en Project Settings → Localization → Translations
 │   ├── skills.en.translation
 │   ├── skills.es.translation
+│   ├── shops.csv                   # **Spike 16:** + 23 claves `SHOP_*` de la pantalla de tienda (formato `id,en,es`): título, cabeceras (oro, huecos), precio/cantidad, botones Comprar/Vender/Cerrar, tooltips (`NO_GOLD`, `NO_BUDGET`, `NO_STOCK`, `NO_SLOTS`), listas vacías y `SHOP_TRADE_SOLD`; **16b:** `SHOP_PRICE_LOAN`, `SHOP_TAKE`, `SHOP_TOOLTIP_LOAN`, `SHOP_TRADE_LOANED`, `SHOP_ERROR_LOAN_ITEM`. Ya contenía `SHOP_TELMORI_BLACKSMITH_NAME/DESC`. `translations.csv` conserva `SHOP_BLACKSMITH_*`, `SHOP_TRADE_SUCCESS` y `SHOP_ERROR_*`. Registrado en Project Settings → Localization → Translations
+│   ├── shops.en.translation
+│   ├── shops.es.translation
 │   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
 │   ├── items.en.translation
 │   ├── items.es.translation
@@ -458,7 +462,7 @@ athelia/
     │   │   ├── ui_button/
     │   │   │   ├── ui_button.gd   # Spike 13: + `min_square` (botón cuadrado de solo icono) e `icon_backdrop` (disco oscuro semitransparente tras el icono) — ambos opt-in, apagados por defecto
     │   │   │   └── ui_button.tscn
-    │   │   ├── ui_panel/           # Spike 9: + decorative_frame / corner_texture (marco ornamental opt-in, _draw() sobre el propio panel; con el marco activo anula borde y corner_radius del stylebox) — **Spike 15:** esquinera por defecto (`UITokens.FRAME_CORNER_TEXTURE_PATH`) si no hay `corner_texture`, padding mínimo con marco (`FRAME_MIN_PADDING`), setters con `is_node_ready()` (activación en runtime), `push_warning` fuera de `_draw()` y una sola vez, docstring corregido (`OVERLAY` es opaco)
+    │   │   ├── ui_panel/           # Spike 9: + decorative_frame / corner_texture (marco ornamental opt-in, _draw() sobre el propio panel; con el marco activo anula borde y corner_radius del stylebox) — **Spike 15:** esquinera por defecto (`UITokens.FRAME_CORNER_TEXTURE_PATH`) si no hay `corner_texture`, padding mínimo con marco (`FRAME_MIN_PADDING`), setters con `is_node_ready()` (activación en runtime), `push_warning` fuera de `_draw()` y una sola vez, docstring corregido (`OVERLAY` es opaco) — **Spike 16:** consumidores reales: `DEFAULT` (cabeceras y filas `ShopItemSlot` de la tienda) y `OVERLAY` (panel principal de la tienda, con marco)
     │   │   │   ├── ui_panel.gd
     │   │   │   └── ui_panel.tscn
     │   │   ├── ui_slot/
@@ -545,12 +549,12 @@ athelia/
     │   ├── player_menu_screen.gd
     │   └── player_menu_screen.tscn
     │
-    ├── shop/                       # Tienda (patrón MVVM)
-    │   ├── shop_viewmodel.gd
-    │   ├── shop_ui.gd
-    │   ├── shop_ui.tscn
-    │   ├── shop_item_slot.gd
-    │   └── shop_item_slot.tscn
+    ├── shop/                       # Tienda (patrón MVVM) — **Spike 16:** primera pantalla del hito que adopta el Design System; **16b:** soporte de préstamo
+    │   ├── shop_viewmodel.gd       # **Spike 16:** `_on_trade_success` distingue compra/venta/préstamo (`_success_message_key`) y muestra el nombre visible; **16b:** traduce `LOAN_ITEM`
+    │   ├── shop_ui.gd              # **Spike 16:** `CanvasLayer` con `layer = 10`, estilo solo con tokens, dos columnas, listas vacías, `FeedbackLabel` de altura reservada
+    │   ├── shop_ui.tscn            # **Spike 16:** `ShopPanel` = `ui_panel.tscn` OVERLAY con marco (anclas 0.05–0.95), `PlayerColumn`/`ShopColumn`, `CloseButton` = `ui_button.tscn`
+    │   ├── shop_item_slot.gd       # **Spike 16:** fila de lista, `extends UIPanel` (`setup()`, `set_busy()`, `item_clicked`, gancho de icono); **16b:** `is_loan` («Préstamo» / «Tomar»)
+    │   └── shop_item_slot.tscn     # **Spike 16:** `Row` HBox → `IconRect`, `NameLabel`, `QuantityLabel`, `PriceLabel`, `ActionButton` (`ui_button.tscn`)
     │
     ├── skill_tree/                 # Pantalla de skill tree (patrón MVVM)
     │   ├── skill_tree_viewmodel.gd
@@ -563,4 +567,4 @@ athelia/
         └── world_object_interaction_panel.tscn
 ```
  
----
+---

@@ -13,6 +13,10 @@ extends Node
 ## - Ejecutar lógica de items
 ## - Contener lógica de UI
 
+## Tag de ItemDefinition para objetos prestados por una misión (p. ej. la lanza
+## encantada de Los Telmori): se toman de la tienda sin coste y no se pueden vender.
+const LOAN_TAG: String = "quest_loan"
+
 ## Registro de tiendas: { shop_id: String -> ShopInstance }
 var _shops: Dictionary = {}
 
@@ -174,6 +178,50 @@ func close_shop(shop_id: String):
 ## COMPRA (Tienda → Jugador)
 ## ============================================
 
+## ¿El objeto es un préstamo de misión?
+func _is_loan_item(item_id: String) -> bool:
+	var items: ItemRegistry = get_node_or_null("/root/Items")
+	if items:
+		var item_def: ItemDefinition = items.get_item(item_id)
+		if item_def:
+			return item_def.has_tag(LOAN_TAG)
+	return false
+
+
+## Entrega un préstamo al jugador y lo retira del stock de la tienda.
+## Sin precio, sin oro y sin presupuesto: no pasa por PriceCalculator.
+func _take_loan(shop_id: String, shop: ShopInstance, item_id: String, quantity: int, entity_id: String) -> void:
+	if not _execute_loan_transaction(shop, item_id, quantity, entity_id):
+		EventBus.shop_trade_failed.emit(shop_id, "TRANSACTION_FAILED", "Internal error")
+		return
+
+	var snapshot = _create_shop_snapshot(shop, entity_id)
+	EventBus.shop_trade_success.emit("loan", shop_id, item_id, quantity, snapshot)
+
+	print("[EconomySystem] Loan successful: %s x%d" % [item_id, quantity])
+
+
+## Transacción de préstamo (atómica): jugador recibe el objeto y la tienda lo pierde.
+func _execute_loan_transaction(shop: ShopInstance, item_id: String, quantity: int, entity_id: String) -> bool:
+	# Paso 1: Entregar el objeto al jugador
+	var transfer_success = false
+	if inventory_system and inventory_system.has_method("add_item"):
+		transfer_success = inventory_system.add_item(entity_id, item_id, quantity)
+
+	if not transfer_success:
+		push_error("[EconomySystem] Failed to lend item to player")
+		return false
+
+	# Paso 2: Retirar el objeto del stock de la tienda
+	if not shop.remove_item(item_id, quantity):
+		push_error("[EconomySystem] Failed to remove loan item from shop")
+		# Rollback: quitar el objeto al jugador
+		if inventory_system and inventory_system.has_method("remove_item"):
+			inventory_system.remove_item(entity_id, item_id, quantity)
+		return false
+
+	return true
+
 ## Procesa solicitud de compra
 func buy_item(shop_id: String, item_id: String, quantity: int, entity_id: String = "player"):
 	print("[EconomySystem] Buy request: shop=%s, item=%s, qty=%d" % [shop_id, item_id, quantity])
@@ -188,7 +236,12 @@ func buy_item(shop_id: String, item_id: String, quantity: int, entity_id: String
 	if not can_sell.can:
 		EventBus.shop_trade_failed.emit(shop_id, can_sell.reason, can_sell.context)
 		return
-	
+
+	# 1b. Préstamo de misión: se entrega sin coste
+	if _is_loan_item(item_id):
+		_take_loan(shop_id, shop, item_id, quantity, entity_id)
+		return
+
 	# 2. Calcular precio
 	var base_value = _get_item_base_value(item_id)
 	if base_value <= 0:
@@ -275,7 +328,12 @@ func sell_item(shop_id: String, item_id: String, quantity: int, entity_id: Strin
 	if not shop:
 		EventBus.shop_trade_failed.emit(shop_id, "SHOP_NOT_FOUND", "Shop does not exist")
 		return
-	
+
+	# 0. Los préstamos de misión no se pueden vender
+	if _is_loan_item(item_id):
+		EventBus.shop_trade_failed.emit(shop_id, "LOAN_ITEM", "Item is on loan")
+		return
+
 	# 1. Calcular precio
 	var base_value = _get_item_base_value(item_id)
 	if base_value <= 0:
@@ -368,28 +426,33 @@ func _create_shop_snapshot(shop: ShopInstance, entity_id: String) -> Dictionary:
 	
 	return snapshot
 
-
 ## Obtiene la lista de items en venta
 func _get_items_for_sale(shop: ShopInstance, entity_id: String) -> Array:
 	var items = []
-	
+
 	for item_id in shop.inventory.keys():
 		var item_state = shop.inventory[item_id] as ShopItemState
-		var base_value = _get_item_base_value(item_id)
-		var unit_price = PriceCalculator.calculate_buy_price(base_value, shop.definition.sell_price_factor)
-		
+
+		# Los préstamos de misión no tienen precio (no pasan por PriceCalculator)
+		var is_loan: bool = _is_loan_item(item_id)
+		var unit_price: int = 0
+		if not is_loan:
+			var base_value = _get_item_base_value(item_id)
+			unit_price = PriceCalculator.calculate_buy_price(base_value, shop.definition.sell_price_factor)
+
 		var player_gold = resource_system.get_resource_amount(entity_id, "gold")
-		
+
 		var item_view = {
 			"item_id": item_id,
 			"display_name": _get_item_name(item_id),
 			"quantity": item_state.quantity,
 			"unit_price": unit_price,
-			"is_affordable": player_gold >= unit_price
+			"is_affordable": player_gold >= unit_price,
+			"is_loan": is_loan
 		}
-		
+
 		items.append(item_view)
-	
+
 	return items
 
 ## Obtiene la lista de items que el jugador puede vender
@@ -450,9 +513,12 @@ func _get_player_items_sellable(entity_id: String, shop: ShopInstance) -> Array:
 			print("  -> Skipped (zero quantity)")
 			continue
 		
-		# Calcular precio de venta
-		var base_value = _get_item_base_value(item_id)
-		var unit_price = PriceCalculator.calculate_sell_price(base_value, shop.definition.buy_price_factor)
+		# Calcular precio de venta (los préstamos de misión no tienen precio)
+		var is_loan: bool = _is_loan_item(item_id)
+		var unit_price: int = 0
+		if not is_loan:
+			var base_value = _get_item_base_value(item_id)
+			unit_price = PriceCalculator.calculate_sell_price(base_value, shop.definition.buy_price_factor)
 		var total_price = PriceCalculator.calculate_total_price(unit_price, quantity)
 		
 		var item_view = {
@@ -462,7 +528,8 @@ func _get_player_items_sellable(entity_id: String, shop: ShopInstance) -> Array:
 			"unit_price": unit_price,
 			"total_price": total_price,
 			"shop_can_afford": shop.budget >= unit_price or shop.definition.infinite_budget,  # ⭐ Comparar con unit_price, no total
-			"shop_has_slot": shop.inventory.has(item_id) or shop.inventory.size() < shop.max_slots
+			"shop_has_slot": shop.inventory.has(item_id) or shop.inventory.size() < shop.max_slots,
+			"is_loan": is_loan
 		}
 		
 		items.append(item_view)

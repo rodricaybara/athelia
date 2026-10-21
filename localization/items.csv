@@ -1,8 +1,8 @@
 id,en,es
 ITEM_STAMINA_POTION_SMALL_NAME,Small Stamina Potion,Poción Menor de Estamina
 ITEM_STAMINA_POTION_SMALL_DESC,Restores 50 stamina. A humble but effective brew.,Restaura 50 de resistencia. Una poción humilde pero efectiva.
-ITEM_HEALTH_POTION_NAME,Health Potion, Pocion de vida
-ITEM_HEALTH_POTION_DESC,Restores 10 health, Restaura 50 de vida
+ITEM_HEALTH_POTION_NAME,Health Potion,Poción de vida
+ITEM_HEALTH_POTION_DESC,Restores 10 health, Restaura 10 de vida
 ITEM_IRON_SWORD_NAME,Iron Sword,Espada de hierro
 ITEM_IRON_SWORD_DESC,Old iron sword. Adds 5 damage points,Vieja espada de hierro. Añade 5 puntos de daño
 ITEM_STEEL_SWORD_NAME,Steel Sword,Espada de acero 

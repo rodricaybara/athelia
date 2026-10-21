@@ -15,6 +15,8 @@
 11. [Contrato de pantalla y resolución de referencia (Spike 15)](#contrato-de-pantalla-y-resolución-de-referencia-spike-15)
 12. [Referencia de pantallas existentes](#referencia-de-pantallas-existentes)
 
+Secciones del Design System añadidas después: [fila de lista `ShopItemSlot` (Spike 16)](#design-system--fila-de-lista-shopitemslot-spike-16).
+
 ---
 
 ## Filosofía general
@@ -937,6 +939,17 @@ al construir las fichas, en vez de fiarse de recibir esa señal a tiempo.
 
 ---
 
+### ❌ Nodo hijo colgado del padre equivocado en un `PanelContainer`
+
+Un `PanelContainer` (y por tanto `UIPanel`) coloca **todos** sus hijos en el mismo rectángulo, uno
+encima del otro. Un nodo que debía ir en una columna pero cuelga del panel de cabecera, o un mensaje
+que cuelga del panel en lugar del `VBoxContainer`, no da error: se dibuja superpuesto. Encontrado en
+Spike 16 al montar `shop_ui.tscn` a mano (`ShopItemsScroll` dentro de la cabecera y `FeedbackLabel`
+fuera del `Content`). **Regla:** el contenido de un panel va dentro de un único contenedor de layout
+(`VBoxContainer` / `HBoxContainer`), y al montar escenas a mano se verifica el padre de cada nodo.
+
+---
+
 ## Design System — `UIPanel`: marco decorativo opt-in (Spike 9)
 
 `UIPanel` puede dibujar un marco ornamental (doble filete + esquineras) sobre
@@ -976,11 +989,10 @@ su fondo. Se activa por instancia, nunca por defecto.
   tienen setter y reaplican estilo y redibujan. Los setters de un `@export`
   se ejecutan al cargar la escena **antes de `_ready()`**, así que comprueban
   `is_node_ready()`.
-- **Variantes con consumidores reales (Spike 15):** `DEFAULT` lo usan
-  Character Creation (3 paneles), Diálogo, Narrativa y los sub-paneles del
-  menú principal. `POPUP` y `OVERLAY` no tienen consumidores. **`OVERLAY` es
-  opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0); antes se documentaba
-  como semitransparente, y nunca lo fue.
+- **Variantes con consumidores reales (Spike 16):** `DEFAULT` lo usan Character Creation (3 paneles),
+  Diálogo, Narrativa, los sub-paneles del menú principal, las cabeceras de columna de la tienda y la
+  fila `ShopItemSlot`. **`OVERLAY` lo usa la tienda** (panel principal, con marco). `POPUP` no tiene
+  consumidores. **`OVERLAY` es opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0).
 - **Diagnóstico si «no cambia nada»:** un `print` en `_ready()` con
   `decorative_frame` distingue «el script nuevo no carga» de «el flag no
   está activo en esa instancia» en una sola ejecución.
@@ -1007,6 +1019,35 @@ Reglas que se descubrieron:
 - Un hotspot sin `icon_path` válido sigue siendo un botón de texto del Design System: sirve de fallback sin código extra.
 - `UICombatToken` (la "ficha de combate") **no** es reutilizable como icono de mapa: está acoplado al combate (anillos de vida/energía, triángulo de turno, retícula). Los iconos de hotspot son PNG propios.
 
+
+## Design System — fila de lista: `ShopItemSlot` (Spike 16)
+
+Patrón reutilizable (Party, Inventario) para una lista de objetos con acción por fila:
+`[icono opcional] [nombre] [xN] [precio] [botón]`.
+
+- **Raíz:** `PanelContainer` con un script que `extends UIPanel` (variante `DEFAULT`). El script fija
+  `padding = UITokens.SPACE_XS` **antes** de `super._ready()`: el estilo se aplica en el `_ready()` de
+  `UIPanel` con el padding que tenga en ese momento. Alto 40 px, suelo de anchura 380 px
+  (un `Label` con elipsis tiene anchura mínima 0).
+- **Contrato:** `setup(item_data, buy_mode)` **después** de `add_child()` (sin `await` en la View);
+  señal `item_clicked(item_id, is_buy)`; `set_busy(bool)` bloquea la acción mientras hay una
+  transacción en vuelo y se combina con el estado propio de la fila (nunca habilita lo que no se
+  puede comprar o vender). No se comprueban métodos por nombre.
+- **Estados con tokens, sin `modulate`:** normal, no asequible (precio `COLOR_DANGER_SOFT`, botón
+  deshabilitado, tooltip), no disponible (texto `TEXT_MUTED`, botón deshabilitado, tooltip).
+- **Préstamo (16b):** la clave opcional `"is_loan"` de la entrada cambia el precio por «Préstamo»
+  (`COLOR_INFO`), el botón de compra por «Tomar» y bloquea el de venta con su tooltip.
+- **Hover:** `BG_RAISED` con `BORDER_ACCENT` sobreescribiendo el estilo `panel`; se restaura con
+  `_apply_style()`. `mouse_exited` se emite también al entrar en un hijo: solo es salida si el ratón ya
+  no está dentro de `get_global_rect()`.
+- **Gancho de icono:** `%IconRect` (`TextureRect`) permanece oculto hasta que la entrada del snapshot
+  traiga la clave `"icon"` (un `Texture2D`). Cuando `EconomySystem` la incluya, la fila lo muestra sin
+  más cambios.
+- **Listas:** `VBoxContainer` dentro de `ScrollContainer` con `horizontal_scroll_mode = DISABLED`.
+  Al reconstruir, `remove_child()` antes de `queue_free()`. Mensaje de lista vacía en un `Label`
+  hermano del scroll.
+
+---
 
 ## Contrato de pantalla y resolución de referencia (Spike 15)
 
@@ -1069,7 +1110,7 @@ defecto (ventana de 1152×648, sin `stretch/mode`). `canvas_items` con base
 | WorldObject | `world_object_panel_viewmodel.gd` | `world_object_interaction_panel.gd` | Panel piloto del patrón. El más simple. Buen punto de partida para entender el flujo. |
 | Inventory | — (sin ViewModel en producción) | `inventory_ui.gd` | **La View de producción es `inventory_ui.gd`, sin ViewModel** (dos columnas: equipo + mochila, detalle de ítem y acciones). `InventoryScreen` + `InventoryViewModel` (`inventory_screen.gd` / `inventory_viewmodel.gd`) existen pero **no se usan**. La corrección completa del contrato llega con el Spike 17. |
 | Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
-| Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable. Abierta desde `SceneOrchestrator` via `show_shop_direct()`. |
+| Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable, abierta desde `SceneOrchestrator` vía `show_shop_direct()`. **Spike 16:** primera pantalla del hito que adopta el Design System. Panel `UIPanel` `OVERLAY` con marco (anclas 0.05–0.95), `layer = 10` fijado por el script; dos columnas (inventario del jugador a la izquierda, tienda a la derecha), cada una con cabecera `UIPanel` (título + oro; la tienda añade huecos), `ScrollContainer` y `VBoxContainer` de filas; botón Cerrar arriba a la derecha (`UIButton` secundario SM) y tira de mensaje de altura reservada. Mensajes de lista vacía. Textos `SHOP_*` en `shops.csv`; tokens, sin `Color(...)` ni tamaños de fuente literales. Conserva `show_shop_direct()`, el cierre por `shop_closed` y los nombres `%`. **Spike 16b:** `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible) y añade `is_loan` a las entradas del snapshot; `trade_type` gana el valor `"loan"`. `ShopViewModel` cambia `_on_trade_success` (distingue compra, venta y préstamo y usa el nombre visible) y traduce `LOAN_ITEM`. Ver la sección «Fila de lista del Design System». |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. **Spike 11** lo rediseñó por completo: base de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`, marco del Spike 9); único retrato (se descarta el layout de dos retratos original), hermano del panel — no hijo — para poder sobresalir por encima del marco (layout C: franja inferior, anclas por fracción de pantalla `0.04/0.57/0.96/0.96`, no píxeles fijos); fondo de ambiente propio (`BackgroundImage` + `Background` como velo, mismo patrón que `CombatArenaViewModel`/Grupo 4, razón `"background"` de `changed()` emitida solo cuando cambia el path); exports de configuración visual sin efecto real retirados. `dialogue_node_shown` pasa de 4 a 7 argumentos (`mood`, `portrait_folder`, `background_id`) sin romper los oyentes existentes — GDScript descarta los argumentos de más al emitir si el callback conectado acepta menos. Ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2. Antipatrón nuevo, ver sección propia: `OptionsContainer` dentro de un `ScrollContainer` — un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, y con `grow_vertical = BEGIN` un número variable de opciones lo hacía crecer invadiendo pantalla en vez de quedarse en su franja fija. **Spike 15:** opciones en `GridContainer` (`OptionsContainer`): 1 columna hasta 3 opciones, 2 desde 4, relleno por filas; la franja `OptionsScroll` reserva su altura natural (`custom_minimum_size.y`) para cualquier número de opciones y el `ScrollContainer` queda como red de seguridad; el margen izquierdo del texto se calcula desde el borde derecho real del retrato (`+ PORTRAIT_TEXT_GAP` = 3 px) y se recalcula en `resized`, ya no es un 240 fijo; la primera opción toma el foco y el foco usa el estilo `hover` del botón. `MarginContainer` y `OptionsScroll` son nodos con nombre único (`%`). Sin cambios en el contrato MVVM ni en `closed`. |
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
 | PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
@@ -1104,7 +1145,9 @@ Ningún antipatrón nuevo de arquitectura UI: el patrón es una variante de los 
 
 ---
 
-*Última actualización: Spike 15 — Cimientos del Design System (cerrado y validado en partida real). Nueva sección «Contrato de pantalla y resolución de referencia»: reglas de pantalla para el hito (MVVM, `closed`, nombres únicos `%`, marco opt-in, tokens, `tr()` con claves `PANTALLA_ELEMENTO`, anclas para 1152×648, reserva de altura, foco de teclado) y la decisión de resolución (sin estiramiento). `UIPanel`: esquinera por defecto, padding mínimo con marco, activación en runtime, `OVERLAY` documentado como opaco. `DialoguePanel`: opciones en rejilla, altura reservada, margen del texto proporcional al retrato, foco de teclado. Corregida la fila de Inventory (la View de producción es `inventory_ui.gd`, sin ViewModel). Ningún cambio al contrato MVVM. Ver `docs/spike_15_cimientos_design_system.md` y el README del Design System. Godot 4.7.x.*
+*Última actualización: Spike 16 — Tienda (cerrado y validado en partida real; incluye la 16b). Primera adopción real del Design System por una pantalla del hito: `UIPanel` `OVERLAY` con marco, `UIButton`, tokens, dos columnas por anclas, claves `SHOP_*` en `shops.csv` y fila de lista `ShopItemSlot` (nueva sección). Parte B: `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible), primer cambio del hito que toca el core. `ShopViewModel` cambia el mensaje de éxito (compra, venta y préstamo, con nombre visible) y traduce `LOAN_ITEM`. Antipatrón nuevo: nodo colgado del padre equivocado en un `PanelContainer`. Ningún cambio al contrato MVVM. Ver `docs/spike_16_tienda.md`. Godot 4.7.x.*
+
+*Última actualización anterior: Spike 15 — Cimientos del Design System (cerrado y validado en partida real). Nueva sección «Contrato de pantalla y resolución de referencia»: reglas de pantalla para el hito (MVVM, `closed`, nombres únicos `%`, marco opt-in, tokens, `tr()` con claves `PANTALLA_ELEMENTO`, anclas para 1152×648, reserva de altura, foco de teclado) y la decisión de resolución (sin estiramiento). `UIPanel`: esquinera por defecto, padding mínimo con marco, activación en runtime, `OVERLAY` documentado como opaco. `DialoguePanel`: opciones en rejilla, altura reservada, margen del texto proporcional al retrato, foco de teclado. Corregida la fila de Inventory (la View de producción es `inventory_ui.gd`, sin ViewModel). Ningún cambio al contrato MVVM. Ver `docs/spike_15_cimientos_design_system.md` y el README del Design System. Godot 4.7.x.*
 
 *Última actualización: Spike 13 — Reautoría del pueblo de "Los Telmori" sobre el motor de escenas interactivas — ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura UI. Los hotspots de `InteractiveSceneView` pasan de `Button` estándar a `UIButton` (cerrando la deuda que dejó el Spike 12): con `icon_path` válido son botones de solo icono con el nombre en tooltip, sin él botones de texto. `UIButton` gana `min_square` e `icon_backdrop` (opt-in, apagados por defecto; sección propia "`UIButton`: modo solo icono") y una regla de uso: sus propiedades se fijan antes de `add_child()` porque se leen en `_ready()`. `InteractiveSceneViewModel` expone `request_first_visit()` (acción de primera visita, llamada diferida desde la escena raíz). Las fichas de combate (`UICombatToken`) se descartaron como icono de mapa por estar acopladas al combate. Ver `docs/spike_13_reautoria_pueblo_telmori.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico. Godot 4.7.2.*
 

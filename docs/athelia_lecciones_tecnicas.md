@@ -79,4 +79,19 @@ de cada spike, ver `athelia_historial_spikes.md`.
 - **Los `.csv` de Godot resuelven claves duplicadas en silencio (gana la última) y los campos con comas exigen comillas (Spike 15):** un borrado masivo de duplicados se hace con simulación previa, copia `.bak` y comprobando que cada fila es idéntica a su primera copia (si difiere, quitarla cambia el texto visible). El orden de columnas varía: `menus.csv` es `id,es,en`; el resto, `id,en,es`.
 - **Un script de PowerShell 5.1 sin BOM corrompe los acentos literales (Spike 15):** se escriben con `[char]0xE9` o el script se mantiene en ASCII; los CSV se leen y escriben como UTF-8 conservando el BOM y los saltos de línea originales.
 - **Los textos de habilidades viven en `skills.csv` (Spike 15):** `SKILL_<ID>_NAME` y `SKILL_<ID>_DESC` por habilidad; los textos de pantalla (`SKILL_TREE_*`, `SKILL_SUBCATEGORY_*`, `SKILL_FILTER_*`) se quedan en `translations.csv`. Una habilidad nueva sin sus dos claves sale como `SKILL_X_NAME` en pantalla.
+### Spike 16 — Tienda (incluye la 16b)
+- Un `PanelContainer` apila todos sus hijos superpuestos: un nodo mal anidado no da error, se dibuja encima. Verificar el padre de cada nodo al montar escenas a mano.
+- Una raíz que `extends UIPanel` debe fijar `padding` antes de `super._ready()`.
+- Tipar un `@onready` con la clase del componente (`UIButton`) delata una instancia equivocada: falla en `@implicit_ready` con "Trying to assign value of type 'Button'…", no con un error de nodo.
+- Reconstruir listas: `remove_child()` antes de `queue_free()`.
+- Un `Label` con elipsis tiene anchura mínima 0: poner un suelo de anchura o expandir el contenedor.
+- `mouse_exited` llega al padre al entrar en un hijo: comprobar `get_global_rect()` antes de apagar el hover.
+- Mensajes con altura reservada: vaciar el texto en lugar de ocultar el `Label`.
+- Estado visual por fila con tokens y `disabled`, no con `modulate` del contenedor.
+- No comprobar métodos por nombre (`has_method("_update_display")`): método público explícito.
+- `push_warning` va a la pestaña *Errors* del depurador, no al Output.
+- El orden de las validaciones define el comportamiento: la regla que ya está en los datos (el tag `quest_loan`) se consulta antes de la comprobación genérica (`base_value <= 0`).
+- Un valor nuevo en un `String` de contrato (`trade_type = "loan"`) solo es seguro si se comprueba quién escucha la señal.
+- Parchear funciones largas de ficheros grandes: bloques buscar → sustituir, vigilando las comas al añadir claves a un diccionario.
+- Mover objetos entre entidades invalida las acciones narrativas que asumen el inventario del jugador: `take_item` falla en silencio.
 ---

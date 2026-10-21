@@ -1,46 +1,32 @@
 [gd_scene format=3 uid="uid://cjs3lxiywaunh"]
 
 [ext_resource type="Script" uid="uid://cgept8t0nxkb5" path="res://ui/shop/shop_item_slot.gd" id="1_jqldf"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="2_c8h20"]
 
 [node name="ShopItemSlot" type="PanelContainer" unique_id=845283208]
 custom_minimum_size = Vector2(120, 140)
 script = ExtResource("1_jqldf")
 
-[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1820961857]
-layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
-
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1943603170]
-layout_mode = 2
-
-[node name="IconRect" type="ColorRect" parent="MarginContainer/VBoxContainer" unique_id=1452524603]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(24, 24)
-layout_mode = 2
-color = Color(0.798921, 0.798921, 0, 1)
-
-[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1038117027]
+[node name="Row" type="HBoxContainer" parent="." unique_id=321913181]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Item Name"
-horizontal_alignment = 1
 
-[node name="PriceLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1446433282]
+[node name="IconRect" type="TextureRect" parent="Row" unique_id=1643468989]
 unique_name_in_owner = true
 layout_mode = 2
-text = "50 gold"
-horizontal_alignment = 1
 
-[node name="QuantityLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1430682139]
+[node name="NameLabel" type="Label" parent="Row" unique_id=1140144417]
 unique_name_in_owner = true
 layout_mode = 2
-text = "x10"
-horizontal_alignment = 1
 
-[node name="ActionButton" type="Button" parent="MarginContainer/VBoxContainer" unique_id=31159870]
+[node name="QuantityLabel" type="Label" parent="Row" unique_id=2123707550]
 unique_name_in_owner = true
 layout_mode = 2
-text = "BUY"
+
+[node name="PriceLabel" type="Label" parent="Row" unique_id=412246627]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ActionButton" parent="Row" unique_id=706238069 instance=ExtResource("2_c8h20")]
+unique_name_in_owner = true
+layout_mode = 2

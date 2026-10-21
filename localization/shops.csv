@@ -1,3 +1,26 @@
 id,en,es
 SHOP_TELMORI_BLACKSMITH_NAME,Village Smithy,Herrería de la aldea
 SHOP_TELMORI_BLACKSMITH_DESC,"Honest iron and weathered hands: weapons, armor and whatever you need to survive the hills.","Hierro honrado y manos curtidas: armas, armaduras y lo que haga falta para sobrevivir en las colinas."
+SHOP_STOCK_TITLE,Shop,Tienda
+SHOP_PLAYER_INVENTORY,Your inventory,Tu inventario
+SHOP_PLAYER_GOLD,Gold: %d,Oro: %d
+SHOP_SHOP_GOLD,Shop gold: %d,Oro de la tienda: %d
+SHOP_SLOTS,Slots: %d/%d,Huecos: %d/%d
+SHOP_PRICE,%d gold,%d de oro
+SHOP_PRICE_SELL,+%d gold,+%d de oro
+SHOP_QUANTITY,x%d,x%d
+SHOP_BUY,Buy,Comprar
+SHOP_SELL,Sell,Vender
+SHOP_CLOSE,Close,Cerrar
+SHOP_TOOLTIP_NO_GOLD,Not enough gold,Oro insuficiente
+SHOP_TOOLTIP_NO_STOCK,Out of stock,Agotado
+SHOP_TOOLTIP_NO_SLOTS,The shop has no free slots,La tienda no tiene huecos libres
+SHOP_TOOLTIP_NO_BUDGET,The shop can't afford this,La tienda no puede pagarlo
+SHOP_EMPTY_STOCK,The shop has nothing for sale,La tienda no tiene nada a la venta
+SHOP_EMPTY_INVENTORY,You have nothing to sell,No tienes nada que vender
+SHOP_TRADE_SOLD,Sold: %s x%d,Vendido: %s x%d
+SHOP_PRICE_LOAN,Loan,Préstamo
+SHOP_TAKE,Take,Tomar
+SHOP_TOOLTIP_LOAN,On loan: it can't be sold,Es un préstamo: no se puede vender
+SHOP_TRADE_LOANED,Borrowed: %s x%d,Recibido en préstamo: %s x%d
+SHOP_ERROR_LOAN_ITEM,This item is on loan and can't be sold,Es un préstamo y no se puede vender

@@ -410,6 +410,9 @@ InteractiveSceneView (Button por hotspot visible)
 - **`UISlot`.** Solo el docstring (ruta `components/ui_slot/`).
 - **Hallazgos de la Fase 0 que corrigieron la spec:** cifras de altura inexactas, hipótesis «scroll solo en ventana de 648» falsa, fila de CSV mal identificada.
 - **Pendientes que deja.** Retrato del posadero (muestra el del sheriff); pestaña `companion_mira` y `T1` sin localizar en el árbol de habilidades (spike 21); posible recorte de 4 px con saludo de 3 líneas y 6 opciones a 648; claves `SKILL_META_COST_`, `SKILL_NOT_FOUND`… por revisar; comentario erróneo en `interactive_scene_view.gd:15`; fuentes/tema sin aplicar.
+
+### Spike 16 — Tienda (cerrado, 2026-10-21; incluye la 16b)
+Primera adopción real del Design System: `UIPanel` `OVERLAY` con marco, `UIButton`, `UITokens`, dos columnas por anclas (inventario a la izquierda, tienda a la derecha), claves `SHOP_*` en `shops.csv` (23 nuevas) y `ShopItemSlot` como fila (`extends UIPanel`, `set_busy()`, gancho de icono). Mensaje de éxito del ViewModel corregido (compra, venta y préstamo, con nombre visible). Parte 16b: la lanza `quest_loan` (`base_value = 0`) no se podía comprar ni vender y bloqueaba la aventura; `EconomySystem` pasa a tratar el tag como préstamo (sin coste, no vendible), la fila muestra «Préstamo» y «Tomar». Validado en partida real a 1152×648 y 1680×1050, ES y EN. Hallazgo pendiente: `take_item` del sheriff no quita la lanza si la tiene un compañero (16c, sin planificar). Informe: `docs/spike_16_tienda.md`.
 ---
  
 ## Changelog completo (orden cronológico inverso)
