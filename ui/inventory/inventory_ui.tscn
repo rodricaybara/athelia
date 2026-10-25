@@ -1,255 +1,184 @@
-[gd_scene format=3 uid="uid://dxe7qq2pgp6jg"]
+[gd_scene format=3]
 
-[ext_resource type="PackedScene" uid="uid://bjhhutorjk73l" path="res://ui/inventory/item_slot.tscn" id="1_8a20s"]
-[ext_resource type="PackedScene" uid="uid://d4bk446n8kwx5" path="res://ui/inventory/item_detail_panel.tscn" id="1_jm3eq"]
-[ext_resource type="Script" uid="uid://cgl5dp5gte4yn" path="res://ui/inventory/inventory_ui.gd" id="1_n6ryj"]
-[ext_resource type="PackedScene" uid="uid://b123ynw13nj7c" path="res://ui/inventory/feedback_popup.tscn" id="2_8a20s"]
-[ext_resource type="PackedScene" uid="uid://cxi21wsjjyfwq" path="res://ui/inventory/equip_slot.tscn" id="2_m8s8u"]
-[ext_resource type="Script" uid="uid://3r6lxtmphfoe" path="res://ui/inventory/feedback_popup.gd" id="5_4l1op"]
+[ext_resource type="Script" path="res://ui/inventory/inventory_ui.gd" id="1_ui"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="2_panel"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="3_button"]
+[ext_resource type="PackedScene" path="res://ui/inventory/item_detail_panel.tscn" id="4_detail"]
+[ext_resource type="PackedScene" path="res://ui/inventory/feedback_popup.tscn" id="5_popup"]
 
-[node name="InventoryUi" type="CanvasLayer" unique_id=1685423776]
-script = ExtResource("1_n6ryj")
+[node name="InventoryUi" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_ui")
 
-[node name="Panel" type="PanelContainer" parent="." unique_id=1743221130]
+[node name="Backdrop" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.04, 0.04, 1)
+
+[node name="Frame" parent="." instance=ExtResource("2_panel")]
+unique_name_in_owner = true
+layout_mode = 3
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -426.0
-offset_top = -299.0
-offset_right = 434.0
-offset_bottom = 301.0
+offset_left = -518.0
+offset_top = -291.0
+offset_right = 518.0
+offset_bottom = 291.0
 grow_horizontal = 2
 grow_vertical = 2
+variant = 2
+padding = 16
+decorative_frame = true
 
-[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=949025685]
+[node name="Root" type="VBoxContainer" parent="Frame"]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_constants/separation = 12
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=98281094]
+[node name="Header" type="HBoxContainer" parent="Frame/Root"]
 layout_mode = 2
+theme_override_constants/separation = 16
 
-[node name="Header" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=1498752756]
-layout_mode = 2
-
-[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/Header" unique_id=79342375]
+[node name="TitleLabel" type="Label" parent="Frame/Root/Header"]
 unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="Frame/Root/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 
-[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/Header" unique_id=1555361259]
+[node name="GoldLabel" type="Label" parent="Frame/Root/Header"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
+
+[node name="WeightLabel" type="Label" parent="Frame/Root/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SlotsLabel" type="Label" parent="Frame/Root/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CloseButton" parent="Frame/Root/Header" instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+variant = 3
+min_square = 32
 text = "X"
 
-[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer" unique_id=632908309]
-layout_mode = 2
-
-[node name="Content" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=1904257753]
+[node name="Content" type="HBoxContainer" parent="Frame/Root"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 16
 
-[node name="EquipmentPanel" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/Content" unique_id=1927978609]
-custom_minimum_size = Vector2(100, 0)
+[node name="EquipColumn" type="VBoxContainer" parent="Frame/Root/Content"]
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
+theme_override_constants/separation = 8
 
-[node name="EquipmentHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=330350379]
+[node name="EquipHeader" type="Label" parent="Frame/Root/Content/EquipColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
 
-[node name="EquipSlot_head" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=844412102 instance=ExtResource("2_m8s8u")]
+[node name="EquipList" type="VBoxContainer" parent="Frame/Root/Content/EquipColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-slot_id = "head"
-slot_label_key = "INVENTORY_SLOT_HEAD"
+theme_override_constants/separation = 8
 
-[node name="EquipSlot_body" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=3605394 instance=ExtResource("2_m8s8u")]
+[node name="BagColumn" type="VBoxContainer" parent="Frame/Root/Content"]
 unique_name_in_owner = true
-layout_mode = 2
-slot_id = "body"
-slot_label_key = "INVENTORY_SLOT_BODY"
-
-[node name="EquipSlot_hands" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=22106605 instance=ExtResource("2_m8s8u")]
-unique_name_in_owner = true
-layout_mode = 2
-slot_id = "hands"
-slot_label_key = "INVENTORY_SLOT_HANDS"
-
-[node name="EquipSlot_feet" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=344963278 instance=ExtResource("2_m8s8u")]
-unique_name_in_owner = true
-layout_mode = 2
-slot_id = "feet"
-slot_label_key = "INVENTORY_SLOT_FEET"
-
-[node name="EquipSlot_weapon" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=1969642429 instance=ExtResource("2_m8s8u")]
-unique_name_in_owner = true
-layout_mode = 2
-slot_id = "weapon"
-slot_label_key = "INVENTORY_SLOT_WEAPON"
-
-[node name="EquipSlot_shield" parent="Panel/MarginContainer/VBoxContainer/Content/EquipmentPanel" unique_id=947613564 instance=ExtResource("2_m8s8u")]
-unique_name_in_owner = true
-layout_mode = 2
-slot_id = "shield"
-slot_label_key = "INVENTORY_SLOT_SHIELD"
-
-[node name="VSeparator2" type="VSeparator" parent="Panel/MarginContainer/VBoxContainer/Content" unique_id=279291560]
-layout_mode = 2
-
-[node name="CenterPanel" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/Content" unique_id=450738463]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.42
+theme_override_constants/separation = 8
 
-[node name="BagHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=2015276585]
+[node name="CategoryTabs" type="HFlowContainer" parent="Frame/Root/Content/BagColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
 
-[node name="SlotsGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=835709538]
-unique_name_in_owner = true
-layout_mode = 2
-columns = 5
-
-[node name="ItemSlot" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=609947099 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot2" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1706953838 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot3" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1708495323 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot4" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1967350022 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot5" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1691263862 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot6" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=738047573 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot7" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=290846067 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot8" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=640785434 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot9" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=391483685 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot10" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1691564844 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot11" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1072836234 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot12" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1834251672 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot13" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=2133875465 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot14" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=783222465 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot15" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1339065611 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot16" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=715630920 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot17" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1686762840 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot18" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1441377566 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot19" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1178167980 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="ItemSlot20" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/SlotsGrid" unique_id=1078222008 instance=ExtResource("1_8a20s")]
-layout_mode = 2
-
-[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=974387733]
-layout_mode = 2
-
-[node name="StatsHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=604820057]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-
-[node name="GridContainer" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel" unique_id=1689229280]
-layout_mode = 2
-columns = 6
-
-[node name="StatsHPCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1670427972]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsHP" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1643891222]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsStaminaCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1299213597]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsStamina" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=630000700]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsGoldCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=177300997]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsGold" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1324258289]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsSTRCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1475983522]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsSTR" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1267850055]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsDEXCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=961296871]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsDEX" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1530968290]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsCONCaption" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=953793920]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatsCON" type="Label" parent="Panel/MarginContainer/VBoxContainer/Content/CenterPanel/GridContainer" unique_id=1101977921]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="Panel/MarginContainer/VBoxContainer/Content" unique_id=1343177612]
-layout_mode = 2
-
-[node name="RightPanel" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/Content" unique_id=1334672007]
-custom_minimum_size = Vector2(300, 0)
-layout_mode = 2
-
-[node name="DetailPanel" parent="Panel/MarginContainer/VBoxContainer/Content/RightPanel" unique_id=1343157643 instance=ExtResource("1_jm3eq")]
+[node name="BagScroll" type="ScrollContainer" parent="Frame/Root/Content/BagColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="FeedbackPopup" parent="Panel/MarginContainer/VBoxContainer/Content/RightPanel" unique_id=151145826 instance=ExtResource("2_8a20s")]
+[node name="BagGrid" type="GridContainer" parent="Frame/Root/Content/BagColumn/BagScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 5
+
+[node name="EmptyCategoryLabel" type="Label" parent="Frame/Root/Content/BagColumn"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-script = ExtResource("5_4l1op")
+size_flags_vertical = 3
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="RightColumn" type="VBoxContainer" parent="Frame/Root/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.58
+theme_override_constants/separation = 8
+
+[node name="DetailPanel" parent="Frame/Root/Content/RightColumn" instance=ExtResource("4_detail")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BonusBlock" parent="Frame/Root/Content/RightColumn" instance=ExtResource("2_panel")]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+padding = 8
+
+[node name="BonusBox" type="VBoxContainer" parent="Frame/Root/Content/RightColumn/BonusBlock"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BonusHeader" type="Label" parent="Frame/Root/Content/RightColumn/BonusBlock/BonusBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BonusFlow" type="HFlowContainer" parent="Frame/Root/Content/RightColumn/BonusBlock/BonusBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 2
+
+[node name="BonusEmptyLabel" type="Label" parent="Frame/Root/Content/RightColumn/BonusBlock/BonusBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="StatsBlock" parent="Frame/Root/Content/RightColumn" instance=ExtResource("2_panel")]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+padding = 8
+
+[node name="StatsGrid" type="HBoxContainer" parent="Frame/Root/Content/RightColumn/StatsBlock"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="FeedbackPopup" parent="." instance=ExtResource("5_popup")]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.9
+anchor_right = 0.5
+anchor_bottom = 0.9
+grow_horizontal = 2
+grow_vertical = 0

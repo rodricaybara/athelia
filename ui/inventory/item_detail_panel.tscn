@@ -1,55 +1,77 @@
-[gd_scene format=3 uid="uid://d4bk446n8kwx5"]
+[gd_scene format=3]
 
-[ext_resource type="Script" uid="uid://bdyxjc7cdyuo5" path="res://ui/inventory/item_detail_panel.gd" id="1_m1h2n"]
+[ext_resource type="Script" path="res://ui/inventory/item_detail_panel.gd" id="1_detail"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="2_button"]
 
-[node name="ItemDetailPanel" type="PanelContainer" unique_id=319005194]
-script = ExtResource("1_m1h2n")
+[node name="ItemDetailPanel" type="PanelContainer"]
+script = ExtResource("1_detail")
 
-[node name="MarginContainer" type="MarginContainer" parent="." unique_id=947354670]
+[node name="Root" type="VBoxContainer" parent="."]
 layout_mode = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1305909954]
-layout_mode = 2
-
-[node name="ItemNameLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1232587270]
+[node name="EmptyMessage" type="Label" parent="Root"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-
-[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1413006939]
-layout_mode = 2
-
-[node name="ItemDescriptionLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1674361177]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 60)
-layout_mode = 2
-
-[node name="HSeparator2" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1521251274]
-layout_mode = 2
-
-[node name="ItemStatsLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=801417728]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="HSeparator3" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1160136933]
-layout_mode = 2
-
-[node name="UseButton" type="Button" parent="MarginContainer/VBoxContainer" unique_id=78495662]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="HSeparator4" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=415157827]
-layout_mode = 2
-
-[node name="EquipButton" type="Button" parent="MarginContainer/VBoxContainer" unique_id=1645655147]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="HSeparator5" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=2041696032]
-layout_mode = 2
-
-[node name="EmptyMessage" type="Label" parent="MarginContainer/VBoxContainer" unique_id=949574173]
-unique_name_in_owner = true
-layout_mode = 2
+size_flags_vertical = 3
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="Body" type="VBoxContainer" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="ItemNameLabel" type="Label" parent="Root/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="CategoryLabel" type="Label" parent="Root/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="Root/Body"]
+layout_mode = 2
+
+[node name="InfoScroll" type="ScrollContainer" parent="Root/Body"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="InfoBox" type="VBoxContainer" parent="Root/Body/InfoScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ItemDescriptionLabel" type="Label" parent="Root/Body/InfoScroll/InfoBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ItemStatsLabel" type="Label" parent="Root/Body/InfoScroll/InfoBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ModifiersBox" type="VBoxContainer" parent="Root/Body/InfoScroll/InfoBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CompareBox" type="VBoxContainer" parent="Root/Body/InfoScroll/InfoBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ButtonsRow" type="HBoxContainer" parent="Root/Body"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="UseButton" parent="Root/Body/ButtonsRow" instance=ExtResource("2_button")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EquipButton" parent="Root/Body/ButtonsRow" instance=ExtResource("2_button")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3

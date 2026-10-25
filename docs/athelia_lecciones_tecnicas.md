@@ -105,4 +105,19 @@ de cada spike, ver `athelia_historial_spikes.md`.
 - Un snapshot de mochila no debe asumir que el equipo sale del inventario: `equip_item` no lo quita, así que un ítem equipado aparece también en la mochila.
 - Al reconstruir un ViewModel muerto, comprobar primero qué cubre frente a lo que hace la pantalla real (estado de espera, listas fijas de slots, funciones que no existen en producción): se descartó casi todo y se reescribió.
 
+### Spike 18 — Inventario B (rediseño con el Design System)
+- Un slot arrastrable emite el clic **al soltar** el botón dentro de él, no al pulsar; si no, cada arrastre dispara una selección.
+- Una subclase de `UIPanel` (`ItemDetailPanel`) debe llamar a `super._ready()`; sin eso el estilo no se aplica y el panel sale sin fondo.
+- Un panel proporcional sin tamaño máximo se ve vacío a pantalla completa (1680×1050): tope + centrado + fondo opaco con `mouse_filter = STOP`, para no ver ni pulsar lo que hay detrás. El rectángulo se recalcula en `size_changed` y al abrir.
+- Un `PanelContainer` apila a sus hijos: dentro de un `UIPanel` va un único contenedor de layout (el bloque de bonos y el de estadísticas lo cumplen).
+- Una etiqueta bajo cada slot de equipo no cabe en 648 de alto con seis slots: va dentro del slot.
+- Un popup posicionado por código se recoloca al abrir y en `size_changed`; aquí se centra sobre la parte baja de la columna de la mochila para no tapar HP/ST.
+- Una rejilla con columnas variables se calcula con el ancho real del `ScrollContainer` menos una reserva para la barra de scroll, y reutiliza un pool de slots en vez de crear y liberar en cada refresco.
+- Lo que no cabe en la capacidad no se descarta: se muestra con borde discontinuo de peligro (antes se perdía con un `push_warning`).
+- Los bonos del equipo suman solo los modificadores `add`, igual que la comparación del detalle: `mul` y `override` no se pueden sumar sin ambigüedad, así que si algún ítem los usa no se reflejan.
+- Las estadísticas mostradas son los valores **base**; para los efectivos hay que verificar `AttributeResolver`.
+- Un `.tscn` creado a mano sin UID: Godot lo regenera y avisa; es inofensivo.
+- Una prueba aislada de un componente (`ui_slot_drag_test`) con ítems de respaldo cuando no hay partida evita depender del estado del juego.
+- Un script de parche que sustituye texto debe comprobar que el ancla aparece exactamente una vez y no asumir la sangría: dos sustituciones fallaron en silencio por tabuladores de más y los ficheros se entregaron sin la llamada.
+
 ---

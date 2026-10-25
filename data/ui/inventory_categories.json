@@ -1,0 +1,10 @@
+{
+	"version": 1,
+	"all_name_key": "INVENTORY_CATEGORY_ALL",
+	"categories": [
+		{ "id": "weapons",     "name_key": "INVENTORY_CATEGORY_WEAPONS",     "priority": 20, "tags": ["weapon"] },
+		{ "id": "armor",       "name_key": "INVENTORY_CATEGORY_ARMOR",       "priority": 30, "tags": ["armor", "accessory"] },
+		{ "id": "consumables", "name_key": "INVENTORY_CATEGORY_CONSUMABLES", "priority": 40, "tags": ["consumable", "potion", "book", "tool"] },
+		{ "id": "quest",       "name_key": "INVENTORY_CATEGORY_QUEST",       "priority": 10, "tags": ["quest", "quest_loan"] }
+	]
+}

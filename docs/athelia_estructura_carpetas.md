@@ -173,6 +173,9 @@ athelia/
 │   │       └── telmori/
 │   │           └── sheriff_office.png  # Fondo de escena concreto (background_id = "sheriff_office")
 │   │
+│   ├── ui/                         # ← NUEVO (Spike 18): datos de pantallas
+│   │   └── inventory_categories.json   # categorías del inventario (versión 1; prioridad: quest 10, weapons 20, armor 30, consumables 40)
+│   │
 │   ├── formulas/
 │   │   └── derived_attributes.json # Fórmulas de atributos derivados
 │   │
@@ -336,7 +339,9 @@ athelia/
 │   ├── spike_14_reinicio_sesion.md  # ← NUEVO (Spike 14): reinicio de sesión y teardown — causa raíz, `SessionReset`/`EntityLifecycle`, Game Over con ViewModel, validación en partida real y pendientes
 │   ├── spike_15_cimientos_design_system.md  # ← NUEVO (Spike 15): cimientos del Design System — resolución (sin estiramiento, con el experimento), tokens fusionados con alias, `UIPanel`, diálogo en rejilla, localización (`skills.csv`), validación y pendientes
 │   ├── spike_16_tienda.md  # ← NUEVO (Spike 16, incluye la 16b): tienda sobre el Design System — decisiones y correcciones de la Fase 0, préstamo `quest_loan`, 23 claves `SHOP_*`, validación en partida real, lecciones y pendientes (16c: devolución del préstamo al sheriff, sin planificar)
-│   └── spike_17_inventario_mvvm.md  # ← NUEVO (Spike 17): inventario con contrato MVVM — decisión 5.A, accesos movidos al ViewModel, hallazgos de motor (dos pulsaciones, Esc), validación y pendientes
+│   ├── spike_17_inventario_mvvm.md  # ← NUEVO (Spike 17): inventario con contrato MVVM — decisión 5.A, accesos movidos al ViewModel, hallazgos de motor (dos pulsaciones, Esc), validación y pendientes
+│   ├── spike_18_inventario_rediseno.md  # ← NUEVO (Spike 18): inventario rediseñado con el Design System — decisiones, layout, API de `UISlot`, bonos del equipo, validación, hallazgos y pendientes
+│   └── spike_18_actualizaciones_docs.md  # ← NUEVO (Spike 18): bloques de inserción usados para actualizar la documentación del proyecto
 │
 ├── localization/                   # Sistema de localización (ES/EN)
 │   ├── translations.csv            # Textos generales — **Spike 15:** 29 claves duplicadas eliminadas (idénticas a su primera copia) y las `SKILL_<ID>_NAME`/`_DESC` movidas a `skills.csv`; se quedan aquí `SKILL_TREE_*`, `SKILL_SUBCATEGORY_*` y `SKILL_FILTER_*` (textos de pantalla)
@@ -354,7 +359,7 @@ athelia/
 │   ├── shops.csv                   # **Spike 16:** + 23 claves `SHOP_*` de la pantalla de tienda (formato `id,en,es`): título, cabeceras (oro, huecos), precio/cantidad, botones Comprar/Vender/Cerrar, tooltips (`NO_GOLD`, `NO_BUDGET`, `NO_STOCK`, `NO_SLOTS`), listas vacías y `SHOP_TRADE_SOLD`; **16b:** `SHOP_PRICE_LOAN`, `SHOP_TAKE`, `SHOP_TOOLTIP_LOAN`, `SHOP_TRADE_LOANED`, `SHOP_ERROR_LOAN_ITEM`. Ya contenía `SHOP_TELMORI_BLACKSMITH_NAME/DESC`. `translations.csv` conserva `SHOP_BLACKSMITH_*`, `SHOP_TRADE_SUCCESS` y `SHOP_ERROR_*`. Registrado en Project Settings → Localization → Translations
 │   ├── shops.en.translation
 │   ├── shops.es.translation
-│   ├── inventory.csv               # ← NUEVO (Spike 17) — 29 claves `INVENTORY_*` (formato `id,en,es`): título, cabeceras, etiquetas de estadísticas, nombres de slot, detalle, botones y mensajes de feedback/error. Requiere alta manual en Project Settings → Localization → Translations (sin ella, `tr(key) % args` falla con error de formato)
+│   ├── inventory.csv               # ← NUEVO (Spike 17) — 29 claves `INVENTORY_*` (formato `id,en,es`): título, cabeceras, etiquetas de estadísticas, nombres de slot, detalle, botones y mensajes de feedback/error. Requiere alta manual en Project Settings → Localization → Translations (sin ella, `tr(key) % args` falla con error de formato) **Spike 18:** 58 claves (+29): categorías, contadores de huecos y peso, marca y tooltip de equipado, comparación, nombres de modificadores `INVENTORY_MOD_*`, estadísticas (INT/WIS/CHA/FOCUS), bonos del equipo (`INVENTORY_BONUS_*`) y `ERROR_EQUIP_FAILED`. Sin usar: `INVENTORY_BAG_HEADER`, `INVENTORY_STATS_HEADER`
 │   ├── inventory.en.translation
 │   ├── inventory.es.translation
 │   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
@@ -470,7 +475,7 @@ athelia/
     │   │   │   ├── ui_panel.gd
     │   │   │   └── ui_panel.tscn
     │   │   ├── ui_slot/
-    │   │   │   ├── ui_slot.gd             # Spike 15: solo el docstring (ruta `components/ui_slot/`)
+    │   │   │   ├── ui_slot.gd             # Spike 15: solo el docstring (ruta `components/ui_slot/`). **Spike 18:** primer consumidor real (inventario) — `set_definition()`, `is_empty()`, flags `set_selected/set_equipped_mark/set_overflow`, `border_color_override`, `draggable`, `drop_source_filter`, clic al soltar, placeholder para ítems sin icono, borde discontinuo con `_draw()`
     │   │   │   └── ui_slot.tscn
     │   │   ├── ui_resource_bar/
     │   │   │   ├── ui_resource_bar.gd
@@ -485,9 +490,14 @@ athelia/
     │   │       ├── ui_combat_token_target_reticle.gd
     │   │       └── ui_combat_token.tscn
     │   ├── assets/
+    │   │   ├── icons/              # ← NUEVO (Spike 18)
+    │   │   │   └── icon_item_placeholder.png   # silueta de bolsa 64×64 para ítems sin icono; se tiñe con COLOR_TEXT_MUTED
     │   │   └── frames/             # ← NUEVO (Spike 9)
     │   │       ├── frame_corner_64x64.png   # en uso: esquinera única, se rota en las 4 esquinas
     │   │       └── frame_corner_96x96.png   # reserva; invadía el texto del panel narrativo
+    │   ├── tests/                  # ← NUEVO (Spike 18): solo desarrollo, no entra en el juego
+    │   │   ├── ui_slot_drag_test.gd    # prueba aislada de UISlot (F6): clic, selección, arrastre y drop; ítems de respaldo si no hay partida
+    │   │   └── ui_slot_drag_test.tscn
     │   ├── theme/
     │   │   └── main_theme.tres     # Tema global de UI
     │   └── tokens/
@@ -507,16 +517,16 @@ athelia/
     │   └── game_over_ui.tscn       # Spike 14: `TitleLabel`/`MessageLabel`/`ReturnToMenuButton` por nombre único, textos vacíos en el .tscn
     │
     ├── inventory/                  # Pantalla de inventario (patrón MVVM)
-    │   ├── inventory_viewmodel.gd   # **Spike 17:** reconstruido. `InventoryState { HIDDEN, BROWSING, ITEM_SELECTED }`, `DetailData`, `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`), intenciones `request_*()`, refrescos agrupados con `call_deferred`, feedback ya traducido. Único punto de la pantalla que habla con `Inventory`, `Equipment`, `Items`, `Resources`, `Characters` y `EventBus`
-    │   ├── inventory_ui.gd          # **Spike 17:** View pasiva de producción (`CanvasLayer`, raíz `InventoryUi`); crea el ViewModel como hijo; conserva `closed`, `open_inventory()`, `close_inventory()`, `toggle()` y `@export entity_id`; maneja `ui_cancel`
-    │   ├── inventory_ui.tscn
-    │   ├── item_slot.gd
+    │   ├── inventory_viewmodel.gd   # **Spike 17:** reconstruido. `InventoryState { HIDDEN, BROWSING, ITEM_SELECTED }`, `DetailData`, `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`), intenciones `request_*()`, refrescos agrupados con `call_deferred`, feedback ya traducido. Único punto de la pantalla que habla con `Inventory`, `Equipment`, `Items`, `Resources`, `Characters` y `EventBus` **Spike 18:** + `BagEntry`, `CategoryData`, `StatEntry`, `ModLine`, `CompareLine` y `DetailData` ampliada (categoría, modificadores, comparación); capacidad/peso (`_compute_capacity()`), categorías (`select_category()`), estadísticas (`stat_entries`), bonos del equipo (`equipment_bonuses`, suma de modificadores `add`), escucha `Equipment.equip_failed`; razón nueva `categories`
+    │   ├── inventory_ui.gd          # **Spike 17:** View pasiva de producción (`CanvasLayer`, raíz `InventoryUi`); crea el ViewModel como hijo; conserva `closed`, `open_inventory()`, `close_inventory()`, `toggle()` y `@export entity_id`; maneja `ui_cancel` **Spike 18:** rehecha con `UIPanel`/`UIButton`/`UISlot`: `Backdrop` opaco + `Frame` con tamaño máximo (1400×820) recalculado en `size_changed`, tres columnas (equipo, mochila con pestañas, detalle + bonos + estadísticas), pool de slots, popup sobre la mochila
+    │   ├── inventory_ui.tscn        # **Spike 18:** `Backdrop`, `Frame` (UIPanel OVERLAY con marco), `Header`, `EquipColumn`/`BagColumn`/`RightColumn`, `BonusBlock`, `StatsBlock`, `FeedbackPopup`; todos los nodos de la View con nombre único
+    │   ├── item_slot.gd             # Spike 18: ya NO lo usa el inventario (lo usa solo Party); se retira en el Spike 19
     │   ├── item_slot.tscn
-    │   ├── equip_slot.gd
+    │   ├── equip_slot.gd            # Spike 18: ya NO lo usa el inventario (lo usa solo Party); se retira en el Spike 19
     │   ├── equip_slot.tscn
-    │   ├── item_detail_panel.gd     # Spike 17: textos con tr()
+    │   ├── item_detail_panel.gd     # Spike 17: textos con tr() **Spike 18:** `class_name ItemDetailPanel extends UIPanel` (`super._ready()`), `show_detail(DetailData)`, filas de modificadores y de comparación por código con tokens
     │   ├── item_detail_panel.tscn
-    │   ├── feedback_popup.gd        # Spike 17: se oculta solo a los 2 s (Timer por código)
+    │   ├── feedback_popup.gd        # Spike 17: se oculta solo a los 2 s (Timer por código) **Spike 18:** colores y estilo desde tokens; script dentro de la escena
     │   └── feedback_popup.tscn
     │
     ├── loadout/                    # Pantalla de loadout (patrón MVVM)

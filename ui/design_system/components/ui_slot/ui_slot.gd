@@ -8,16 +8,35 @@ class_name UISlot
 ##   - El padre (View / Screen) decide qué hacer con las señales
 ##
 ## Uso:
-##   var slot = preload("res://ui/design_system/components/slot/ui_slot.tscn").instantiate()
+##   var slot: UISlot = preload("res://ui/design_system/components/ui_slot/ui_slot.tscn").instantiate()
 ##   slot.set_item(item_instance)
 ##   slot.slot_clicked.connect(_on_slot_clicked)
+##
+## Spike 18 (Fase 2) — primer consumidor real (inventario). Cambios:
+##   - Rutas de nodos corregidas (nombres únicos %): antes apuntaban a una
+##     jerarquía que la escena no tenía.
+##   - Hover conectado (los métodos existían, las señales no).
+##   - Cantidad, etiqueta de slot y marca de «equipado» van en Overlay y no
+##     alteran el tamaño del slot (64×64 fijo).
+##   - Banderas visuales independientes del estado: selected, equipped_mark,
+##     hovered, overflow. set_state() se mantiene por compatibilidad.
+##   - border_color_override: la View pasa el color (p. ej. por categoría).
+##   - Ítem sin icono: silueta genérica (icon_item_placeholder.png) teñida.
+##   - draggable / accept_drops / drop_source_filter: quién arrastra y qué acepta.
+##   - slot_clicked se emite al SOLTAR el botón dentro del slot (no al pulsar):
+##     así un arrastre nunca dispara la selección ni un repintado que destruya
+##     el slot que se está arrastrando.
+##   - Texto de la etiqueta: lo pone la View ya traducido (slot_label_text).
+##   - set_definition(): para slots que solo conocen la ItemDefinition (equipo).
+##
+## Pendiente registrado: DISABLED usa modulate (atenúa también el contenido).
 
 
 # ============================================================
 # SEÑALES
 # ============================================================
 
-## Emitida al hacer click en el slot (ocupado o vacío)
+## Emitida al hacer click (pulsar y soltar dentro) en el slot, ocupado o vacío
 signal slot_clicked(slot: UISlot)
 
 ## Emitida al soltar un drag sobre este slot
@@ -31,11 +50,15 @@ signal slot_drop_received(slot: UISlot, source_item_id: String)
 enum SlotState {
 	EMPTY,       ## Sin item
 	OCCUPIED,    ## Tiene item, no seleccionado
-	SELECTED,    ## Seleccionado activamente
-	EQUIPPED,    ## Item equipado (para panel de equipamiento)
+	SELECTED,    ## Seleccionado activamente (equivale a set_selected(true))
+	EQUIPPED,    ## Colores de «equipado» (compatibilidad; la marca E es aparte)
 	HIGHLIGHTED, ## Slot de comparación activo
 	DISABLED,    ## No interactuable (requisito no cumplido, etc.)
 }
+
+const PLACEHOLDER_ICON_PATH: String = "res://ui/design_system/assets/icons/icon_item_placeholder.png"
+const DASH_LENGTH: float = 5.0
+const DASH_GAP: float = 4.0
 
 
 # ============================================================
@@ -48,18 +71,46 @@ enum SlotState {
 ## Si true, acepta drops de drag & drop
 @export var accept_drops: bool = true
 
+## Si true, el slot ocupado se puede arrastrar. Falso en slots de equipo
+## (desequipar es un clic, no un arrastre).
+@export var draggable: bool = true
+
+## Si no está vacío, solo acepta drops cuyo `source` coincida. Los slots de
+## equipo ponen "inventory": solo se equipa arrastrando desde la mochila.
+@export var drop_source_filter: String = ""
+
 ## ID del slot de equipamiento (head, body, weapon...). Vacío en slots de inventario.
 @export var equipment_slot_id: String = ""
+
+## Color del borde en reposo (Color.TRANSPARENT = el del estado). Lo pasa la View.
+@export var border_color_override: Color = Color.TRANSPARENT:
+	set(value):
+		border_color_override = value
+		_apply_state_style()
+
+## Texto de la etiqueta del slot, ya traducido. Vacío = sin etiqueta.
+@export var slot_label_text: String = "":
+	set(value):
+		slot_label_text = value
+		_refresh_slot_label()
+
+## Texto de la marca de «equipado», ya traducido
+@export var equipped_mark_text: String = "E":
+	set(value):
+		equipped_mark_text = value
+		if is_node_ready():
+			equipped_mark.text = value
 
 
 # ============================================================
 # REFERENCIAS A NODOS
 # ============================================================
 
-@onready var icon_rect:       TextureRect = $MarginContainer/Icon
-@onready var quantity_label:  Label       = $MarginContainer/QuantityLabel
-@onready var slot_label:      Label       = $SlotLabel   # label del tipo de slot (Head, Weapon...)
-@onready var overlay:         Control     = $Overlay     # para highlight, estado, etc.
+@onready var icon_rect:       TextureRect = %Icon
+@onready var quantity_label:  Label       = %QuantityLabel
+@onready var slot_label:      Label       = %SlotLabel
+@onready var equipped_mark:   Label       = %EquippedMark
+@onready var overlay:         Control     = %Overlay
 
 
 # ============================================================
@@ -70,6 +121,15 @@ var _state: SlotState = SlotState.EMPTY
 var _item_instance: ItemInstance = null
 var _item_id: String = ""
 
+var _selected: bool = false
+var _equipped_mark: bool = false
+var _hovered: bool = false
+var _overflow: bool = false
+var _pressed: bool = false
+
+static var _placeholder_texture: Texture2D = null
+static var _warned_missing_placeholder: bool = false
+
 
 # ============================================================
 # INICIALIZACIÓN
@@ -78,14 +138,28 @@ var _item_id: String = ""
 func _ready() -> void:
 	custom_minimum_size = slot_size
 
-	# Label del tipo de slot (solo en panel de equipamiento)
-	if slot_label:
-		slot_label.visible = not equipment_slot_id.is_empty()
-		if not equipment_slot_id.is_empty():
-			slot_label.text = equipment_slot_id.capitalize()
-			slot_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_XS)
-			slot_label.add_theme_color_override("font_color", UITokens.COLOR_TEXT_MUTED)
+	mouse_entered.connect(_mouse_entered)
+	mouse_exited.connect(_mouse_exited)
 
+	quantity_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_SM)
+	quantity_label.add_theme_color_override("font_color", UITokens.COLOR_TEXT)
+	quantity_label.add_theme_color_override("font_outline_color", UITokens.COLOR_TEXT_OUTLINE)
+	quantity_label.add_theme_constant_override("outline_size", 3)
+
+	slot_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_XS)
+	slot_label.add_theme_color_override("font_color", UITokens.COLOR_TEXT_MUTED)
+	slot_label.add_theme_color_override("font_outline_color", UITokens.COLOR_TEXT_OUTLINE)
+	slot_label.add_theme_constant_override("outline_size", 3)
+
+	equipped_mark.text = equipped_mark_text
+	equipped_mark.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_XS)
+	equipped_mark.add_theme_color_override("font_color", UITokens.COLOR_TEXT)
+	equipped_mark.add_theme_stylebox_override("normal", UITokens.make_stylebox(
+		UITokens.COLOR_SLOT_EQUIPPED, UITokens.COLOR_SLOT_EQUIPPED_BORDER,
+		UITokens.BORDER_WIDTH, UITokens.BORDER_RADIUS_SM, 0))
+	equipped_mark.visible = _equipped_mark
+
+	_refresh_slot_label()
 	_apply_state_style()
 
 
@@ -95,38 +169,86 @@ func _ready() -> void:
 
 ## Asigna un ItemInstance al slot
 func set_item(instance: ItemInstance) -> void:
-	_item_instance = instance
-	_item_id = instance.definition.id if instance and instance.definition else ""
-
-	if instance and instance.definition:
-		icon_rect.texture = instance.definition.icon
-		icon_rect.visible = true
-
-		# Cantidad solo si > 1 y stackable
-		if instance.quantity > 1:
-			quantity_label.text = str(instance.quantity)
-			quantity_label.visible = true
-		else:
-			quantity_label.visible = false
-
-		_set_state(SlotState.OCCUPIED)
-	else:
+	if instance == null or instance.definition == null:
 		clear()
+		return
+	_item_instance = instance
+	_show_definition(instance.definition, instance.quantity)
 
 
-## Vacía el slot
+## Muestra una definición sin instancia (slots de equipo: la View solo conoce
+## la ItemDefinition de lo equipado). get_item_instance() devuelve null.
+func set_definition(definition: ItemDefinition, quantity: int = 1) -> void:
+	if definition == null:
+		clear()
+		return
+	_item_instance = null
+	_show_definition(definition, quantity)
+
+
+func _show_definition(definition: ItemDefinition, quantity: int) -> void:
+	_item_id = definition.id
+
+	var icon: Texture2D = definition.icon
+	if icon != null:
+		icon_rect.texture = icon
+		icon_rect.modulate = Color.WHITE
+	else:
+		# Sin icono: silueta genérica teñida en el icono, no en el contenedor
+		icon_rect.texture = _get_placeholder()
+		icon_rect.modulate = UITokens.COLOR_TEXT_MUTED
+	icon_rect.visible = icon_rect.texture != null
+
+	# Cantidad solo si > 1
+	if quantity > 1:
+		quantity_label.text = str(quantity)
+		quantity_label.visible = true
+	else:
+		quantity_label.visible = false
+
+	_set_state(SlotState.OCCUPIED)
+
+
+## Vacía el slot (también apaga marca de equipado y desbordamiento)
 func clear() -> void:
 	_item_instance = null
 	_item_id = ""
 	icon_rect.texture = null
+	icon_rect.modulate = Color.WHITE
 	icon_rect.visible = false
 	quantity_label.visible = false
+	_selected = false
+	set_equipped_mark(false)
+	set_overflow(false)
 	_set_state(SlotState.EMPTY)
 
 
-## Fuerza un estado visual sin cambiar el item
+## Fuerza un estado visual sin cambiar el item (compatibilidad)
 func set_state(new_state: SlotState) -> void:
 	_set_state(new_state)
+
+
+## Resalta el slot como seleccionado (independiente del estado)
+func set_selected(value: bool) -> void:
+	if _selected == value:
+		return
+	_selected = value
+	_apply_state_style()
+
+
+## Muestra la marca de «equipado» en la esquina (el ítem está en un slot de equipo)
+func set_equipped_mark(value: bool) -> void:
+	_equipped_mark = value
+	if is_node_ready():
+		equipped_mark.visible = value
+
+
+## Marca el slot como «por encima de la capacidad»: borde discontinuo de peligro
+func set_overflow(value: bool) -> void:
+	if _overflow == value:
+		return
+	_overflow = value
+	queue_redraw()
 
 
 ## Obtiene el item_id del item actual (vacío si no hay ninguno)
@@ -141,11 +263,15 @@ func get_item_instance() -> ItemInstance:
 
 ## ¿Está vacío?
 func is_empty() -> bool:
-	return _state == SlotState.EMPTY or _item_instance == null
+	return _item_id.is_empty()
+
+
+func is_selected() -> bool:
+	return _selected
 
 
 # ============================================================
-# ESTILOS DE ESTADO
+# ESTILOS
 # ============================================================
 
 func _set_state(new_state: SlotState) -> void:
@@ -153,7 +279,17 @@ func _set_state(new_state: SlotState) -> void:
 	_apply_state_style()
 
 
+func _refresh_slot_label() -> void:
+	if not is_node_ready():
+		return
+	slot_label.text = slot_label_text
+	slot_label.visible = not slot_label_text.is_empty()
+
+
 func _apply_state_style() -> void:
+	if not is_node_ready():
+		return
+
 	var bg_color: Color
 	var border_color: Color
 	var border_width: int = UITokens.BORDER_WIDTH
@@ -166,6 +302,8 @@ func _apply_state_style() -> void:
 		SlotState.OCCUPIED:
 			bg_color     = UITokens.COLOR_SLOT_OCCUPIED
 			border_color = UITokens.COLOR_SLOT_OCCUPIED_BORDER
+			if border_color_override.a > 0.0:
+				border_color = border_color_override
 
 		SlotState.SELECTED:
 			bg_color     = UITokens.COLOR_SLOT_SELECTED
@@ -185,15 +323,57 @@ func _apply_state_style() -> void:
 		SlotState.DISABLED:
 			bg_color     = UITokens.COLOR_SLOT_EMPTY
 			border_color = UITokens.COLOR_SLOT_EMPTY_BORDER
-			modulate     = Color(1, 1, 1, UITokens.DISABLED_ALPHA)
 
+	# Las banderas pesan más que el estado base: seleccionado > hover
+	if _selected:
+		bg_color     = UITokens.COLOR_SLOT_SELECTED
+		border_color = UITokens.COLOR_SLOT_SELECTED_BORDER
+		border_width = UITokens.BORDER_WIDTH_FOCUS
+	elif _hovered and _state != SlotState.EMPTY and _state != SlotState.DISABLED:
+		bg_color     = UITokens.COLOR_SLOT_HOVER
+		border_color = UITokens.COLOR_SLOT_HOVER_BORDER
+
+	# Padding 0: el margen interior lo da el nodo Content, y Overlay debe
+	# cubrir el slot entero para colocar cantidad, etiqueta y marca.
 	add_theme_stylebox_override("panel",
-		UITokens.make_stylebox(bg_color, border_color, border_width, UITokens.BORDER_RADIUS_SM, UITokens.SPACE_XS)
+		UITokens.make_stylebox(bg_color, border_color, border_width, UITokens.BORDER_RADIUS_SM, 0)
 	)
 
-	# Restaurar opacidad si salimos de DISABLED
-	if _state != SlotState.DISABLED:
-		modulate = Color.WHITE
+	modulate = Color(1, 1, 1, UITokens.DISABLED_ALPHA) if _state == SlotState.DISABLED else Color.WHITE
+
+
+func _draw() -> void:
+	if not _overflow:
+		return
+	# Borde discontinuo (StyleBoxFlat no sabe dibujarlos)
+	var rect := Rect2(Vector2.ONE, size - Vector2(2, 2))
+	var color: Color = UITokens.COLOR_DANGER_SOFT
+	var width: float = float(UITokens.BORDER_WIDTH_FOCUS)
+	_dashed_line(rect.position, Vector2(rect.end.x, rect.position.y), color, width)
+	_dashed_line(Vector2(rect.end.x, rect.position.y), rect.end, color, width)
+	_dashed_line(rect.end, Vector2(rect.position.x, rect.end.y), color, width)
+	_dashed_line(Vector2(rect.position.x, rect.end.y), rect.position, color, width)
+
+
+func _dashed_line(from: Vector2, to: Vector2, color: Color, width: float) -> void:
+	var total: float = from.distance_to(to)
+	if total <= 0.0:
+		return
+	var direction: Vector2 = (to - from) / total
+	var distance: float = 0.0
+	while distance < total:
+		var segment_end: float = minf(distance + DASH_LENGTH, total)
+		draw_line(from + direction * distance, from + direction * segment_end, color, width)
+		distance += DASH_LENGTH + DASH_GAP
+
+
+static func _get_placeholder() -> Texture2D:
+	if _placeholder_texture == null and ResourceLoader.exists(PLACEHOLDER_ICON_PATH):
+		_placeholder_texture = load(PLACEHOLDER_ICON_PATH) as Texture2D
+	if _placeholder_texture == null and not _warned_missing_placeholder:
+		_warned_missing_placeholder = true
+		push_warning("UISlot: falta el icono genérico '%s' — los ítems sin icono se verán vacíos." % PLACEHOLDER_ICON_PATH)
+	return _placeholder_texture
 
 
 # ============================================================
@@ -204,34 +384,28 @@ func _gui_input(event: InputEvent) -> void:
 	if _state == SlotState.DISABLED:
 		return
 
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			slot_clicked.emit(self)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_pressed = true
+			accept_event()
+		else:
+			# Click = pulsar y soltar dentro. Si hubo arrastre, el botón se suelta
+			# sobre otro control y aquí no llega (o llega con _pressed = false).
+			var was_pressed: bool = _pressed
+			_pressed = false
+			if was_pressed and Rect2(Vector2.ZERO, size).has_point(event.position):
+				slot_clicked.emit(self)
 			accept_event()
 
 
 func _mouse_entered() -> void:
-	if _state == SlotState.DISABLED:
-		return
-	if _state == SlotState.OCCUPIED:
-		_apply_hover_style()
-
-
-func _mouse_exited() -> void:
-	# Restaurar al estado previo (sin cambiar _state)
+	_hovered = true
 	_apply_state_style()
 
 
-func _apply_hover_style() -> void:
-	add_theme_stylebox_override("panel",
-		UITokens.make_stylebox(
-			UITokens.COLOR_SLOT_HOVER,
-			UITokens.COLOR_SLOT_HOVER_BORDER,
-			UITokens.BORDER_WIDTH,
-			UITokens.BORDER_RADIUS_SM,
-			UITokens.SPACE_XS
-		)
-	)
+func _mouse_exited() -> void:
+	_hovered = false
+	_apply_state_style()
 
 
 # ============================================================
@@ -239,15 +413,18 @@ func _apply_hover_style() -> void:
 # ============================================================
 
 func _get_drag_data(_pos: Vector2) -> Variant:
-	if _item_instance == null or _state == SlotState.DISABLED:
+	if not draggable or _item_id.is_empty() or _state == SlotState.DISABLED:
 		return null
+
+	_pressed = false
 
 	# Preview visual del drag
 	var preview := TextureRect.new()
 	preview.texture = icon_rect.texture
 	preview.custom_minimum_size = UITokens.ICON_SIZE_MD
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview.modulate = Color(1, 1, 1, 0.8)
+	preview.modulate = Color(icon_rect.modulate.r, icon_rect.modulate.g, icon_rect.modulate.b, 0.8)
 	set_drag_preview(preview)
 
 	return {
@@ -262,8 +439,14 @@ func _can_drop_data(_pos: Vector2, data: Variant) -> bool:
 		return false
 	if not data is Dictionary:
 		return false
-	return data.has("item_id")
+	var payload: Dictionary = data
+	if not payload.has("item_id"):
+		return false
+	if not drop_source_filter.is_empty() and str(payload.get("source", "")) != drop_source_filter:
+		return false
+	return true
 
 
 func _drop_data(_pos: Vector2, data: Variant) -> void:
-	slot_drop_received.emit(self, data.get("item_id", ""))
+	var payload: Dictionary = data
+	slot_drop_received.emit(self, str(payload.get("item_id", "")))

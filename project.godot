@@ -54,6 +54,10 @@ NarrativeSceneDB="*uid://f83s38eh5frk"
 EnemyWorldLink="*uid://cgdukmwcmga6t"
 InteractiveSceneDB="*uid://b5j6uci2f7mcd"
 
+[display]
+
+window/size/mode=3
+
 [input]
 
 quicksave={

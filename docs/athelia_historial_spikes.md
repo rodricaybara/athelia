@@ -423,11 +423,24 @@ Primera adopción real del Design System: `UIPanel` `OVERLAY` con marco, `UIButt
 - **Otros hallazgos:** Esc no cerraba el inventario (la spec lo daba por hecho); cabecera y detalle obsoletos tras usar una poción y «HP: HP:» duplicado; sin mensaje al desequipar, «usado» también al equipar y popup que nunca se ocultaba (`feedback_popup.gd` ahora con `Timer`).
 - **Pendientes que deja:** `equip_item` ignora el slot de destino; motivos de fallo en texto libre; modificadores sin localizar; mochila de más de 20 ítems; «vender equipado» y «comprar con inventario lleno» sin tocar; comparación y rediseño → Spike 18.
 
+### Spike 18 — Inventario B: rediseño con el Design System (cerrado y validado, 2026-10-22)
+
+**Qué es.** Cuarto spike con pantalla del hito de rediseño de interfaces. La pantalla de inventario se rehace con `UIPanel` (OVERLAY + marco), `UIButton`, `UISlot` (primer consumidor real) y solo `UITokens`, sobre el contrato MVVM del 17 sin cambiarlo. Validado en partida real a 1152×648 y 1680×1050, en los tres contextos de apertura. Detalle en `docs/spike_18_inventario_rediseno.md`.
+
+- **Nuevo en pantalla:** pestañas de categoría (datos en `data/ui/inventory_categories.json`), cabecera con oro/peso/huecos, marca «E» de equipado, desbordamiento visible con borde discontinuo, comparación con lo equipado en el detalle, bloque «Bonos del equipo» (suma de modificadores `add`), bloque de estadísticas (valores base) y popup de feedback sobre la mochila.
+- **`UISlot`:** `set_definition()`, `is_empty()`, flags `set_selected/set_equipped_mark/set_overflow`, `border_color_override`, arrastre con `drop_source_filter`, clic al soltar y placeholder para ítems sin icono.
+- **ViewModel:** capacidad y peso (`_compute_capacity()`), categorías (`select_category()`), `stat_entries`, `equipment_bonuses`, escucha de `Equipment.equip_failed`; razón nueva `categories`. Localización: `inventory.csv` pasa de 29 a 58 claves.
+- **Pantalla completa:** a 1680×1050 el panel se veía vacío. Decisión de Fernando: marco con tamaño máximo (1400×820), fondo opaco y, después, el bloque de bonos para aprovechar el espacio.
+- **Sin cambios:** `SceneOrchestrator`, `item_slot`/`equip_slot` (los usa Party hasta el Spike 19) y los contratos públicos.
+- **Pendientes que deja:** estadísticas efectivas (`AttributeResolver`), vender un objeto equipado, comprar con el inventario lleno, `equip_item` sin slot de destino, motivos de `equip_failed` en texto libre, mochila de Mira no accesible desde `InventoryUI` (→ 19). Redimensionado en caliente sin probar.
+
 ---
  
 ## Changelog completo (orden cronológico inverso)
  
-*Última actualización: Spike 17 — Inventario A: contrato MVVM, sin cambio visual (17a cerrada; validación parcial en partida real). `InventoryViewModel` reconstruido, `inventory_ui.gd` pasa a View pasiva, `inventory_screen.gd` y `SceneOrchestrator.close_inventory()` eliminados, `inventory.csv` con 29 claves, `feedback_popup.gd` con ocultado automático. `SceneOrchestrator` conecta `closed` de inventario y party (corrige las dos pulsaciones de tecla). Detalle en `docs/spike_17_inventario_mvvm.md`.*
+*Última actualización: Spike 18 — Inventario B: rediseño con el Design System (cerrado y validado en partida real, 2026-10-22). `UIPanel`/`UIButton`/`UISlot`/tokens; pestañas de categoría en datos, capacidad y peso, marca de equipado, desbordamiento visible, comparación, bonos del equipo y estadísticas; `UISlot` con arrastre y clic al soltar; marco con tamaño máximo y fondo opaco; `inventory.csv` a 58 claves. Contratos públicos y `SceneOrchestrator` intactos. Detalle en `docs/spike_18_inventario_rediseno.md`.*
+
+*Última actualización anterior: Spike 17 — Inventario A: contrato MVVM, sin cambio visual (17a cerrada; validación parcial en partida real). `InventoryViewModel` reconstruido, `inventory_ui.gd` pasa a View pasiva, `inventory_screen.gd` y `SceneOrchestrator.close_inventory()` eliminados, `inventory.csv` con 29 claves, `feedback_popup.gd` con ocultado automático. `SceneOrchestrator` conecta `closed` de inventario y party (corrige las dos pulsaciones de tecla). Detalle en `docs/spike_17_inventario_mvvm.md`.*
 
 *Última actualización anterior: Spike 15 — Cimientos del Design System (cerrado y validado en partida real). Resolución sin estiramiento (experimento con `canvas_items`, texto ≈ 15 % más blando); tokens fusionados con alias y dos cambios de valor (`COLOR_TEXT_MUTED` `#9A8E78`, `COLOR_PANEL_ALT`/`BG_SURFACE` `#252220`); `UIPanel` con esquinera por defecto, padding mínimo con marco y activación en runtime; diálogo con opciones en rejilla (1 columna hasta 3, 2 desde 4), altura reservada, margen del texto proporcional al retrato y foco de teclado; localización limpia (29 duplicados, fila rota, `skills.csv` nuevo, `SPEAKER_INNKEEPER`). Detalle en `docs/spike_15_cimientos_design_system.md`.*
 
