@@ -1,0 +1,28 @@
+id,en,es
+PARTY_TITLE,PARTY,GRUPO
+PARTY_PLAYER_NAME,Player,Jugador
+PARTY_NO_COMPANIONS,No companions in the party,Sin compañeros en el grupo
+PARTY_SLOTS_COUNTER,Slots: %d/%d,Huecos: %d/%d
+PARTY_SLOT_HEAD,Head,Cabeza
+PARTY_SLOT_BODY,Body,Torso
+PARTY_SLOT_HANDS,Hands,Manos
+PARTY_SLOT_FEET,Feet,Pies
+PARTY_SLOT_WEAPON,Weapon,Arma
+PARTY_SLOT_SHIELD,Shield,Escudo
+PARTY_STRATEGY_AGGRESSIVE,Aggressive,Agresiva
+PARTY_STRATEGY_DEFENSIVE,Defensive,Defensiva
+PARTY_STRATEGY_AREA_FOCUS,Area attack,Ataque en área
+PARTY_STRATEGY_BERSERKER,Berserker,Berserker
+PARTY_STRATEGY_TOOLTIP,Combat strategy,Estrategia en combate
+PARTY_TOOLTIP_QUANTITY,%s x%d,%s x%d
+PARTY_TOOLTIP_EQUIPPED,Equipped,Equipado
+PARTY_ERROR_ITEM_NOT_FOUND,Item not found in any inventory,Ítem no encontrado en ningún inventario
+PARTY_ERROR_TRANSFER_FAILED,Could not transfer item,No se pudo transferir el ítem
+PARTY_ERROR_WRONG_SLOT,%s doesn't fit in %s,%s no encaja en %s
+PARTY_ERROR_EQUIP_FAILED,Could not equip %s,No se pudo equipar %s
+PARTY_ERROR_USE_FAILED,Could not use %s,No se pudo usar %s
+PARTY_FEEDBACK_EQUIPPED,Equipped on %s: %s,Equipado en %s: %s
+PARTY_FEEDBACK_UNEQUIPPED,Unequipped from %s: %s,Desequipado de %s: %s
+PARTY_FEEDBACK_USED,Used by %s: %s,Usado por %s: %s
+PARTY_FEEDBACK_TRANSFERRED,%s moved to %s and equipped,%s pasa a %s y se equipa
+PARTY_EQUIPPED_BADGE,E,E

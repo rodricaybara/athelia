@@ -15,7 +15,7 @@
 11. [Contrato de pantalla y resolución de referencia (Spike 15)](#contrato-de-pantalla-y-resolución-de-referencia-spike-15)
 12. [Referencia de pantallas existentes](#referencia-de-pantallas-existentes)
 
-Secciones del Design System añadidas después: [fila de lista `ShopItemSlot` (Spike 16)](#design-system--fila-de-lista-shopitemslot-spike-16) y [`UISlot` y patrón de overlay a pantalla completa (Spike 18)](#design-system--uislot-y-patrón-de-overlay-a-pantalla-completa-spike-18).
+Secciones del Design System añadidas después: [fila de lista `ShopItemSlot` (Spike 16)](#design-system--fila-de-lista-shopitemslot-spike-16) y [`UISlot` y patrón de overlay a pantalla completa (Spike 18)](#design-system--uislot-y-patrón-de-overlay-a-pantalla-completa-spike-18). Party (Spike 19) se documenta en su fila de la referencia de pantallas y en «Contextos de apertura de Party».
 
 ---
 
@@ -495,6 +495,8 @@ Godot genera los `.translation` automáticamente al recargar el proyecto cuando 
 | Un `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()`, igual que `ExplorationController` | Un segundo punto de entrada sin el mismo guard procesa el evento aunque el `GameState` no sea `EXPLORATION` (mejoras post-Spike 3, Grupo 3) |
 | Toda opción visual nueva de un componente compartido del Design System (`UIPanel`, etc.) entra como flag apagado por defecto | Los paneles ya en producción no pueden cambiar de aspecto sin decisión explícita por pantalla (Spike 9) |
 | Un overlay del orquestador que expone `closed` tiene su oyente en `SceneOrchestrator` | Con slot único, una pantalla oculta pero no liberada hace que la siguiente tecla la destruya en lugar de abrir una nueva (Spike 17) |
+| Un payload de arrastre lleva el dueño del slot de origen (`owner_id`) | Si el destino necesita saber de dónde sale el ítem, no se deduce buscándolo en los inventarios: con copias en varios, se toma la equivocada (Spike 19) |
+| Una operación compuesta valida todo antes de mover nada y revierte si falla | `Equipment` e `Inventory` son independientes: transferir un ítem equipado sin desequiparlo lo deja equipado en el origen; y transferir antes de validar el slot cambia de dueño un ítem cuyo drop se rechaza (Spike 19) |
 
 ---
 
@@ -576,6 +578,68 @@ func _on_drop_accepted(slot_id: String, item_id: String, entity_id: String) -> v
     if not error.is_empty():
         _show_feedback(tr(error), true)
 ```
+
+---
+
+### ❌ Transferir antes de validar, o mover sin poder deshacer
+
+```gdscript
+# MAL — el ítem ya cambió de dueño cuando se descubre que el slot no lo admite
+# (y el origen conserva el ítem equipado y sus modificadores)
+func request_equip_drop(slot_id, item_id, target_entity):
+    if not Inventory.has_item(target_entity, item_id):
+        _transfer_item(_find_item_owner(item_id), target_entity, item_id)
+    if not Equipment.can_equip_in_slot(target_entity, item_id, slot_id):
+        return "PARTY_ERROR_WRONG_SLOT"        # el ítem ya se movió
+    Equipment.equip_item(target_entity, item_id)
+```
+
+```gdscript
+# BIEN — se valida todo antes de tocar nada; si un paso falla, se deshace
+func request_equip_drop(slot_id, item_id, target_entity, from_entity):
+    if not Equipment.can_equip_in_slot(target_entity, item_id, slot_id):
+        _set_feedback(...)               # nada se movió
+        return
+    var was_equipped := Equipment.is_item_equipped(from_entity, item_id)
+    _suppress_feedback = true            # un único mensaje, al final
+    if was_equipped:
+        Equipment.unequip_item(from_entity, item_id)
+    if not _transfer_item(from_entity, target_entity, item_id):
+        if was_equipped:
+            Equipment.equip_item(from_entity, item_id)
+        ...
+        return
+    if not Equipment.equip_item(target_entity, item_id):
+        _transfer_item(target_entity, from_entity, item_id)   # revertir
+        if was_equipped:
+            Equipment.equip_item(from_entity, item_id)
+        ...
+        return
+```
+
+Encontrado en el Spike 19 reproduciendo en partida real: una poción soltada sobre el slot de cabeza de un compañero pasaba a su mochila y salía «Drop rechazado»; la lanza equipada del jugador, arrastrada al slot de arma de Mira, quedaba equipada en los dos. `EquipmentManager` no consulta el inventario y `InventorySystem` no toca el equipo (nota 5 de `equipment_manager.gd`): quien mueve ítems entre entidades es quien debe desequipar.
+
+*(El ejemplo del antipatrón «Lógica de negocio en la View» ilustra el principio; desde el Spike 19 `PartyViewModel.request_equip_drop()` no devuelve una clave de error, sino que da el resultado por la razón `feedback` de `changed`.)*
+
+---
+
+### ❌ Deducir el origen de un arrastre buscando el ítem en los inventarios
+
+```gdscript
+# MAL — con el mismo ítem apilable en varias mochilas, se toma siempre el del jugador
+func _find_item_owner(item_id: String) -> String:
+    if Inventory.has_item("player", item_id): return "player"
+    ...
+```
+
+```gdscript
+# BIEN — el slot de origen declara su dueño (id opaco) y viaja en el payload
+slot.owner_id = column.entity_id            # la View lo asigna al pintar
+# UISlot._get_drag_data():  { "item_id": ..., "source": ..., "owner_id": owner_id }
+# UISlot._drop_data():      slot_item_dropped.emit(self, item_id, from_owner_id)
+```
+
+El componente del Design System no interpreta `owner_id` ni accede a sistemas: lo transporta. La View lo pasa al ViewModel (`request_equip_drop(slot, ítem, destino, origen)`), que decide. Se mantiene `slot_drop_received` para no cambiar a los consumidores existentes (Spike 19).
 
 ---
 
@@ -1052,14 +1116,17 @@ Patrón reutilizable (Party, Inventario) para una lista de objetos con acción p
 
 ## Design System — `UISlot` y patrón de overlay a pantalla completa (Spike 18)
 
-- **`UISlot`** es el slot de ítem del Design System (inventario y equipo; Party lo adoptará en el Spike 19). API: `set_item(ItemInstance)`, `set_definition(definition, quantity = 1)`, `clear()`, `get_item_id()`, `is_empty()`; flags de estado `set_selected()`, `set_equipped_mark()` y `set_overflow()` (borde discontinuo de peligro); `border_color_override` (la View colorea por categoría con tokens); arrastre con `draggable`, `accept_drops`, `drop_source_filter` y `equipment_slot_id`. Sin icono muestra un placeholder teñido con `COLOR_TEXT_MUTED`.
-- **El clic se emite al soltar** el botón dentro del slot, no al pulsar: si no, cada arrastre dispara una selección. Señales: `slot_clicked(slot)` y `slot_drop_received(slot, item_id)`.
+- **`UISlot`** es el slot de ítem del Design System (inventario y equipo; Party lo adopta desde el Spike 19). API: `set_item(ItemInstance)`, `set_definition(definition, quantity = 1)`, `clear()`, `get_item_id()`, `is_empty()`; flags de estado `set_selected()`, `set_equipped_mark()` y `set_overflow()` (borde discontinuo de peligro); `border_color_override` (la View colorea por categoría con tokens); arrastre con `draggable`, `accept_drops`, `drop_source_filter` y `equipment_slot_id`. Sin icono muestra un placeholder teñido con `COLOR_TEXT_MUTED`.
+- **El clic se emite al soltar** el botón dentro del slot, no al pulsar: si no, cada arrastre dispara una selección. Señales: `slot_clicked(slot)`, `slot_drop_received(slot, item_id)` y, desde el Spike 19, `slot_item_dropped(slot, item_id, from_owner_id)` (con el dueño del slot de origen).
 - **El componente no conoce el juego.** No equipa ni mueve nada: avisa por señal y la View lo traduce en una intención del ViewModel (`request_*()`), como en cualquier otra pantalla.
 - **Overlay a pantalla completa:** `Backdrop` (`ColorRect` opaco, `mouse_filter = STOP`, para no ver ni pulsar lo de debajo) + `Frame` (`UIPanel` OVERLAY con marco) con **tamaño máximo** (inventario: fracción 0,9 y tope 1400×820), centrado, con el rectángulo recalculado en `get_viewport().size_changed` y al abrir. Sin tope, a 1680×1050 el panel queda vacío.
 - **Rejilla variable:** pool de `UISlot` reutilizados (los sobrantes se ocultan), columnas calculadas con el ancho real del `ScrollContainer` y reserva para la barra de scroll.
 - **Categorías en datos, no en código:** `data/ui/inventory_categories.json` (versión 1, primera coincidencia por prioridad); el ViewModel las traduce a pestañas y la View solo pinta.
 - **Una raíz que `extends UIPanel`** (`ItemDetailPanel`, `ShopItemSlot`) llama a `super._ready()`; si no, el estilo no se aplica.
 - **Bloques informativos** (estadísticas, bonos del equipo): `UIPanel` DEFAULT con un único contenedor de layout dentro (un `PanelContainer` apila a sus hijos).
+- **Spike 19 — `owner_id`.** `UISlot` gana `@export var owner_id: String` (id opaco de la entidad dueña del slot; el componente no lo interpreta ni accede a sistemas), lo incluye en el payload del arrastre (`"owner_id"`) y emite `slot_item_dropped(slot, source_item_id, from_owner_id)` justo después de `slot_drop_received`. El inventario no lo usa (owner vacío, sin oyentes de la señal nueva).
+- **Capacidad de mochila: `BagCapacity`** (`ui/inventory/bag_capacity.gd`). `BagCapacity.compute(definition, used_count, entity_id = "")` devuelve `definition.inventory_slots` (o `used_count` con aviso si no hay definición). Es el único punto de cálculo; `InventoryViewModel` y `PartyViewModel` resuelven la definición de su entidad y delegan solo la regla. Cualquier mecanismo futuro de aumento de capacidad entra aquí.
+- **Columna «equipo + mochila» (Party, Spike 19).** Equipo en una columna vertical de 6 `UISlot` de 64 px fijos a la izquierda de una mochila en `ScrollContainer` con pool de `UISlot` según la capacidad del personaje (columnas calculadas con el ancho real). Una clase interna de la View (`ColumnView`) agrupa los nodos y el estado de pintado de una columna, y el mismo código pinta jugador y compañero. Ver `docs/spike_19_party.md`.
 
 ---
 
@@ -1130,6 +1197,18 @@ Reglas derivadas:
 - Una pantalla con `closed` nunca se libera a sí misma.
 - **Spike 18:** los tres contextos y estas reglas no cambian con el rediseño.
 
+### Contextos de apertura de Party (Spike 19)
+
+| Contexto | Quién instancia | `closed` | Quién libera |
+|---|---|---|---|
+| Overlay en exploración (tecla `O`) | `SceneOrchestrator.open_party()` (toggle) | conectada por el orquestador | `_on_overlay_closed()` |
+| Sub-overlay de narrativa | `NarrativeScenePanel._open_sub_overlay()` (nunca vía orquestador; llama a `open()`) | conectada | el panel |
+
+- `PlayerMenu` **no** abre Party (solo Loadout, Inventory y SkillTree).
+- Cierra con `O`, con Esc y con la X; la View consume `open_party` y `ui_cancel`. En narrativa, cerrar solo muestra de nuevo el panel (`_on_sub_overlay_closed`): no avanza nodo ni racha.
+- Con Party abierta, `I` la cierra en vez de abrir el inventario: el orquestador tiene un único `_current_overlay` y `open_inventory()` hace toggle. Limitación conocida del orquestador, no de Party (→ Spike 22).
+- Contrato público intacto: `open()`, `close()`, `toggle()`, `closed`, `layer = 10`.
+
 ---
 
 ## Referencia de pantallas existentes
@@ -1138,8 +1217,8 @@ Reglas derivadas:
 |----------|-----------|------|-------------|
 | MainMenu | `main_menu_viewmodel.gd` | `main_menu_screen.gd` | Menú principal del juego. Main Scene del proyecto. Pantalla única con sub-paneles internos (opciones, créditos, confirmación de salida). No instanciada por SceneOrchestrator — arranca directamente. |
 | WorldObject | `world_object_panel_viewmodel.gd` | `world_object_interaction_panel.gd` | Panel piloto del patrón. El más simple. Buen punto de partida para entender el flujo. |
-| Inventory | `inventory_viewmodel.gd` | `inventory_ui.gd` | **Spike 17:** cumple el contrato MVVM (ver «Contextos de apertura del inventario» arriba). View pasiva (`CanvasLayer`, raíz `InventoryUi`, nodos `%`, textos `tr()` con claves `INVENTORY_*`), ViewModel como hijo con `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`). Feedback decidido por el ViewModel (usado/equipado/desequipado/errores) y mostrado en `FeedbackPopup`, que se oculta solo. Esc cierra (la View consume `ui_cancel`). **Spike 18:** rediseño con el Design System. `Backdrop` opaco + `Frame` (`UIPanel` OVERLAY con marco, tamaño máximo 1400×820 centrado, rectángulo recalculado en `size_changed`); tres columnas por proporciones: equipo (6 `UISlot` con la etiqueta dentro), mochila (pestañas de categoría `UIButton` SM + rejilla de `UISlot` con pool, desbordamiento con borde discontinuo y marca «E» de equipado) y detalle (`ItemDetailPanel extends UIPanel`, con modificadores y comparación con lo equipado) + bloque «Bonos del equipo» (suma de los modificadores `add` de lo equipado) + bloque de estadísticas (valores base). Cabecera con oro, peso y huecos usados/capacidad (`inventory_slots` de `CharacterDefinition`, un único punto: `_compute_capacity()`). Categorías en `data/ui/inventory_categories.json`. Razones de `changed` ampliadas con `categories`; los bonos salen con `equipment`. `FeedbackPopup` sobre la parte baja de la mochila. Textos `INVENTORY_*` (58 claves). Contratos públicos intactos. `equip_slot` e `item_slot` se mantienen solo para Party (Spike 19). Ver `docs/spike_18_inventario_rediseno.md`. |
-| Party | `party_viewmodel.gd` | `party_ui.gd` | Gestión de party con dos columnas simétricas. Incluye transferencia de ítems entre entidades. |
+| Inventory | `inventory_viewmodel.gd` | `inventory_ui.gd` | **Spike 17:** cumple el contrato MVVM (ver «Contextos de apertura del inventario» arriba). View pasiva (`CanvasLayer`, raíz `InventoryUi`, nodos `%`, textos `tr()` con claves `INVENTORY_*`), ViewModel como hijo con `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`). Feedback decidido por el ViewModel (usado/equipado/desequipado/errores) y mostrado en `FeedbackPopup`, que se oculta solo. Esc cierra (la View consume `ui_cancel`). **Spike 18:** rediseño con el Design System. `Backdrop` opaco + `Frame` (`UIPanel` OVERLAY con marco, tamaño máximo 1400×820 centrado, rectángulo recalculado en `size_changed`); tres columnas por proporciones: equipo (6 `UISlot` con la etiqueta dentro), mochila (pestañas de categoría `UIButton` SM + rejilla de `UISlot` con pool, desbordamiento con borde discontinuo y marca «E» de equipado) y detalle (`ItemDetailPanel extends UIPanel`, con modificadores y comparación con lo equipado) + bloque «Bonos del equipo» (suma de los modificadores `add` de lo equipado) + bloque de estadísticas (valores base). Cabecera con oro, peso y huecos usados/capacidad (`inventory_slots` de `CharacterDefinition`, un único punto: `_compute_capacity()`, que desde el Spike 19 delega en `BagCapacity`). Categorías en `data/ui/inventory_categories.json`. Razones de `changed` ampliadas con `categories`; los bonos salen con `equipment`. `FeedbackPopup` sobre la parte baja de la mochila. Textos `INVENTORY_*` (58 claves). Contratos públicos intactos. `equip_slot` e `item_slot` se retiraron en el Spike 19 (Party pasó a `UISlot`). Ver `docs/spike_18_inventario_rediseno.md`. |
+| Party | `party_viewmodel.gd` | `party_ui.gd` | **Spike 19 (19a)** — rediseño con el Design System: `UIPanel` OVERLAY con marco, `UIButton`, `UISlot` y solo tokens; layout L3 (equipo en columna vertical de 6 `UISlot` de 64 px a la izquierda de la mochila de cada personaje), marco al 90 % con tope 1400×820 y `Backdrop` opaco (mismo patrón que el inventario). View pasiva (sin acceso a `Inventory`, `Equipment`, `Characters`, `Party` ni `Items`): el ViewModel entrega datos listos para pintar (`ColumnData` con `BagEntry`/`EquipEntry`, capacidad con `BagCapacity`, estrategias y pestañas ya traducidas). Razones de `changed`: `opened`, `player_column`, `companion_column`, `companion_changed`, `party_changed` (entra o sale un compañero con la pantalla abierta), `feedback` y `closed`; refresco agrupado con `call_deferred`. Pestañas de compañero solo con 2 o más (con uno, su nombre). Estrategia con `OptionButton` estilizado y mapeada por id de enum. `request_equip_drop(slot, ítem, destino, origen)` valida el slot antes de mover, desequipa en el origen, equipa la copia del destino si ya la tiene y revierte si falla (ver los dos antipatrones nuevos de arriba). Feedback localizado con `FeedbackPopup`; claves `PARTY_*` en `party.csv`. `UISlot` gana `owner_id` y `slot_item_dropped`. `item_slot` y `equip_slot` retirados. Ningún cambio al contrato MVVM. Ver `docs/spike_19_party.md`. |
 | Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable, abierta desde `SceneOrchestrator` vía `show_shop_direct()`. **Spike 16:** primera pantalla del hito que adopta el Design System. Panel `UIPanel` `OVERLAY` con marco (anclas 0.05–0.95), `layer = 10` fijado por el script; dos columnas (inventario del jugador a la izquierda, tienda a la derecha), cada una con cabecera `UIPanel` (título + oro; la tienda añade huecos), `ScrollContainer` y `VBoxContainer` de filas; botón Cerrar arriba a la derecha (`UIButton` secundario SM) y tira de mensaje de altura reservada. Mensajes de lista vacía. Textos `SHOP_*` en `shops.csv`; tokens, sin `Color(...)` ni tamaños de fuente literales. Conserva `show_shop_direct()`, el cierre por `shop_closed` y los nombres `%`. **Spike 16b:** `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible) y añade `is_loan` a las entradas del snapshot; `trade_type` gana el valor `"loan"`. `ShopViewModel` cambia `_on_trade_success` (distingue compra, venta y préstamo y usa el nombre visible) y traduce `LOAN_ITEM`. Ver la sección «Fila de lista del Design System». |
 | Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. **Spike 11** lo rediseñó por completo: base de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`, marco del Spike 9); único retrato (se descarta el layout de dos retratos original), hermano del panel — no hijo — para poder sobresalir por encima del marco (layout C: franja inferior, anclas por fracción de pantalla `0.04/0.57/0.96/0.96`, no píxeles fijos); fondo de ambiente propio (`BackgroundImage` + `Background` como velo, mismo patrón que `CombatArenaViewModel`/Grupo 4, razón `"background"` de `changed()` emitida solo cuando cambia el path); exports de configuración visual sin efecto real retirados. `dialogue_node_shown` pasa de 4 a 7 argumentos (`mood`, `portrait_folder`, `background_id`) sin romper los oyentes existentes — GDScript descarta los argumentos de más al emitir si el callback conectado acepta menos. Ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2. Antipatrón nuevo, ver sección propia: `OptionsContainer` dentro de un `ScrollContainer` — un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, y con `grow_vertical = BEGIN` un número variable de opciones lo hacía crecer invadiendo pantalla en vez de quedarse en su franja fija. **Spike 15:** opciones en `GridContainer` (`OptionsContainer`): 1 columna hasta 3 opciones, 2 desde 4, relleno por filas; la franja `OptionsScroll` reserva su altura natural (`custom_minimum_size.y`) para cualquier número de opciones y el `ScrollContainer` queda como red de seguridad; el margen izquierdo del texto se calcula desde el borde derecho real del retrato (`+ PORTRAIT_TEXT_GAP` = 3 px) y se recalcula en `resized`, ya no es un 240 fijo; la primera opción toma el foco y el foco usa el estilo `hover` del botón. `MarginContainer` y `OptionsScroll` son nodos con nombre único (`%`). Sin cambios en el contrato MVVM ni en `closed`. |
 | CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
@@ -1175,7 +1254,9 @@ Ningún antipatrón nuevo de arquitectura UI: el patrón es una variante de los 
 
 ---
 
-*Última actualización: Spike 18 — Inventario B (cerrado y validado en partida real, 2026-10-22). Rediseño con `UIPanel`/`UIButton`/`UISlot`/tokens; sección nueva «`UISlot` y patrón de overlay a pantalla completa» (clic al soltar, tamaño máximo + fondo opaco, rejilla con pool, categorías en datos); fila Inventory actualizada. Ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura. Ver `docs/spike_18_inventario_rediseno.md`. Godot 4.7.x.*
+*Última actualización: Spike 19 — Party (19a, cerrado y validado en partida real, 2026-10-26). Rediseño con `UIPanel`/`UIButton`/`UISlot`/tokens, layout L3, capacidad real por personaje (`BagCapacity`, compartido con el inventario), contrato MVVM cumplido (la View ya no llama a `Inventory`), feedback localizado y orden de transferencia corregido. `UISlot` gana `owner_id` y `slot_item_dropped`; `item_slot` y `equip_slot` retirados. Dos antipatrones nuevos («Transferir antes de validar, o mover sin poder deshacer» y «Deducir el origen de un arrastre buscando el ítem en los inventarios»), dos reglas nuevas en «Reglas que no se rompen» y sección «Contextos de apertura de Party». Ningún cambio al contrato MVVM. Ver `docs/spike_19_party.md`. Godot 4.7.x.*
+
+*Última actualización anterior: Spike 18 — Inventario B (cerrado y validado en partida real, 2026-10-22). Rediseño con `UIPanel`/`UIButton`/`UISlot`/tokens; sección nueva «`UISlot` y patrón de overlay a pantalla completa» (clic al soltar, tamaño máximo + fondo opaco, rejilla con pool, categorías en datos); fila Inventory actualizada. Ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura. Ver `docs/spike_18_inventario_rediseno.md`. Godot 4.7.x.*
 
 *Última actualización anterior: Spike 17 — Inventario A (17a cerrada). El inventario cumple el contrato MVVM (fila Inventory y sección «Contextos de apertura del inventario»). `SceneOrchestrator` conecta `closed` en inventario y party (dos pulsaciones). Ningún cambio al contrato en sí. Ver `docs/spike_17_inventario_mvvm.md`. Godot 4.7.x.*
 

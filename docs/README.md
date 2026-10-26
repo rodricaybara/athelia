@@ -1,6 +1,6 @@
 # Athelia — Design System: Guía de implementación
 
-*Última actualización: Spike 17 — el inventario cumple el contrato MVVM, sin usar aún el Design System (2026-10-21). Anterior: Spike 16 — Tienda, primera pantalla del Design System (2026-10-21). Anterior: Spike 15 — Cimientos del Design System (2026-10-20).*
+*Última actualización: Spike 19 — Party sobre el Design System: `UISlot` gana `owner_id` y `slot_item_dropped`, helper `BagCapacity`, `item_slot` y `equip_slot` retirados (2026-10-26). Anterior: Spike 18 — Inventario B: `UISlot` primer consumidor real, patrón de overlay a pantalla completa (2026-10-22). Anterior: Spike 17 — el inventario cumple el contrato MVVM (2026-10-21). Anterior: Spike 16 — Tienda, primera pantalla del Design System (2026-10-21). Anterior: Spike 15 — Cimientos del Design System (2026-10-20).*
 
 ## Estructura de archivos
 
@@ -27,6 +27,8 @@ ui/design_system/
 │       └── ui_resource_bar.tscn  ← Ver estructura abajo
 │
 ├── assets/
+│   ├── icons/
+│   │   └── icon_item_placeholder.png  ← silueta de bolsa 64×64 para ítems sin icono (Spike 18); se tiñe con COLOR_TEXT_MUTED
 │   └── frames/
 │       ├── frame_corner_64x64.png  ← esquinera por defecto del marco decorativo
 │       └── frame_corner_96x96.png  ← reserva (invadía el texto del panel narrativo)
@@ -193,6 +195,37 @@ Configuración en Inspector:
 - `accept_drops`: true
 - `equipment_slot_id`: "" (vacío para slots de inventario)
 
+> **El esquema de arriba es el diseño original.** Desde el Spike 18 la estructura real de la escena es:
+>
+> ```
+> PanelContainer                    ← script: ui_slot.gd
+> ├── Content (MarginContainer, margen 4, mouse_filter IGNORE)
+> │   └── Icon (TextureRect, %Icon, expand IGNORE_SIZE, KEEP_ASPECT_CENTERED)
+> └── Overlay (Control, %Overlay, mouse_filter IGNORE, cubre el slot entero)
+>     ├── QuantityLabel (%)   ← cantidad, solo si > 1
+>     ├── SlotLabel (%)       ← etiqueta del slot de equipo (texto ya traducido)
+>     └── EquippedMark (%)    ← marca «E» de equipado
+> ```
+>
+> Todos los hijos se referencian por nombre único (`%`).
+
+### `UISlot`: API (Spike 18, ampliada en el Spike 19)
+
+| Elemento | Descripción |
+|---|---|
+| `set_item(ItemInstance)` / `set_definition(definition, quantity = 1)` / `clear()` | Contenido. `set_definition()` es para quien solo conoce la definición (equipo, o una View que recibe datos ya preparados); `get_item_instance()` devuelve `null` en ese caso |
+| `set_selected()`, `set_equipped_mark()`, `set_overflow()` | Banderas visuales independientes del estado. `set_overflow()` dibuja un borde discontinuo de peligro |
+| `@export`: `slot_size`, `accept_drops`, `draggable`, `drop_source_filter`, `equipment_slot_id`, `border_color_override`, `slot_label_text`, `equipped_mark_text` | Configuración. Los textos los pone la View ya traducidos |
+| `@export owner_id` (**Spike 19**) | Id opaco de la entidad dueña del slot. El componente no lo interpreta ni accede a sistemas: lo incluye en el payload del arrastre |
+| `slot_clicked(slot)` | Se emite **al soltar** el botón dentro del slot (no al pulsar), para que un arrastre no dispare una selección |
+| `slot_drop_received(slot, item_id)` | Drop recibido |
+| `slot_item_dropped(slot, item_id, from_owner_id)` (**Spike 19**) | Igual que la anterior, con el `owner_id` del slot de origen; se emite justo después |
+
+- Payload del arrastre: `{ "item_id", "source_slot", "source", "owner_id" }`. `source` es `"inventory"` para cualquier slot sin `equipment_slot_id`.
+- Sin icono se muestra un placeholder teñido con `COLOR_TEXT_MUTED`.
+- Limitación conocida: el estado `DISABLED` usa `modulate` (atenúa también el contenido).
+- Consumidores reales: inventario (Spike 18) y Party (Spike 19).
+
 ---
 
 ## Paso 5 — Crear `ui_resource_bar.tscn`
@@ -305,6 +338,24 @@ Inventario (Spike 18).
 
 ---
 
+## Inventario y Party: overlay a pantalla completa con equipo + mochila (Spikes 18 y 19)
+
+Patrón común de las dos pantallas rediseñadas con `UISlot`. Party **no** reutiliza la fila de lista de la tienda: usa rejilla de `UISlot`.
+
+- **Marco y fondo:** `Backdrop` (`ColorRect` opaco, `mouse_filter = STOP`) + `Frame` (`UIPanel` `OVERLAY` con marco decorativo, padding 16), con una fracción de la pantalla (0,9) y **tamaño máximo 1400×820**, centrado. El rectángulo se recalcula al abrir y en `get_viewport().size_changed`. Sin tope, a pantalla completa el panel queda vacío.
+- **Referencia de diseño:** 1680×1050 a pantalla completa (es como se juega); el mínimo que no debe romperse es 1152×648.
+- **Rejilla de mochila:** pool de `UISlot` reutilizados (los sobrantes se ocultan), con tantos huecos como la capacidad del personaje (o las pilas, si hay más), columnas calculadas con el ancho real del `ScrollContainer` más una reserva para la barra de scroll. Las pilas por encima de la capacidad llevan el borde de desbordamiento.
+- **Columna de equipo:** 6 `UISlot` de 64 px fijos en vertical, con la etiqueta dentro del slot (no cabe debajo con 6 slots en 648 de alto). No arrastrables; aceptan solo drops con `source == "inventory"`.
+- **Feedback:** `FeedbackPopup` (`ui/inventory/feedback_popup.tscn`), alimentado por una razón `feedback` del ViewModel con el mensaje ya traducido.
+- **Un `PanelContainer` apila a sus hijos:** el contenido de `Frame` va dentro de un único `VBoxContainer`.
+- **Ejemplo de código compartido en una View:** Party agrupa los nodos y el estado de pintado de una columna en una clase interna (`ColumnView`) y pinta jugador y compañero con el mismo código.
+
+### `BagCapacity`
+
+`BagCapacity.compute(definition, used_count, entity_id = "")` (`ui/inventory/bag_capacity.gd`, `RefCounted`, sin autoloads) devuelve `definition.inventory_slots`, o `used_count` con aviso si no hay definición. Es el **único punto de cálculo** de la capacidad de una mochila; `InventoryViewModel` y `PartyViewModel` resuelven la definición de su entidad y delegan solo la regla. Cualquier mecanismo futuro de aumento de capacidad (premium, monedas, magia) entra aquí.
+
+---
+
 ## Reglas de uso
 
 ### ✅ Obligatorio
@@ -318,10 +369,10 @@ Inventario (Spike 18).
 - Todo texto visible con `tr()` y clave de localización, formato `PANTALLA_ELEMENTO`
   (prefijo de pantalla en mayúsculas)
 
-*Las pantallas anteriores al hito (party, menú del jugador…)
-todavía no usan `UIPanel` (la tienda ya migró en el Spike 16); migran en el spike de cada una (ver plan del hito).*
+*Las pantallas anteriores al hito (menú del jugador, Loadout, árbol de habilidades…)
+todavía no usan `UIPanel` (la tienda, el inventario y Party ya migraron: Spikes 16, 18 y 19); migran en el spike de cada una (ver plan del hito).*
 
-*El inventario cumple el contrato MVVM desde el Spike 17 (View pasiva, `InventoryViewModel` como hijo, claves `INVENTORY_*`), pero sigue sin usar `UIPanel`, `UISlot` ni tokens: se rediseña en el Spike 18. Se abre en tres contextos: overlay vía `SceneOrchestrator` (tecla `I`, toggle; el orquestador conecta `closed` y libera), subpantalla de PlayerMenu y sub-overlay de narrativa (ambos conectan `closed` y liberan).*
+*El inventario cumple el contrato MVVM desde el Spike 17 (View pasiva, `InventoryViewModel` como hijo, claves `INVENTORY_*`), y desde el Spike 18 usa `UIPanel`, `UIButton`, `UISlot` y solo tokens (ver «Inventario y Party: columna de equipo + mochila»). Se abre en tres contextos: overlay vía `SceneOrchestrator` (tecla `I`, toggle; el orquestador conecta `closed` y libera), subpantalla de PlayerMenu y sub-overlay de narrativa (ambos conectan `closed` y liberan).*
 
 ### ❌ Prohibido
 
@@ -360,12 +411,12 @@ No crear tokens sin uso. Un token existe cuando hay al menos un componente que l
 
 ## Notas de migración desde UI existente
 
-Los componentes actuales (`item_slot.gd`, `equip_slot.gd`) coexistirán con el
+Los componentes antiguos (`item_slot.gd`, `equip_slot.gd`, **retirados en el Spike 19**) coexistieron con el
 Design System durante la transición. La migración es pantalla a pantalla:
 
 | Componente actual    | Migrar a   | Cuando                        |
 |----------------------|------------|-------------------------------|
-| `item_slot.gd`       | `UISlot`   | Spike 18 (rediseño del inventario) |
-| `equip_slot.gd`      | `UISlot`   | Spike 18 (rediseño del inventario) |
+| `item_slot.gd`       | `UISlot`   | **Hecho:** inventario (Spike 18) y Party (Spike 19); fichero retirado |
+| `equip_slot.gd`      | `UISlot`   | **Hecho:** inventario (Spike 18) y Party (Spike 19); fichero retirado |
 | Buttons inline       | `UIButton` | Al refactorizar cada pantalla   |
 | PanelContainer raw   | `UIPanel`  | Al refactorizar cada pantalla   |

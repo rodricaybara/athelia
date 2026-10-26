@@ -23,5 +23,4 @@ starting_skill_values = {
 "skill.exploration.stealth": 60,
 "skill.exploration.track": 50
 }
-inventory_slots = 7
 metadata/_custom_type_script = "uid://cmvsxyq5sohf4"

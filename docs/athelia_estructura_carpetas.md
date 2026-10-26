@@ -341,10 +341,12 @@ athelia/
 │   ├── spike_16_tienda.md  # ← NUEVO (Spike 16, incluye la 16b): tienda sobre el Design System — decisiones y correcciones de la Fase 0, préstamo `quest_loan`, 23 claves `SHOP_*`, validación en partida real, lecciones y pendientes (16c: devolución del préstamo al sheriff, sin planificar)
 │   ├── spike_17_inventario_mvvm.md  # ← NUEVO (Spike 17): inventario con contrato MVVM — decisión 5.A, accesos movidos al ViewModel, hallazgos de motor (dos pulsaciones, Esc), validación y pendientes
 │   ├── spike_18_inventario_rediseno.md  # ← NUEVO (Spike 18): inventario rediseñado con el Design System — decisiones, layout, API de `UISlot`, bonos del equipo, validación, hallazgos y pendientes
-│   └── spike_18_actualizaciones_docs.md  # ← NUEVO (Spike 18): bloques de inserción usados para actualizar la documentación del proyecto
+│   ├── spike_18_actualizaciones_docs.md  # ← NUEVO (Spike 18): bloques de inserción usados para actualizar la documentación del proyecto
+│   ├── spike_19_party.md  # ← NUEVO (Spike 19, 19a): Party sobre el Design System — decisiones (P1–P8, Q1/Q2, L3), `PartyViewModel`, `BagCapacity`, cambios en `UISlot`, bugs reproducidos y corregidos, validación en partida real, lecciones y pendientes (19b)
+│   └── spike_19_actualizacion_docs.md  # ← NUEVO (Spike 19): textos usados para actualizar la documentación del proyecto
 │
 ├── localization/                   # Sistema de localización (ES/EN)
-│   ├── translations.csv            # Textos generales — **Spike 15:** 29 claves duplicadas eliminadas (idénticas a su primera copia) y las `SKILL_<ID>_NAME`/`_DESC` movidas a `skills.csv`; se quedan aquí `SKILL_TREE_*`, `SKILL_SUBCATEGORY_*` y `SKILL_FILTER_*` (textos de pantalla)
+│   ├── translations.csv            # Textos generales — **Spike 19:** retiradas las 3 claves `PARTY_ERROR_*` (ahora en `party.csv`) — **Spike 15:** 29 claves duplicadas eliminadas (idénticas a su primera copia) y las `SKILL_<ID>_NAME`/`_DESC` movidas a `skills.csv`; se quedan aquí `SKILL_TREE_*`, `SKILL_SUBCATEGORY_*` y `SKILL_FILTER_*` (textos de pantalla)
 │   ├── translations.en.translation
 │   ├── translations.es.translation
 │   ├── dialogues.csv               # Textos de diálogos
@@ -362,6 +364,9 @@ athelia/
 │   ├── inventory.csv               # ← NUEVO (Spike 17) — 29 claves `INVENTORY_*` (formato `id,en,es`): título, cabeceras, etiquetas de estadísticas, nombres de slot, detalle, botones y mensajes de feedback/error. Requiere alta manual en Project Settings → Localization → Translations (sin ella, `tr(key) % args` falla con error de formato) **Spike 18:** 58 claves (+29): categorías, contadores de huecos y peso, marca y tooltip de equipado, comparación, nombres de modificadores `INVENTORY_MOD_*`, estadísticas (INT/WIS/CHA/FOCUS), bonos del equipo (`INVENTORY_BONUS_*`) y `ERROR_EQUIP_FAILED`. Sin usar: `INVENTORY_BAG_HEADER`, `INVENTORY_STATS_HEADER`
 │   ├── inventory.en.translation
 │   ├── inventory.es.translation
+│   ├── party.csv                   # ← NUEVO (Spike 19) — 27 claves `PARTY_*` (formato `id,en,es`): título, nombre del jugador, «Sin compañeros», contador de huecos, nombres de slot, estrategias (`PARTY_STRATEGY_*`; `AREA_FOCUS` = «Ataque en área»), tooltips, errores y feedback (sin género gramatical en los mensajes). Incluye las 3 `PARTY_ERROR_*` que estaban en `translations.csv`; `PARTY_ERROR_WRONG_SLOT` ahora recibe ítem y slot. Requiere alta manual en Project Settings → Localization → Translations
+│   ├── party.en.translation
+│   ├── party.es.translation
 │   ├── items.csv                   # Nombres y descripciones de ítems — Spike 3, Grupo D añade ITEM_BOOK_TANNING_NAME/DESC (libro sin ranura, en el CSV general, no en items_telmori.csv — misma práctica que silver_arrow/enchanted_spear de Grupo B). Spike 10 añade ITEM_SILVER_ARROW_NAME/DESC e ITEM_ENCHANTED_SPEAR_NAME/DESC, que faltaban desde Grupo B
 │   ├── items.en.translation
 │   ├── items.es.translation
@@ -475,7 +480,7 @@ athelia/
     │   │   │   ├── ui_panel.gd
     │   │   │   └── ui_panel.tscn
     │   │   ├── ui_slot/
-    │   │   │   ├── ui_slot.gd             # Spike 15: solo el docstring (ruta `components/ui_slot/`). **Spike 18:** primer consumidor real (inventario) — `set_definition()`, `is_empty()`, flags `set_selected/set_equipped_mark/set_overflow`, `border_color_override`, `draggable`, `drop_source_filter`, clic al soltar, placeholder para ítems sin icono, borde discontinuo con `_draw()`
+    │   │   │   ├── ui_slot.gd             # Spike 15: solo el docstring (ruta `components/ui_slot/`). **Spike 18:** primer consumidor real (inventario) — `set_definition()`, `is_empty()`, flags `set_selected/set_equipped_mark/set_overflow`, `border_color_override`, `draggable`, `drop_source_filter`, clic al soltar, placeholder para ítems sin icono, borde discontinuo con `_draw()`. **Spike 19:** + `owner_id` (id opaco del dueño del slot; viaja en el payload del arrastre) y señal `slot_item_dropped(slot, item_id, from_owner_id)`, emitida justo después de `slot_drop_received`; Party es el segundo consumidor real
     │   │   │   └── ui_slot.tscn
     │   │   ├── ui_resource_bar/
     │   │   │   ├── ui_resource_bar.gd
@@ -517,13 +522,10 @@ athelia/
     │   └── game_over_ui.tscn       # Spike 14: `TitleLabel`/`MessageLabel`/`ReturnToMenuButton` por nombre único, textos vacíos en el .tscn
     │
     ├── inventory/                  # Pantalla de inventario (patrón MVVM)
-    │   ├── inventory_viewmodel.gd   # **Spike 17:** reconstruido. `InventoryState { HIDDEN, BROWSING, ITEM_SELECTED }`, `DetailData`, `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`), intenciones `request_*()`, refrescos agrupados con `call_deferred`, feedback ya traducido. Único punto de la pantalla que habla con `Inventory`, `Equipment`, `Items`, `Resources`, `Characters` y `EventBus` **Spike 18:** + `BagEntry`, `CategoryData`, `StatEntry`, `ModLine`, `CompareLine` y `DetailData` ampliada (categoría, modificadores, comparación); capacidad/peso (`_compute_capacity()`), categorías (`select_category()`), estadísticas (`stat_entries`), bonos del equipo (`equipment_bonuses`, suma de modificadores `add`), escucha `Equipment.equip_failed`; razón nueva `categories`
+    │   ├── inventory_viewmodel.gd   # **Spike 17:** reconstruido. `InventoryState { HIDDEN, BROWSING, ITEM_SELECTED }`, `DetailData`, `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`), intenciones `request_*()`, refrescos agrupados con `call_deferred`, feedback ya traducido. Único punto de la pantalla que habla con `Inventory`, `Equipment`, `Items`, `Resources`, `Characters` y `EventBus` **Spike 18:** + `BagEntry`, `CategoryData`, `StatEntry`, `ModLine`, `CompareLine` y `DetailData` ampliada (categoría, modificadores, comparación); capacidad/peso (`_compute_capacity()`, que desde el **Spike 19** delega en `BagCapacity`), categorías (`select_category()`), estadísticas (`stat_entries`), bonos del equipo (`equipment_bonuses`, suma de modificadores `add`), escucha `Equipment.equip_failed`; razón nueva `categories`
     │   ├── inventory_ui.gd          # **Spike 17:** View pasiva de producción (`CanvasLayer`, raíz `InventoryUi`); crea el ViewModel como hijo; conserva `closed`, `open_inventory()`, `close_inventory()`, `toggle()` y `@export entity_id`; maneja `ui_cancel` **Spike 18:** rehecha con `UIPanel`/`UIButton`/`UISlot`: `Backdrop` opaco + `Frame` con tamaño máximo (1400×820) recalculado en `size_changed`, tres columnas (equipo, mochila con pestañas, detalle + bonos + estadísticas), pool de slots, popup sobre la mochila
     │   ├── inventory_ui.tscn        # **Spike 18:** `Backdrop`, `Frame` (UIPanel OVERLAY con marco), `Header`, `EquipColumn`/`BagColumn`/`RightColumn`, `BonusBlock`, `StatsBlock`, `FeedbackPopup`; todos los nodos de la View con nombre único
-    │   ├── item_slot.gd             # Spike 18: ya NO lo usa el inventario (lo usa solo Party); se retira en el Spike 19
-    │   ├── item_slot.tscn
-    │   ├── equip_slot.gd            # Spike 18: ya NO lo usa el inventario (lo usa solo Party); se retira en el Spike 19
-    │   ├── equip_slot.tscn
+    │   ├── bag_capacity.gd          # ← NUEVO (Spike 19): `class_name BagCapacity` (RefCounted), `static func compute(definition, used_count, entity_id = "")` — único punto de cálculo de la capacidad de una mochila (`definition.inventory_slots`; con definición nula devuelve `used_count` y avisa). Lo usan `InventoryViewModel` y `PartyViewModel`, que resuelven la definición y delegan solo la regla. `item_slot.*` y `equip_slot.*` se retiraron en este spike (Party pasó a `UISlot`)
     │   ├── item_detail_panel.gd     # Spike 17: textos con tr() **Spike 18:** `class_name ItemDetailPanel extends UIPanel` (`super._ready()`), `show_detail(DetailData)`, filas de modificadores y de comparación por código con tokens
     │   ├── item_detail_panel.tscn
     │   ├── feedback_popup.gd        # Spike 17: se oculta solo a los 2 s (Timer por código) **Spike 18:** colores y estilo desde tokens; script dentro de la escena
@@ -553,9 +555,9 @@ athelia/
     │   └── interactive_scene_view.gd       # vista pasiva: Fallback + Background + un `UIButton` por hotspot visible (**Spike 13:** con `icon_path` válido, solo icono — `GHOST` + `min_square` + `icon_backdrop`, nombre en tooltip —; sin él, botón de texto `SECONDARY`), posiciones normalizadas sobre el rectángulo real de la imagen
     │
     ├── party/                      # Pantalla de party (patrón MVVM)
-    │   ├── party_viewmodel.gd
+    │   ├── party_ui.gd              # **Spike 19 (19a):** View pasiva con `UIPanel` OVERLAY + marco, `UIButton`, `UISlot` y tokens; layout L3 (equipo en columna vertical de 6 `UISlot` de 64 px junto a la mochila de cada personaje; pool según capacidad); `ColumnView` interna para pintar las dos columnas; pestañas de compañero solo con 2 o más; `OptionButton` de estrategia estilizado por código; conserva `open()/close()/toggle()` y `closed`
     │   ├── party_ui.gd
-    │   └── party_ui.tscn
+    │   └── party_ui.tscn            # **Spike 19 (19a):** `Backdrop`, `Frame` (UIPanel OVERLAY con marco, 0,9 con tope 1400×820), `Header`, `Content` con `PlayerColumn`/`Separator`/`CompanionColumn`, `FeedbackPopup`; todos los nodos de la View con nombre único. Conserva el UID de la escena
     │
     ├── player_menu/                # Menú del jugador (patrón MVVM)
     │   ├── player_menu_viewmodel.gd

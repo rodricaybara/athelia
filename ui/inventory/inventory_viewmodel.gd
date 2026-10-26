@@ -596,10 +596,7 @@ func _rebuild_detail() -> void:
 ## (o se sustituye por una API del core). La View solo lee `capacity`.
 func _compute_capacity(used_count: int) -> int:
 	var definition: CharacterDefinition = Characters.get_character_definition(entity_id)
-	if definition == null:
-		push_warning("[InventoryViewModel] Sin definición para '%s': no se conoce la capacidad" % entity_id)
-		return used_count
-	return definition.inventory_slots
+	return BagCapacity.compute(definition, used_count, entity_id)
 
 
 # ============================================

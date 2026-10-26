@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cmw8u504ihkgs"]
 
-[ext_resource type="Script" path="res://ui/design_system/tests/ui_slot_drag_test.gd" id="1_test"]
+[ext_resource type="Script" uid="uid://cdgmbs7kjgq" path="res://ui/design_system/tests/ui_slot_drag_test.gd" id="1_test"]
 
-[node name="UISlotDragTest" type="Control"]
+[node name="UISlotDragTest" type="Control" unique_id=844081072]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

@@ -42,6 +42,11 @@ signal slot_clicked(slot: UISlot)
 ## Emitida al soltar un drag sobre este slot
 signal slot_drop_received(slot: UISlot, source_item_id: String)
 
+## Spike 19: igual que slot_drop_received, pero con la entidad dueña del slot de
+## origen (owner_id del slot arrastrado; "" si no lo declara). Se emite justo
+## después de la anterior, que sigue existiendo para no cambiar el inventario.
+signal slot_item_dropped(slot: UISlot, source_item_id: String, from_owner_id: String)
+
 
 # ============================================================
 # ESTADOS
@@ -81,6 +86,11 @@ const DASH_GAP: float = 4.0
 
 ## ID del slot de equipamiento (head, body, weapon...). Vacío en slots de inventario.
 @export var equipment_slot_id: String = ""
+
+## Spike 19: id opaco de la entidad dueña de este slot (la View lo pone; el
+## componente nunca lo interpreta ni accede a sistemas). Viaja en el payload del
+## arrastre para que quien reciba el drop sepa de dónde viene. Vacío = sin dueño.
+@export var owner_id: String = ""
 
 ## Color del borde en reposo (Color.TRANSPARENT = el del estado). Lo pasa la View.
 @export var border_color_override: Color = Color.TRANSPARENT:
@@ -430,7 +440,8 @@ func _get_drag_data(_pos: Vector2) -> Variant:
 	return {
 		"item_id": _item_id,
 		"source_slot": self,
-		"source": equipment_slot_id if not equipment_slot_id.is_empty() else "inventory"
+		"source": equipment_slot_id if not equipment_slot_id.is_empty() else "inventory",
+		"owner_id": owner_id
 	}
 
 
@@ -449,4 +460,6 @@ func _can_drop_data(_pos: Vector2, data: Variant) -> bool:
 
 func _drop_data(_pos: Vector2, data: Variant) -> void:
 	var payload: Dictionary = data
-	slot_drop_received.emit(self, str(payload.get("item_id", "")))
+	var dropped_item_id: String = str(payload.get("item_id", ""))
+	slot_drop_received.emit(self, dropped_item_id)
+	slot_item_dropped.emit(self, dropped_item_id, str(payload.get("owner_id", "")))
