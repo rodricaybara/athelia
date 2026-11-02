@@ -2,13 +2,17 @@ extends Control
 class_name UIResourceBar
 ## UIResourceBar - Barra de recurso reactiva (HP, Stamina, Estrés, etc.)
 ##
-## Se conecta a ResourceSystem vía EventBus.
-## No accede directamente a ningún sistema — recibe actualizaciones pasivamente.
+## Dos formas de usarla:
+##   - bind("player", "health"): se conecta a ResourceSystem y se actualiza sola.
+##     (El componente accede al juego: no usarla desde una View MVVM.)
+##   - set_values(current, max): la View pasa los valores que le da el ViewModel.
 ##
-## Uso:
-##   bar.bind("player", "health")
-##
-## La barra actualiza automáticamente cuando ResourceSystem emite resource_changed.
+## Spike 19b-2 (aditivo, API sin cambios):
+##   - El ancho del relleno se recalcula cuando la barra cambia de tamaño
+##     (antes se calculaba con un ancho 0 si el primer valor llegaba antes del layout).
+##   - Cada refresco cancela el tween anterior (antes se apilaban).
+##   - El primer valor se pinta directamente, sin animar desde cero.
+##   - Se pinta el último valor recibido al entrar en el árbol.
 
 
 # ============================================================
@@ -47,6 +51,10 @@ var _resource_id: String = ""
 var _current: float = 0.0
 var _max:     float = 100.0
 
+var _pct: float = 0.0
+var _tween: Tween = null
+var _has_value: bool = false
+
 
 # ============================================================
 # INICIALIZACIÓN
@@ -60,6 +68,13 @@ func _ready() -> void:
 		value_label.visible = show_value
 		value_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_XS)
 		value_label.add_theme_color_override("font_color", UITokens.COLOR_TEXT)
+
+	# El relleno sigue al tamaño de la barra (ventana redimensionada, columna que cambia)
+	bg_rect.resized.connect(_on_bg_resized)
+
+	# Si set_values() llegó antes de entrar en el árbol, se pinta ahora
+	if _has_value:
+		_refresh()
 
 
 # ============================================================
@@ -87,7 +102,7 @@ func bind(entity_id: String, resource_id: String) -> void:
 	_load_initial_value()
 
 
-## Actualiza manualmente (útil en contextos sin bind, como tooltips)
+## Actualiza manualmente (útil en contextos sin bind, como tooltips o Views MVVM)
 func set_values(current: float, max_value: float) -> void:
 	_current = current
 	_max = max_value
@@ -106,6 +121,13 @@ func _on_resource_changed(entity_id: String, resource_id: String, current: float
 	_refresh()
 
 
+## La barra cambió de tamaño: el relleno se ajusta sin animar
+func _on_bg_resized() -> void:
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+	fill_rect.offset_right = bg_rect.size.x * _pct
+
+
 # ============================================================
 # VISUAL
 # ============================================================
@@ -122,21 +144,31 @@ func _load_initial_value() -> void:
 
 
 func _refresh() -> void:
-	if not is_inside_tree():
+	# Fuera del árbol no hay nodos: _ready() repinta con el último valor
+	_has_value = true
+	if not is_inside_tree() or fill_rect == null or bg_rect == null:
 		return
 
-	var pct := clampf(_current / _max, 0.0, 1.0) if _max > 0 else 0.0
+	_pct = clampf(_current / _max, 0.0, 1.0) if _max > 0 else 0.0
+	var target_width: float = bg_rect.size.x * _pct
 
-	# Animar el fill con tween para suavidad
-	var tween := create_tween()
-	tween.tween_property(fill_rect, "size:x",
-		bg_rect.size.x * pct,
-		UITokens.ANIM_DURATION_NORMAL
-	).set_ease(Tween.EASE_OUT)
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+
+	# Sin animar si la barra aún no tiene tamaño (primer layout pendiente);
+	# en cuanto lo tenga, _on_bg_resized() ajusta el ancho
+	if bg_rect.size.x <= 0.0:
+		fill_rect.offset_right = target_width
+	else:
+		_tween = create_tween()
+		_tween.tween_property(fill_rect, "offset_right",
+			target_width,
+			UITokens.ANIM_DURATION_NORMAL
+		).set_ease(Tween.EASE_OUT)
 
 	# Cambiar color según porcentaje (para HP)
 	if resource_type == "health":
-		fill_rect.color = _health_color(pct)
+		fill_rect.color = _health_color(_pct)
 
 	# Label
 	if value_label and show_value:

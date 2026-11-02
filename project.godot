@@ -53,6 +53,7 @@ PartyEventHandler="*uid://krqxj71rudvc"
 NarrativeSceneDB="*uid://f83s38eh5frk"
 EnemyWorldLink="*uid://cgdukmwcmga6t"
 InteractiveSceneDB="*uid://b5j6uci2f7mcd"
+DebugPartyTool="*uid://qyreaalav0i5"
 
 [input]
 

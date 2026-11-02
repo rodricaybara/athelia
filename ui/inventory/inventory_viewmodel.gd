@@ -17,10 +17,14 @@ extends Node
 ##     (categoría, nombre traducido, id). Estable y no persistente.
 ##   - equipment_slot_ids: slots del personaje, en el orden de su definición.
 ##   - stat_entries: celdas del bloque de estadísticas (lista en STAT_DEFS).
-##   - DetailData ampliado: categoría, modificadores con etiqueta localizada y
+##   - Detalle: categoría, modificadores con etiqueta localizada y
 ##     comparación con lo equipado en el slot que le correspondería.
 ##   - Escucha Equipment.equip_failed (mensaje genérico localizado).
 ##   (El log temporal de validación de la Fase 1 se retiró en la Fase 4.)
+##
+## Spike 19b-2: el cálculo de modificadores, comparación y formato del detalle
+## ya no vive aquí: lo hace ItemDetailBuilder (compartido con Party) y los datos
+## son ItemDetailData. Sin cambios de comportamiento.
 ##
 ## NO hace: renderizar, instanciar nodos, conocer rutas de escena.
 
@@ -86,38 +90,6 @@ class StatEntry:
 	var value: int = 0
 
 
-## Una línea de modificador del detalle ("Armadura", "+3")
-class ModLine:
-	var label: String = ""            ## ya traducido
-	var text: String = ""             ## "+3", "-1", "x1.20", "= 5"
-	var value: float = 0.0
-
-
-## Una línea de comparación ("Armadura", "+1")
-class CompareLine:
-	var label: String = ""            ## ya traducido
-	var text: String = ""
-	var delta: float = 0.0            ## > 0 mejora, < 0 empeora (la View elige el color)
-
-
-## Datos del panel de detalle
-class DetailData:
-	# --- Spike 17 (no cambian) ---
-	var item_def: ItemDefinition = null
-	var quantity: int = 0
-	var is_equipped: bool = false
-	# --- Spike 18 ---
-	var category_id: String = ""
-	var category_name: String = ""
-	var modifier_lines: Array[ModLine] = []
-	## Comparación: solo para EQUIPMENT no equipado con un slot válido
-	var has_comparison: bool = false
-	var compare_slot_id: String = ""
-	var compare_slot_free: bool = false      ## el slot está libre: no hay con qué comparar
-	var compare_against_name: String = ""    ## nombre traducido de lo equipado
-	var compare_lines: Array[CompareLine] = []  ## vacío + has_comparison = sin diferencias
-
-
 # ============================================
 # SEÑAL HACIA LA VIEW
 # ============================================
@@ -146,7 +118,7 @@ var bag_items: Array[ItemInstance] = []
 ## slot_id → ItemDefinition (solo slots ocupados)
 var equipped_items: Dictionary = {}
 ## null si no hay selección válida
-var detail: DetailData = null
+var detail: ItemDetailData = null
 var selected_item_id: String = ""
 
 var stat_health: float = 0.0
@@ -183,7 +155,7 @@ var stat_entries: Array[StatEntry] = []
 
 ## Bonos del equipo: suma por objetivo de los modificadores "add" de todo lo
 ## equipado, ordenados por nombre. Se actualiza con la razón "equipment".
-var equipment_bonuses: Array[ModLine] = []
+var equipment_bonuses: Array[ItemDetailData.ModLine] = []
 
 
 # ============================================
@@ -209,6 +181,9 @@ var _all_entries: Array[BagEntry] = []
 ## Categorías cargadas del JSON: {id, name_key, priority, tags}, en orden de pestaña
 var _category_defs: Array[Dictionary] = []
 var _all_name_key: String = "INVENTORY_CATEGORY_ALL"
+
+## Cálculo del detalle (modificadores, comparación, formato), compartido con Party
+var _detail_builder: ItemDetailBuilder = ItemDetailBuilder.new()
 
 
 # ============================================
@@ -524,7 +499,7 @@ func _rebuild_equipment_bonuses() -> void:
 	var totals: Dictionary = {}
 	for slot_id in equipped_items.keys():
 		var item_def: ItemDefinition = equipped_items[slot_id]
-		var sums: Dictionary = _sum_add_modifiers(item_def)
+		var sums: Dictionary = _detail_builder.sum_add_modifiers(item_def)
 		for target in sums.keys():
 			totals[target] = float(totals.get(target, 0.0)) + float(sums[target])
 
@@ -532,12 +507,12 @@ func _rebuild_equipment_bonuses() -> void:
 		var value: float = float(totals[target])
 		if is_zero_approx(value):
 			continue
-		var line := ModLine.new()
-		line.label = _modifier_label(str(target))
+		var line := ItemDetailData.ModLine.new()
+		line.label = _detail_builder.modifier_label(str(target))
 		line.value = value
-		line.text = _format_signed(value)
+		line.text = _detail_builder.format_signed(value)
 		equipment_bonuses.append(line)
-	equipment_bonuses.sort_custom(func(a: ModLine, b: ModLine) -> bool:
+	equipment_bonuses.sort_custom(func(a: ItemDetailData.ModLine, b: ItemDetailData.ModLine) -> bool:
 		return a.label.naturalnocasecmp_to(b.label) < 0)
 
 
@@ -573,14 +548,13 @@ func _rebuild_detail() -> void:
 		item_def = Items.get_item(selected_item_id)
 
 	if item_def:
-		var data := DetailData.new()
-		data.item_def = item_def
-		data.quantity = Inventory.get_item_quantity(entity_id, selected_item_id)
-		data.is_equipped = Equipment.is_item_equipped(entity_id, selected_item_id)
+		var data: ItemDetailData = _detail_builder.build(
+			entity_id,
+			item_def,
+			Inventory.get_item_quantity(entity_id, selected_item_id),
+			Equipment.is_item_equipped(entity_id, selected_item_id))
 		data.category_id = _category_of(item_def)
 		data.category_name = _category_name(data.category_id)
-		data.modifier_lines = _build_modifier_lines(item_def)
-		_fill_comparison(data)
 		detail = data
 
 	if state != InventoryState.HIDDEN:
@@ -720,115 +694,6 @@ func _entry_less(a: BagEntry, b: BagEntry) -> bool:
 	if by_name != 0:
 		return by_name < 0
 	return a.instance.definition.id < b.instance.definition.id
-
-
-# ============================================
-# DETALLE: MODIFICADORES Y COMPARACIÓN
-# ============================================
-
-func _build_modifier_lines(item_def: ItemDefinition) -> Array[ModLine]:
-	var lines: Array[ModLine] = []
-	for mod in item_def.get_modifiers_for_condition("equipped"):
-		var line := ModLine.new()
-		line.label = _modifier_label(mod.target)
-		line.text = _format_modifier(mod)
-		line.value = mod.value
-		lines.append(line)
-	return lines
-
-
-## Compara con lo equipado en el slot que le correspondería. Solo cuenta la
-## operación "add": restar un "mul" o un "override" no tiene sentido (hoy no
-## hay ítems con esas operaciones).
-func _fill_comparison(data: DetailData) -> void:
-	var item_def: ItemDefinition = data.item_def
-	if item_def.item_type != "EQUIPMENT" or data.is_equipped:
-		return
-
-	var slot_id: String = _slot_for_item(item_def)
-	if slot_id.is_empty():
-		return
-
-	data.has_comparison = true
-	data.compare_slot_id = slot_id
-
-	var candidate: Dictionary = _sum_add_modifiers(item_def)
-	var current: Dictionary = {}
-
-	var equipped_id: String = Equipment.get_equipped_item(entity_id, slot_id)
-	var equipped_def: ItemDefinition = Items.get_item(equipped_id) if not equipped_id.is_empty() else null
-	if equipped_def == null:
-		data.compare_slot_free = true
-	else:
-		data.compare_against_name = tr(equipped_def.name_key)
-		current = _sum_add_modifiers(equipped_def)
-
-	var targets: Array[String] = []
-	for target in candidate.keys():
-		targets.append(str(target))
-	for target in current.keys():
-		if not targets.has(str(target)):
-			targets.append(str(target))
-
-	for target in targets:
-		var delta: float = float(candidate.get(target, 0.0)) - float(current.get(target, 0.0))
-		if is_zero_approx(delta):
-			continue
-		var line := CompareLine.new()
-		line.label = _modifier_label(target)
-		line.delta = delta
-		line.text = _format_signed(delta)
-		data.compare_lines.append(line)
-
-
-## Slot donde el sistema de equipo colocaría el ítem: el primer tag del ítem que
-## el propio Equipment valida (mismo criterio que EquipmentManager._determine_slot,
-## sin duplicar su regla).
-func _slot_for_item(item_def: ItemDefinition) -> String:
-	for tag in item_def.tags:
-		if Equipment.can_equip_in_slot(entity_id, item_def.id, tag):
-			return tag
-	return ""
-
-
-## target → suma de valores de los modificadores "add" aplicados al equipar
-func _sum_add_modifiers(item_def: ItemDefinition) -> Dictionary:
-	var sums: Dictionary = {}
-	for mod in item_def.get_modifiers_for_condition("equipped"):
-		if mod.operation != "add":
-			continue
-		sums[mod.target] = float(sums.get(mod.target, 0.0)) + mod.value
-	return sums
-
-
-## "attribute.armor_rating" → INVENTORY_MOD_ARMOR_RATING; sin clave, "Armor Rating"
-func _modifier_label(target: String) -> String:
-	var segment: String = target.get_slice(".", target.get_slice_count(".") - 1)
-	var key: String = "INVENTORY_MOD_" + segment.to_upper()
-	var text: String = tr(key)
-	return text if text != key else segment.capitalize()
-
-
-func _format_modifier(mod: ModifierDefinition) -> String:
-	match mod.operation:
-		"add":
-			return _format_signed(mod.value)
-		"mul":
-			return "x%.2f" % mod.value
-		"override":
-			return "= %s" % _format_number(mod.value)
-	return _format_number(mod.value)
-
-
-func _format_signed(value: float) -> String:
-	var sign_text: String = "+" if value >= 0.0 else "-"
-	return sign_text + _format_number(absf(value))
-
-
-func _format_number(value: float) -> String:
-	if is_equal_approx(value, roundf(value)):
-		return "%d" % int(roundf(value))
-	return "%.1f" % value
 
 
 # ============================================

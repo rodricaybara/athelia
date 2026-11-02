@@ -26,3 +26,10 @@ PARTY_FEEDBACK_UNEQUIPPED,Unequipped from %s: %s,Desequipado de %s: %s
 PARTY_FEEDBACK_USED,Used by %s: %s,Usado por %s: %s
 PARTY_FEEDBACK_TRANSFERRED,%s moved to %s and equipped,%s pasa a %s y se equipa
 PARTY_EQUIPPED_BADGE,E,E
+PARTY_ERROR_LOAN_ITEM,Quest loan: only the player can carry %s,Préstamo de misión: solo el jugador puede llevar %s
+PARTY_ERROR_CANNOT_STACK,Cannot move %s: the destination already has it and it will not stack,No se puede pasar %s: el destino ya lo tiene y no se apila
+PARTY_ERROR_BAG_FULL,%s has no free bag slots,La mochila de %s está llena
+PARTY_FEEDBACK_BAG_TRANSFERRED,%s x%d passed to %s,%s x%d pasa a %s
+PARTY_TOOLTIP_LOAN,Quest loan,Préstamo de misión
+PARTY_TOOLTIP_DRAG_HINT,Shift: move the whole stack,Mayús: pasa toda la pila
+PARTY_TOOLTIP_ATTRIBUTES,Base attributes,Atributos base

@@ -1,1317 +1,534 @@
 # Athelia — Guía de Arquitectura UI
-
+ 
+Estado vigente del patrón MVVM, el Design System y las pantallas. La historia de
+cada spike vive en `athelia_historial_spikes.md` y en `docs/spike_N.md`.
+ 
 ## Índice
-
-1. [Filosofía general](#filosofía-general)
-2. [Patrón MVVM simplificado](#patrón-mvvm-simplificado)
-3. [Estructura de archivos](#estructura-de-archivos)
-4. [Ciclo de vida](#ciclo-de-vida)
-5. [Contrato del ViewModel](#contrato-del-viewmodel)
-6. [Contrato de la View](#contrato-de-la-view)
-7. [Cómo crear un nuevo panel UI](#cómo-crear-un-nuevo-panel-ui)
-8. [Reglas que no se rompen](#reglas-que-no-rompen)
-9. [Antipatrones conocidos](#antipatrones-conocidos)
-10. [Design System — `UIPanel`: marco decorativo opt-in](#design-system--uipanel-marco-decorativo-opt-in-spike-9)
-11. [Contrato de pantalla y resolución de referencia (Spike 15)](#contrato-de-pantalla-y-resolución-de-referencia-spike-15)
-12. [Referencia de pantallas existentes](#referencia-de-pantallas-existentes)
-
-Secciones del Design System añadidas después: [fila de lista `ShopItemSlot` (Spike 16)](#design-system--fila-de-lista-shopitemslot-spike-16) y [`UISlot` y patrón de overlay a pantalla completa (Spike 18)](#design-system--uislot-y-patrón-de-overlay-a-pantalla-completa-spike-18). Party (Spike 19) se documenta en su fila de la referencia de pantallas y en «Contextos de apertura de Party».
-
+ 
+1. Filosofía general
+2. Patrón MVVM simplificado
+3. Estructura de archivos
+4. Ciclo de vida
+5. Contrato del ViewModel
+6. Contrato de la View
+7. Cómo crear un nuevo panel UI
+8. Reglas que no se rompen
+9. Antipatrones conocidos
+10. Design System (`UIPanel`, `UIButton`, fila de lista, `UISlot`)
+11. Contrato de pantalla y resolución de referencia
+12. Contextos de apertura (inventario, Party)
+13. Referencia de pantallas existentes
 ---
-
+ 
 ## Filosofía general
-
-Toda pantalla de UI en Athelia sigue tres principios:
-
-- **La View no decide nada.** Solo renderiza el estado que le da el ViewModel y traduce input del jugador en llamadas al ViewModel.
-- **El ViewModel no renderiza nada.** Solo gestiona estado, coordina sistemas y expone datos listos para pintar.
-- **Los sistemas core son invisibles para la View.** `Inventory`, `Equipment`, `Characters`, `Resources`, `Dialogue`... ninguno de ellos es accesible desde el `.gd` de la View. Todo pasa por el ViewModel.
-
+ 
+- **La View no decide nada.** Renderiza el estado del ViewModel y traduce input en llamadas al ViewModel.
+- **El ViewModel no renderiza nada.** Gestiona estado, coordina sistemas y expone datos listos para pintar.
+- **Los sistemas core son invisibles para la View.** `Inventory`, `Equipment`, `Characters`, `Resources`, `Dialogue`, `Party`… nunca se tocan desde el `.gd` de la View.
 ---
-
+ 
 ## Patrón MVVM simplificado
-
+ 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  SISTEMAS CORE                                          │
-│  (Inventory, Equipment, Resources, Dialogue, Party...)  │
-└────────────────────────┬────────────────────────────────┘
-                         │ EventBus signals
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│  VIEWMODEL  (nombre_viewmodel.gd)                       │
-│                                                         │
-│  - Enum de estados                                      │
-│  - Data classes (snapshots para la View)                │
-│  - Escucha EventBus → actualiza estado                  │
-│  - Expone datos públicos (read-only para la View)       │
-│  - Emite: signal changed(reason: String)                │
-│  - Métodos de intención: request_X(), select_X()        │
-└────────────────────────┬────────────────────────────────┘
-                         │ signal changed(reason)
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│  VIEW  (nombre_panel.gd / nombre_screen.gd)             │
-│                                                         │
-│  - @onready de nodos del .tscn                          │
-│  - _on_vm_changed(reason) → match → _render_X()         │
-│  - Input del jugador → _vm.request_X()                  │
-│  - Nunca accede a sistemas core                         │
-└─────────────────────────────────────────────────────────┘
+SISTEMAS CORE (Inventory, Equipment, Resources, Dialogue, Party...)
+        │ EventBus signals
+        ▼
+VIEWMODEL (nombre_viewmodel.gd)
+  - enum de estados, data classes (snapshots para la View)
+  - escucha EventBus → actualiza estado
+  - datos públicos (read-only para la View)
+  - signal changed(reason: String)
+  - intenciones: request_X(), select_X()
+        │ changed(reason)
+        ▼
+VIEW (nombre_panel.gd / nombre_screen.gd)
+  - @onready de nodos del .tscn
+  - _on_vm_changed(reason) → match → _render_X()
+  - input del jugador → _vm.request_X()
+  - nunca accede a sistemas core
 ```
-
+ 
 ---
-
+ 
 ## Estructura de archivos
-
-Cada pantalla UI vive en su propia carpeta dentro de `ui/`:
-
+ 
 ```
-ui/
-└── nombre_pantalla/
-    ├── nombre_viewmodel.gd     ← lógica y estado
-    ├── nombre_panel.gd         ← renderizado y input
-    └── nombre_panel.tscn       ← estructura de nodos
+ui/nombre_pantalla/
+├── nombre_viewmodel.gd     ← lógica y estado
+├── nombre_panel.gd         ← renderizado y input
+└── nombre_panel.tscn       ← estructura de nodos
 ```
-
-### Convenciones de nombre
-
+ 
 | Tipo | Ejemplo |
 |------|---------|
-| ViewModel | `inventory_viewmodel.gd` |
-| View script | `inventory_ui.gd` |
-| View scene | `inventory_ui.tscn` |
-| ViewModel class | `class_name InventoryViewModel` |
-| View class | `class_name MiPantalla` |
-
+| ViewModel | `inventory_viewmodel.gd` (`class_name InventoryViewModel`) |
+| View script / scene | `inventory_ui.gd` / `inventory_ui.tscn` |
+ 
 ---
-
+ 
 ## Ciclo de vida
-
+ 
 ```
 SceneOrchestrator
-  → instancia el .tscn
-  → añade al árbol (_ready() se dispara)
-      → View crea el ViewModel como hijo: add_child(_vm)
-      → ViewModel se conecta al EventBus en su propio _ready()
-      → View se conecta a _vm.changed
+  → instancia el .tscn y lo añade al árbol (_ready())
+      → la View crea el ViewModel como hijo: add_child(_vm)
+      → el ViewModel se conecta al EventBus en su _ready()
+      → la View se conecta a _vm.changed
   → SceneOrchestrator llama open() o show_X_direct() en la View
-      → View delega a _vm.open() o _vm.init_with_snapshot()
-          → ViewModel emite changed("opened")
-              → View renderiza
-
+      → la View delega a _vm.open() / _vm.init_with_snapshot()
+          → el ViewModel emite changed("opened") → la View renderiza
+ 
 Al cerrar:
-  → View llama _vm.request_close()
-      → ViewModel emite changed("closed")
-          → View se oculta (visible = false)
-  → SceneOrchestrator llama queue_free() sobre el overlay
-      → El ViewModel muere como hijo → señales desconectadas automáticamente
+  → la View llama _vm.request_close() → changed("closed") → visible = false
+  → SceneOrchestrator (o quien la instanció) hace queue_free() al recibir `closed`
+      → el ViewModel muere como hijo; señales desconectadas
 ```
-
-**Regla crítica:** El ViewModel es siempre hijo de la View. Nunca se crea como autoload ni se pasa por referencia externa. Su ciclo de vida está ligado al de la pantalla.
-
-### Caso especial: MainMenuScreen
-
-El menú principal es la **Main Scene del proyecto** — no es instanciado por `SceneOrchestrator` sino que arranca directamente. Su ciclo de vida es:
-
+ 
+**Regla crítica:** el ViewModel es siempre hijo de la View. Nunca autoload ni referencia externa.
+ 
+### Caso especial: MainMenuScreen (Main Scene persistente)
+ 
+No la instancia `SceneOrchestrator`; arranca directamente y nunca se destruye.
+ 
 ```
-(arranque del ejecutable)
-  → MainMenuScreen._ready()
-      → crea MainMenuViewModel como hijo
-      → conecta señales de botones
-      → llama _vm.open() → changed("main") → _render_main()
-
-Al iniciar partida nueva:
-  → _vm.request_new_game()
-      → changed("transitioning") → botones deshabilitados
-      → await process_frame
-      → GameLoop.enter_character_creation()
-          → SceneOrchestrator._handle_character_creation()
-              → instancia CharacterCreationScreen
-
-Al cargar partida:
-  → _vm.request_load_game()
-      → SaveManager.load_game("quicksave")
-      → SaveManager.get_pending_narrative_scene_id()
-          → si no vacío: GameLoop.enter_narrative_scene(scene_id)   ⭐ mejoras post-Spike 3, Grupo 1
-          → si vacío:    GameLoop.enter_exploration()               (comportamiento anterior, sin cambios)
-
-Al volver a MENU desde cualquier otro estado (ej: CharacterCreation → "Volver al menú"):
-  → EventBus.game_state_changed(MENU) se emite
-      → MainMenuViewModel._on_game_state_changed() lo captura → open() → changed("main")
+_ready() → crea MainMenuViewModel como hijo → conecta botones → _vm.open() → changed("main")
+ 
+Nueva partida:  _vm.request_new_game() → changed("transitioning") → await process_frame
+                → GameLoop.enter_character_creation()
+Cargar partida: _vm.request_load_game() → SaveManager.load_game("quicksave")
+                → GameLoop.enter_post_load_state(): escena narrativa guardada si la hay, si no EXPLORATION
+Volver a MENU desde cualquier estado: EventBus.game_state_changed(MENU)
+                → _on_game_state_changed() → open() → changed("main")
 ```
-
-**Lección aprendida (spike Character Creation):** `MainMenuViewModel` originalmente solo llamaba a `open()` una vez, desde `_ready()` de la View. Tras la primera transición fuera de `MENU` (`request_new_game()` → `TRANSITIONING`), se quedaba ahí **para siempre** — nada le decía que volviera a `"main"`. Como `MainMenuScreen` es la Main Scene, nunca se destruye ni se recrea, así que el bug persistía indefinidamente tras el primer uso.
-
-**Regla derivada:** cualquier ViewModel cuya View sea una Main Scene persistente (no instanciada/destruida por `SceneOrchestrator`) **debe** escuchar `EventBus.game_state_changed` en su propio `_ready()` y reaccionar tanto al entrar como al salir de su estado — no puede depender solo de que algo la invoque explícitamente, porque puede volver a ese estado por un camino que no pasa por su propio código (`GameLoop.enter_main_menu()` llamado desde otra pantalla, por ejemplo).
-
-**Nota (Spike 3, Grupo B):** este mismo motivo es por lo que `GameOverUI._on_new_game_pressed()` debe llamar a `GameLoop.enter_main_menu()` antes de `enter_character_creation()` — `DEFEAT` no tiene transición válida directa a `CHARACTER_CREATION` (ver `VALID_STATE_TRANSITIONS`), y saltarse `MENU` deja al jugador de la partida anterior registrado con sus stats viejas.
-
+ 
+**Regla derivada:** el ViewModel de una View que es Main Scene persistente **debe** escuchar `EventBus.game_state_changed` en su `_ready()` y reaccionar al entrar y al salir de su estado. Puede volver a ese estado por un camino que no pasa por su código (sin el listener se quedaba para siempre en `TRANSITIONING`).
+ 
+`DEFEAT` no transiciona directo a `CHARACTER_CREATION`. Desde el Spike 14, Game Over lleva al menú principal y `SessionReset` deja la sesión limpia (pasar por `MENU` por sí solo no limpia nada: lo hace `SceneOrchestrator._handle_main_menu()` + `SessionReset`).
+ 
 ---
-
+ 
 ## Contrato del ViewModel
-
-### Estructura mínima obligatoria
-
+ 
+### Estructura mínima
+ 
 ```gdscript
 class_name MiPantallaViewModel
 extends Node
-
-# 1. Enum de estados — siempre. NUNCA llamarlo SceneState: es una clase
-#    nativa del motor (la usa PackedScene internamente) y el nombre
-#    colisiona ("member X shadows a native class") con errores de tipado
-#    en cascada. Usar PanelState o un nombre específico de la pantalla.
-enum PanelState { HIDDEN, SHOWING, ... }
-
-# 2. Señal única hacia la View — siempre
+ 
+# 1. Enum de estados. NUNCA "SceneState" (clase nativa del motor): usar PanelState u otro.
+enum PanelState { HIDDEN, SHOWING }
+ 
+# 2. Señal única hacia la View
+## Razones: "opened" → todo · "datos" → sección · "closed" → ocultar
 signal changed(reason: String)
-
-# 3. Estado público — leído por la View, nunca escrito
+ 
+# 3. Estado público: lo lee la View, nunca lo escribe
 var state: PanelState = PanelState.HIDDEN
-var mi_dato: String = ""
-# ... más datos que necesite la View
-
-# 4. _ready() — conectar al EventBus
+ 
+# 4. _ready(): conectar al EventBus
 func _ready() -> void:
     EventBus.alguna_señal.connect(_on_alguna_señal)
-
-# 5. Métodos de intención — llamados desde la View
+ 
+# 5. Intenciones llamadas desde la View
 func open() -> void: ...
 func request_close() -> void: ...
-func request_accion() -> void: ...
-
-# 6. Callbacks del EventBus — privados
+ 
+# 6. Callbacks del EventBus: privados
 func _on_alguna_señal(...) -> void: ...
 ```
-
-### Razones de `changed(reason)`
-
-Las razones son strings cortos que permiten refreshes parciales en la View. Deben documentarse en el propio ViewModel:
-
-```gdscript
-## Razones posibles:
-##   "opened"   → renderizar todo
-##   "datos"    → solo refrescar sección de datos
-##   "waiting"  → bloquear botones
-##   "closed"   → ocultar panel
-signal changed(reason: String)
-```
-
-**Regla derivada (Spike 3, Grupo B):** cuando un ViewModel gana una razón nueva de `changed()`, la View debe ganar su caso correspondiente en el mismo cambio, no como tarea aparte — ver antipatrón "Razón de `changed()` sin consumidor en la View" más abajo. Si el ViewModel se valida con fixtures aislados de la View, eso no garantiza que el contrato esté completo.
-
-### `await` en el ViewModel — única excepción permitida
-
-El ViewModel **puede** usar `await get_tree().process_frame` antes de una transición de escena, para dar tiempo a la View a procesar `"transitioning"` y deshabilitar botones antes de que la escena cambie. Esta es la única excepción justificada — nunca `await` en la View.
-
-```gdscript
-# ✅ CORRECTO — await en el ViewModel, antes de cambiar escena
-func request_new_game() -> void:
-    state = MenuState.TRANSITIONING
-    changed.emit("transitioning")
-    await get_tree().process_frame   # ← View procesa el disable de botones
-    GameLoop.enter_character_creation()
-```
-
+ 
+**Regla derivada:** una razón nueva de `changed()` gana su caso en la View **en el mismo cambio**. Un ViewModel validado con fixtures aisladas no garantiza que la View lo consuma.
+ 
+### `await` en el ViewModel
+ 
+Única excepción permitida: `await get_tree().process_frame` antes de una transición de escena, para que la View procese `"transitioning"` y deshabilite botones. Nunca `await` en la View.
+ 
 ### Data classes
-
-Para datos complejos que la View necesita renderizar, usar clases internas ligeras:
-
+ 
+Clases internas ligeras para snapshots (`SlotData`, `ColumnData`…). Una data class en **fichero propio con `class_name`** nunca se autorreferencia por nombre en sus factory methods: usar `new()` a secas (GDScript no lo resuelve y rompe la resolución del tipo en otros ficheros). Las clases internas anidadas no tienen este problema.
+ 
 ```gdscript
-class SlotData:
-    var item_id: String = ""
-    var is_empty: bool = true
-
-    static func empty() -> SlotData:
-        return SlotData.new()
-
-    static func from_instance(instance: ItemInstance) -> SlotData:
-        var d := SlotData.new()
-        d.item_id = instance.definition.id
-        d.is_empty = false
-        return d
-```
-
-**Excepción a lo anterior — self-reference dentro de factory methods
-estáticos (lección del Spike 1 Motor Narrativo):** si la data class vive
-en su **propio fichero** con `class_name` (no como clase interna de otro
-script), su factory estático NUNCA debe llamarse a sí mismo por el nombre
-de su `class_name` — GDScript no lo resuelve de forma fiable dentro del
-mismo script y provoca fallos de compilación en cascada que además rompen
-la resolución del tipo desde *otros* ficheros. Usar `new()` a secas:
-
-```gdscript
-# ❌ MAL — autorreferencia por class_name dentro del propio script
-class_name NarrativeSceneOutcome
-extends Resource
-
 static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
-    var outcome := NarrativeSceneOutcome.new()   # falla en cascada
-    ...
-
-# ✅ BIEN — new() a secas, instancia el script actual sin pasar por
-#    la tabla global de clases
-static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
-    var outcome := new()
-    ...
+    var outcome := new()      # no NarrativeSceneOutcome.new()
 ```
-
-Esto solo aplica a data classes en fichero propio con `class_name`. Las
-clases internas anidadas (como `SlotData` arriba) no tienen este problema.
-
-### Composición de ViewModels (nuevo patrón, Grupo 5)
-
-Cuando una pantalla nueva necesita todo el comportamiento de un ViewModel
-ya existente **más** estado adicional propio, la opción por defecto es
-que el ViewModel nuevo **componga** al existente como hijo — no
-duplicar su lógica, ni sustituirlo, ni fusionar ambos en un único
-fichero cada vez más grande:
-
-```gdscript
-class_name CombatArenaViewModel
-extends Node
-
-signal changed(reason: String)
-
-var combat_tokens: Array[CombatTokenData] = []
-var log_entries: Array[LogEntryData] = []
-
-## Menú de 8 acciones del jugador — ViewModel existente, sin tocar.
-var action_menu: CombatHudViewModel = null
-
-func _ready() -> void:
-    action_menu = CombatHudViewModel.new()
-    action_menu.name = "ActionMenu"
-    add_child(action_menu)
-```
-
-La View se conecta a **las dos** señales `changed` por separado —
-`_vm.changed` y `_vm.action_menu.changed` — enrutándolas al mismo
-callback si las razones no colisionan entre sí:
-
-```gdscript
-_vm.changed.connect(_on_vm_changed)
-_vm.action_menu.changed.connect(_on_vm_changed)   # señal propia, independiente
-```
-
-**Error fácil de cometer:** olvidar esta segunda conexión. El ViewModel
-compuesto sigue funcionando y emitiendo su propia señal con normalidad,
-pero cualquier dato que dependa solo del hijo (aquí, el menú de acciones)
-se queda sin renderizar nunca — sin error, sin warning, solo una parte
-de la pantalla que nunca se actualiza. `CombatArenaViewModel` es el
-primer caso de este patrón en el proyecto — antes de esto, todo
-ViewModel era una jerarquía plana de un solo nivel.
-
+ 
+Un campo nuevo en una data class necesita declaración + asignación en `from_dict()` + lectura en el registry/parser (que a veces construye campo a campo), todo en el mismo cambio.
+ 
+### Composición de ViewModels
+ 
+Cuando una pantalla necesita todo un ViewModel existente más estado propio, el nuevo **compone** al existente como hijo (no se duplica ni se fusiona). Ejemplo: `CombatArenaViewModel` compone `CombatHudViewModel` como `action_menu`. La View se conecta a **las dos** señales `changed` (`_vm.changed` y `_vm.action_menu.changed`); olvidar la segunda no da error, solo deja sin renderizar la parte compuesta.
+ 
 ### Tipado estricto
-
-Nunca usar `:=` con `.get()` de diccionarios ni con nulos potenciales:
-
+ 
+Nunca `:=` con `.get()` de diccionarios ni con nulos potenciales (infiere `Variant`; warnings = errores):
+ 
 ```gdscript
-# ❌ MAL — infiere Variant
-var used := snapshot.get("slots_used", 0)
-
-# ✅ BIEN — tipado explícito
-var used: int = snapshot.get("slots_used", 0)
+var used: int = snapshot.get("slots_used", 0)    # no: var used := snapshot.get(...)
 ```
-
+ 
 ---
-
+ 
 ## Contrato de la View
-
-### Estructura mínima obligatoria
-
+ 
 ```gdscript
-extends CanvasLayer  # o Control según el caso
+extends CanvasLayer          # o Control
 class_name MiPantalla
-
-# 1. @onready de nodos del .tscn
-@onready var mi_label: Label = %MiLabel
-@onready var mi_boton: Button = %MiBoton
-
-# 2. ViewModel como variable interna
+ 
+@onready var mi_label: Label = %MiLabel       # nodos por nombre único
 var _vm: MiPantallaViewModel = null
-
+ 
 func _ready() -> void:
     visible = false
-
-    # Crear ViewModel como hijo
     _vm = MiPantallaViewModel.new()
     _vm.name = "ViewModel"
     add_child(_vm)
     _vm.changed.connect(_on_vm_changed)
-
-    # Conectar input directo
-    mi_boton.pressed.connect(func(): _vm.request_accion())
-
-# 3. Callback único del ViewModel
+ 
 func _on_vm_changed(reason: String) -> void:
     match reason:
-        "opened":  _render_todo()
-        "datos":   _render_datos()
-        "waiting": _set_botones_enabled(false)
-        "closed":  visible = false
+        "opened": _render_todo()
+        "closed": visible = false
         _: push_warning("[MiPantalla] Razón desconocida: %s" % reason)
-
-# 4. Renders — uno por sección lógica
-func _render_todo() -> void: ...
-func _render_datos() -> void: ...
-
-# 5. API pública — llamada desde SceneOrchestrator
+ 
 func open() -> void:
     _vm.open()
 ```
-
-### Feedback temporal
-
-Para mensajes que desaparecen solos, usar `SceneTreeTimer` con referencia — nunca `await` en la View:
-
-```gdscript
-var _feedback_timer: SceneTreeTimer = null
-
-func _show_feedback(mensaje: String, es_error: bool) -> void:
-    feedback_label.text    = mensaje
-    feedback_label.visible = true
-
-    if _feedback_timer and is_instance_valid(_feedback_timer):
-        _feedback_timer.timeout.disconnect(_hide_feedback)
-
-    _feedback_timer = get_tree().create_timer(3.0)
-    _feedback_timer.timeout.connect(_hide_feedback)
-
-func _hide_feedback() -> void:
-    if feedback_label:
-        feedback_label.visible = false
-```
-
-### Textos localizados
-
-Todos los textos visibles se asignan por código vía `tr()` — nunca hardcodeados en el `.tscn` ni en el script:
-
-```gdscript
-# ✅ CORRECTO
-btn_new_game.text = tr("MENU_NEW_GAME")
-
-# ❌ MAL — hardcodeado
-btn_new_game.text = "Nueva Partida"
-```
-
-Las claves de localización van en el `.csv` correspondiente de `localization/`. El menú principal usa `menus.csv`; Character Creation usa `character_creation.csv`; NarrativeScene usa `narrative_scenes.csv` (o un CSV propio por aventura, `narrative_scenes_<aventura>.csv`, desde Spike 3/B — ver convención en `athelia_estructura_proyecto_actualizado.md`); otras pantallas pueden usar `translations.csv` o un fichero propio si el volumen lo justifica.
-
+ 
+- **Feedback temporal:** `SceneTreeTimer` con referencia (desconectar el anterior antes de crear otro) o un `Timer` hijo; nunca `await` en la View.
+- **Textos:** siempre `tr("CLAVE")`, asignados por código (`_setup_static_text()`); labels y botones vacíos en el `.tscn`. Claves en el `.csv` de la pantalla, formato `PANTALLA_ELEMENTO`.
 ---
-
+ 
 ## Cómo crear un nuevo panel UI
-
-### Paso 1 — Crear la carpeta
-
-```
-ui/nombre_pantalla/
-```
-
-### Paso 2 — Diseñar el ViewModel
-
-Antes de escribir código, responder:
-
-- ¿Qué estados tiene esta pantalla? → definir enum
-- ¿Qué datos necesita renderizar la View? → definir variables públicas y data classes
-- ¿Qué señales del EventBus escucha? → conectar en `_ready()`
-- ¿Qué intenciones puede recibir del jugador? → definir `request_X()`
-- ¿Qué razones emite `changed()`? → documentarlas en el signal
-
-### Paso 3 — Implementar el ViewModel
-
-Archivo: `nombre_viewmodel.gd`
-
-Seguir la estructura de [Contrato del ViewModel](#contrato-del-viewmodel).
-
-### Paso 4 — Crear el .tscn
-
-Estructura de nodos con `%UniqueNames` para todos los nodos que la View referenciará. No añadir lógica en el inspector — solo estructura y propiedades visuales. Los textos de labels y botones se dejan vacíos; se asignan por código en `_setup_static_text()`.
-
-**Nota (Spike 3, Grupo B):** si el panel puede mostrar texto largo de contenido real (no líneas cortas de test), anclar el contenedor raíz a un tamaño explícito desde el principio — ver antipatrón "Panel sin tamaño fijo con texto largo" más abajo.
-
-### Paso 5 — Implementar la View
-
-Archivo: `nombre_panel.gd` o `nombre_screen.gd`
-
-Seguir la estructura de [Contrato de la View](#contrato-de-la-view).
-
-### Paso 6 — Registrar en SceneOrchestrator
-
-Si la pantalla es un overlay gestionado por `SceneOrchestrator`:
-
-```gdscript
-# En scene_orchestrator.gd
-const OVERLAY_MI_PANTALLA := "res://ui/nombre_pantalla/nombre_panel.tscn"
-```
-
-Y añadir el handler correspondiente en `_on_game_state_changed()` o como método público (`open_X()`).
-
-**Nota (Spike 1 Motor Narrativo):** si la pantalla necesita su propio
-`GameState` (como `NARRATIVE_SCENE`, análogo a `DIALOGUE`/`SHOP`), no hace
-falta una señal de apertura dedicada salvo que algún sistema externo
-necesite enterarse de forma asíncrona (como `EconomySystem` con
-`shop_open_requested`). Si la consulta de datos es local y síncrona
-(como `NarrativeSceneDB.get_scene()`), el `scene_id`/`id` correspondiente
-ya viaja gratis por `_pending_context`, poblado por
-`GameLoop.request_state_change(state, {"id": ...})` — léelo en
-`_on_game_state_changed()` igual que `dialogue_id`/`shop_id`.
-
-**Nota (Spike 3, Grupo B):** el mundo 2D también puede entrar en una escena narrativa — `Interactable.interaction_type = "narrative_scene"` llama a `GameLoop.enter_narrative_scene(target_id)` desde `ExplorationController._on_interaction_requested()`, sin necesidad de tocar `SceneOrchestrator` para esto.
-
-### Paso 7 — Añadir claves de localización
-
-Toda cadena visible en la UI debe tener su clave en el `.csv` de localización correspondiente:
-
-```csv
-MI_PANTALLA_TITULO,My Panel Title,Título de mi panel
-MI_PANTALLA_ERROR_X,Error message,Mensaje de error
-```
-
-Godot genera los `.translation` automáticamente al recargar el proyecto cuando el `.csv` está registrado en Project Settings → Localization → Translations.
-
+ 
+1. **Carpeta** `ui/nombre_pantalla/`.
+2. **Diseñar el ViewModel** antes de codificar: estados (enum), datos y data classes, señales del EventBus que escucha, intenciones `request_X()`, razones de `changed()` documentadas.
+3. **Implementar el ViewModel** (`nombre_viewmodel.gd`) según el contrato.
+4. **Crear el `.tscn`** con `%UniqueNames`; sin lógica en el inspector. Si puede mostrar texto largo real, anclar el contenedor raíz a un tamaño explícito desde el principio.
+5. **Implementar la View** (`nombre_panel.gd`) según el contrato.
+6. **Registrar en `SceneOrchestrator`** si es overlay (`const OVERLAY_X := "res://ui/..."` + handler o `open_X()`). Si necesita su propio `GameState`, el `id` de datos viaja por `_pending_context` (`GameLoop.request_state_change(state, {"id": ...})`) y se lee en `_on_game_state_changed()` igual que `dialogue_id`/`shop_id`.
+7. **Claves de localización** en el `.csv` de la pantalla (alta manual en Project Settings → Localization → Translations).
 ---
-
+ 
 ## Reglas que no se rompen
-
+ 
 | Regla | Motivo |
 |-------|--------|
-| La View nunca accede a sistemas core | Acoplamiento — rompe la separación de responsabilidades |
-| El ViewModel nunca instancia nodos | Es lógica de presentación, no de View |
-| `changed(reason)` es la única señal del VM hacia la View | Más señales = más acoplamiento View↔VM |
-| El ViewModel es siempre hijo de la View | Garantiza que muere con ella y las señales se desconectan solas |
-| Sin `await` en la View | Bloquea el estado; usar `SceneTreeTimer` con referencia |
-| `await` en el ViewModel solo antes de cambiar escena | Única excepción: dar un frame para que la View procese `"transitioning"` |
-| Sin flags implícitos en la View | Usar el enum del ViewModel; el estado es siempre explícito |
-| Tipado estricto en GDScript | Godot 4 trata warnings como errores en este proyecto |
-| Sin `static` en funciones de autoload | Los autoloads son instancias, no clases estáticas |
-| Nombres de variables no colisionan con propiedades de Node | Ej: usar `btn_size` en lugar de `size` en Button |
-| El enum de estados del ViewModel nunca se llama `SceneState` | Colisiona con la clase nativa del motor del mismo nombre — usar `PanelState` u otro nombre específico |
-| Una data class en fichero propio (`class_name`) nunca se autorreferencia por nombre en sus factory methods | GDScript no lo resuelve de forma fiable dentro del mismo script — usar `new()` a secas |
-| Textos siempre via `tr()`, nunca hardcodeados | Consistencia con el sistema de localización |
-| Labels y botones vacíos en el .tscn | Los textos se asignan por código en `_setup_static_text()` |
-| ViewModel de una Main Scene persistente escucha `EventBus.game_state_changed` | Puede volver a su estado por un camino externo — no solo por su propio código |
-| Un contenedor raíz con texto largo real lleva un tamaño/anclaje explícito | Sin él, el `Control` se dimensiona al contenido y `autowrap_mode` nunca tiene ancho contra el que envolver (Spike 3/B) |
-| Toda razón nueva de `changed()` en el ViewModel gana su caso en la View en el mismo cambio | Un ViewModel validado con fixtures aisladas no garantiza que la View lo consuma (Spike 3/B) |
-| Un overlay/subpantalla anidable expone su propia señal `closed`, nunca depende de `tree_exiting` | Ninguna pantalla del proyecto se auto-libera al cerrarse (solo `visible = false`) — sin `closed`, quien la instancia nunca se entera de que cerró (mejoras post-Spike 3, Grupo 3) |
-| Un `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()`, igual que `ExplorationController` | Un segundo punto de entrada sin el mismo guard procesa el evento aunque el `GameState` no sea `EXPLORATION` (mejoras post-Spike 3, Grupo 3) |
-| Toda opción visual nueva de un componente compartido del Design System (`UIPanel`, etc.) entra como flag apagado por defecto | Los paneles ya en producción no pueden cambiar de aspecto sin decisión explícita por pantalla (Spike 9) |
-| Un overlay del orquestador que expone `closed` tiene su oyente en `SceneOrchestrator` | Con slot único, una pantalla oculta pero no liberada hace que la siguiente tecla la destruya en lugar de abrir una nueva (Spike 17) |
-| Un payload de arrastre lleva el dueño del slot de origen (`owner_id`) | Si el destino necesita saber de dónde sale el ítem, no se deduce buscándolo en los inventarios: con copias en varios, se toma la equivocada (Spike 19) |
-| Una operación compuesta valida todo antes de mover nada y revierte si falla | `Equipment` e `Inventory` son independientes: transferir un ítem equipado sin desequiparlo lo deja equipado en el origen; y transferir antes de validar el slot cambia de dueño un ítem cuyo drop se rechaza (Spike 19) |
-
+| La View nunca accede a sistemas core | Acoplamiento |
+| El ViewModel nunca instancia nodos | Es lógica de presentación |
+| `changed(reason)` es la única señal del VM hacia la View | Menos acoplamiento View↔VM |
+| El ViewModel es siempre hijo de la View | Muere con ella; señales se desconectan solas |
+| Sin `await` en la View; en el VM solo antes de cambiar escena | Bloquea el estado |
+| Sin flags implícitos en la View | El estado es el enum del ViewModel |
+| Tipado estricto | Warnings tratados como errores |
+| Sin `static` en funciones de autoload | Son instancias |
+| Variables que no colisionan con propiedades de Node (`btn_size`, no `size`; ni `scale`/`position` como locales en scripts de `Control`) | `SHADOWED_VARIABLE_BASE_CLASS` es error |
+| El enum de estados nunca se llama `SceneState` | Colisiona con clase nativa |
+| `class_name` en fichero propio sin autorreferencia en factories | Ver «Data classes» |
+| Textos siempre vía `tr()`; labels vacíos en el `.tscn` | Localización |
+| ViewModel de Main Scene persistente escucha `game_state_changed` | Puede volver a su estado por un camino externo |
+| Contenedor raíz con texto largo real lleva tamaño/anclaje explícito | Sin él, el autowrap no tiene ancho |
+| Razón nueva de `changed()` = caso nuevo en la View, mismo cambio | Si no, cae en `_:` sin error |
+| Overlay/subpantalla anidable expone `closed`, nunca depende de `tree_exiting` | Ninguna pantalla se auto-libera |
+| `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()` | Si no, procesa el evento en cualquier `GameState` |
+| Opción visual nueva de un componente compartido del DS entra apagada por defecto | Ninguna pantalla cambia de aspecto sin decisión explícita |
+| Un overlay del orquestador que expone `closed` tiene su oyente en `SceneOrchestrator` | Con slot único, una pantalla oculta pero no liberada hace que la siguiente tecla la destruya en vez de abrir una nueva |
+| Un payload de arrastre lleva el dueño del slot de origen (`owner_id`) | Con copias en varios inventarios, deducirlo toma el equivocado |
+| Mover ítems entre inventarios comprueba antes que el destino admite la pila | `Inventory.add_item` devuelve `true` aunque sobrescriba o recorte |
+| Un cálculo de presentación que comparten dos pantallas vive en un helper (`ItemDetailBuilder`), no en un ViewModel | Sin duplicar, y sin referencia circular entre ViewModels |
+| Una operación compuesta valida todo antes de mover nada y revierte si falla | `Equipment` e `Inventory` son independientes |
+| Una señal global de cierre se protege por el `GameState` de origen | Si algo abre esa pantalla como sub-overlay, la señal global destruiría el contexto anidado (p. ej. `_on_dialogue_ended()` solo actúa en `GameState.DIALOGUE`) |
+ 
 ---
-
+ 
 ## Antipatrones conocidos
-
-### ❌ Flag implícito de estado
-
+ 
+### ❌ Acceso a sistemas core o lógica de negocio en la View
+ 
 ```gdscript
-# MAL — ¿qué significa _buttons_refreshed_by_state?
-var _buttons_refreshed_by_state: bool = false
-```
-
-```gdscript
-# BIEN — el estado es explícito y legible
-enum PanelState { HIDDEN, SHOWING, WAITING, SHOWING_RESULT }
-var state: PanelState = PanelState.HIDDEN
-```
-
----
-
-### ❌ await en la View
-
-```gdscript
-# MAL — bloquea el hilo de la View
-func _show_feedback(msg: String) -> void:
-    feedback_label.text = msg
-    await get_tree().create_timer(3.0).timeout
-    feedback_label.visible = false
-```
-
-```gdscript
-# BIEN — timer con referencia, sin await
-var _feedback_timer: SceneTreeTimer = null
-
-func _show_feedback(msg: String) -> void:
-    feedback_label.text    = msg
-    feedback_label.visible = true
-    if _feedback_timer and is_instance_valid(_feedback_timer):
-        _feedback_timer.timeout.disconnect(_hide_feedback)
-    _feedback_timer = get_tree().create_timer(3.0)
-    _feedback_timer.timeout.connect(_hide_feedback)
-```
-
----
-
-### ❌ Acceso a sistemas core desde la View
-
-```gdscript
-# MAL — la View sabe demasiado
+# MAL
 func _on_slot_clicked(item_id: String) -> void:
-    var item_def = Items.get_item(item_id)
-    if item_def.item_type == "EQUIPMENT":
+    if Items.get_item(item_id).item_type == "EQUIPMENT":
         Equipment.toggle_equipment("player", item_id)
-```
-
-```gdscript
-# BIEN — la View solo comunica la intención
+ 
+# BIEN: la View solo comunica la intención
 func _on_slot_clicked(item_id: String) -> void:
     _vm.request_slot_action(item_id)
 ```
-
----
-
-### ❌ Lógica de negocio en la View
-
-```gdscript
-# MAL — la View decide si transferir
-func _on_drop_accepted(slot_id: String, item_id: String, entity_id: String) -> void:
-    if not Inventory.has_item(entity_id, item_id):
-        var source = _find_item_owner(item_id)
-        _transfer_item(source, entity_id, item_id)
-    Equipment.equip_item(entity_id, item_id)
-```
-
-```gdscript
-# BIEN — el ViewModel valida y ejecuta, devuelve resultado
-func _on_drop_accepted(slot_id: String, item_id: String, entity_id: String) -> void:
-    var error := _vm.request_equip_drop(slot_id, item_id, entity_id)
-    if not error.is_empty():
-        _show_feedback(tr(error), true)
-```
-
----
-
+ 
+### ❌ La View construye su propio payload de evento
+ 
+`combat_arena_panel.gd` armaba a mano `player_action_requested` sin `"target"`, saltándose `PlayerCombatController`, único dueño del objetivo actual (error «No target specified»). Si un dato derivado ya tiene un dueño único, cualquier punto de entrada nuevo llama a su API pública (`controller.request_skill(skill_id)`); nunca reconstruye el estado por su cuenta.
+ 
+Relacionado: el orden de conexión de dos nodos distintos a la misma señal no está garantizado. Quien necesita el estado ya resuelto de otro nodo en el mismo instante lo consulta directamente (`get_current_target()`), no se fía de recibir su señal derivada a tiempo.
+ 
 ### ❌ Transferir antes de validar, o mover sin poder deshacer
-
+ 
 ```gdscript
-# MAL — el ítem ya cambió de dueño cuando se descubre que el slot no lo admite
-# (y el origen conserva el ítem equipado y sus modificadores)
+# MAL: el ítem ya cambió de dueño cuando se descubre que el slot no lo admite
 func request_equip_drop(slot_id, item_id, target_entity):
     if not Inventory.has_item(target_entity, item_id):
         _transfer_item(_find_item_owner(item_id), target_entity, item_id)
     if not Equipment.can_equip_in_slot(target_entity, item_id, slot_id):
-        return "PARTY_ERROR_WRONG_SLOT"        # el ítem ya se movió
-    Equipment.equip_item(target_entity, item_id)
-```
-
-```gdscript
-# BIEN — se valida todo antes de tocar nada; si un paso falla, se deshace
+        return "PARTY_ERROR_WRONG_SLOT"
+ 
+# BIEN: validar todo antes; si un paso falla, deshacer; un único mensaje al final
 func request_equip_drop(slot_id, item_id, target_entity, from_entity):
     if not Equipment.can_equip_in_slot(target_entity, item_id, slot_id):
-        _set_feedback(...)               # nada se movió
-        return
+        _set_feedback(...); return                 # nada se movió
     var was_equipped := Equipment.is_item_equipped(from_entity, item_id)
-    _suppress_feedback = true            # un único mensaje, al final
-    if was_equipped:
-        Equipment.unequip_item(from_entity, item_id)
+    _suppress_feedback = true
+    if was_equipped: Equipment.unequip_item(from_entity, item_id)
     if not _transfer_item(from_entity, target_entity, item_id):
-        if was_equipped:
-            Equipment.equip_item(from_entity, item_id)
-        ...
+        if was_equipped: Equipment.equip_item(from_entity, item_id)
         return
     if not Equipment.equip_item(target_entity, item_id):
         _transfer_item(target_entity, from_entity, item_id)   # revertir
-        if was_equipped:
-            Equipment.equip_item(from_entity, item_id)
-        ...
+        if was_equipped: Equipment.equip_item(from_entity, item_id)
         return
 ```
+ 
+`EquipmentManager` no consulta el inventario y `InventorySystem` no toca el equipo: quien mueve ítems entre entidades es quien debe desequipar. Una operación compuesta emite varios eventos intermedios: se suprimen durante la operación y sale un solo mensaje al final.
+ 
+### ❌ Dar por buena una escritura que devuelve `true`
 
-Encontrado en el Spike 19 reproduciendo en partida real: una poción soltada sobre el slot de cabeza de un compañero pasaba a su mochila y salía «Drop rechazado»; la lanza equipada del jugador, arrastrada al slot de arma de Mira, quedaba equipada en los dos. `EquipmentManager` no consulta el inventario y `InventorySystem` no toca el equipo (nota 5 de `equipment_manager.gd`): quien mueve ítems entre entidades es quien debe desequipar.
-
-*(El ejemplo del antipatrón «Lógica de negocio en la View» ilustra el principio; desde el Spike 19 `PartyViewModel.request_equip_drop()` no devuelve una clave de error, sino que da el resultado por la razón `feedback` de `changed`.)*
-
----
+`Inventory.add_item` devuelve `true` en tres casos que pierden datos: el destino ya tiene un ítem **no apilable** (sobrescribe la instancia), la pila supera `max_stack` (recorta) y el ítem lleva `custom_state` (el destino nace sin él). Como `_transfer_item` solo hace rollback si recibe `false`, nunca se dispara. La pre-validación va en el ViewModel antes de mover nada (`existing.can_stack_with(source)` y `existing.quantity + qty <= max_stack`), y tras mover se comprueba la cantidad resultante.
 
 ### ❌ Deducir el origen de un arrastre buscando el ítem en los inventarios
-
+ 
 ```gdscript
-# MAL — con el mismo ítem apilable en varias mochilas, se toma siempre el del jugador
+# MAL: con el mismo ítem en varias mochilas, siempre toma el del jugador
 func _find_item_owner(item_id: String) -> String:
     if Inventory.has_item("player", item_id): return "player"
-    ...
+ 
+# BIEN: el slot declara su dueño (id opaco) y viaja en el payload
+slot.owner_id = column.entity_id
+# UISlot: { "item_id", "source", "owner_id" } → slot_item_dropped(slot, item_id, from_owner_id)
 ```
-
+ 
+El componente del DS no interpreta `owner_id` ni accede a sistemas: lo transporta.
+ 
+### ❌ Flag implícito de estado
+ 
 ```gdscript
-# BIEN — el slot de origen declara su dueño (id opaco) y viaja en el payload
-slot.owner_id = column.entity_id            # la View lo asigna al pintar
-# UISlot._get_drag_data():  { "item_id": ..., "source": ..., "owner_id": owner_id }
-# UISlot._drop_data():      slot_item_dropped.emit(self, item_id, from_owner_id)
+var _buttons_refreshed_by_state: bool = false     # MAL: ¿qué significa?
+enum PanelState { HIDDEN, SHOWING, WAITING, SHOWING_RESULT }   # BIEN
 ```
-
-El componente del Design System no interpreta `owner_id` ni accede a sistemas: lo transporta. La View lo pasa al ViewModel (`request_equip_drop(slot, ítem, destino, origen)`), que decide. Se mantiene `slot_drop_received` para no cambiar a los consumidores existentes (Spike 19).
-
----
-
-### ❌ Inferencia de Variant con Dictionary.get()
-
-```gdscript
-# MAL — Godot 4 trata esto como error con warnings-as-errors
-var used := snapshot.get("slots_used", 0)
-```
-
-```gdscript
-# BIEN — tipo explícito
-var used: int = snapshot.get("slots_used", 0)
-```
-
----
-
-### ❌ Texto hardcodeado en el .tscn o en el script
-
-```gdscript
-# MAL — no localizable, difícil de mantener
-btn_new_game.text = "Nueva Partida"
-```
-
-```gdscript
-# BIEN — localizable, clave en menus.csv
-btn_new_game.text = tr("MENU_NEW_GAME")
-```
-
----
-
-### ❌ ViewModel de una Main Scene persistente sin listener de EventBus
-
-```gdscript
-# MAL — solo se abre una vez, en _ready() de la View. Si el GameState
-# vuelve a este estado por un camino externo (otra pantalla llamando a
-# GameLoop.enter_main_menu()), el ViewModel se queda congelado en el
-# último estado en el que estaba (ej: TRANSITIONING, botones deshabilitados)
-func _ready() -> void:
-    EventBus.alguna_señal.connect(_on_alguna_señal)
-    # sin listener de game_state_changed
-```
-
-```gdscript
-# BIEN — reacciona a cualquier cambio de GameState, lo haya originado
-# esta pantalla o no
-func _ready() -> void:
-    EventBus.game_state_changed.connect(_on_game_state_changed)
-
-func _on_game_state_changed(new_state: int) -> void:
-    if new_state == GameLoopSystem.GameState.MENU:
-        if state != MenuState.MAIN:
-            open()
-    else:
-        if state != MenuState.HIDDEN:
-            state = MenuState.HIDDEN
-            changed.emit("hidden")
-```
-
-Este antipatrón solo aplica a pantallas cuya View es una Main Scene persistente (ej. `MainMenuScreen`) — para overlays normales instanciados/destruidos por `SceneOrchestrator` en cada apertura, el ciclo de vida ya resuelve esto (el ViewModel muere con la View).
-
----
-
-### ❌ Self-reference por `class_name` dentro del propio script
-
-```gdscript
-# MAL — falla en cascada (ver Spike 1 Motor Narrativo): el script nunca
-# termina de registrarse como clase global, y OTROS ficheros dejan de
-# encontrar el tipo también
-class_name NarrativeSceneOutcome
-extends Resource
-
-static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
-    var outcome := NarrativeSceneOutcome.new()
-    ...
-```
-
-```gdscript
-# BIEN — new() a secas, sin pasar por la tabla global de clases
-static func from_dict(data: Dictionary) -> NarrativeSceneOutcome:
-    var outcome := new()
-    ...
-```
-
----
-
+ 
+### ❌ `await` en la View
+ 
+Usar un `SceneTreeTimer` con referencia (o un `Timer` hijo), desconectando el anterior antes de crear el nuevo.
+ 
+### ❌ ViewModel de Main Scene persistente sin listener de EventBus
+ 
+Ver «Caso especial: MainMenuScreen». Solo aplica a Views que son Main Scene; en overlays instanciados por `SceneOrchestrator` el ciclo de vida ya lo resuelve.
+ 
 ### ❌ Panel sin tamaño fijo con texto largo
-
-```gdscript
-# MAL — sin ancho ni anclaje, el Control se dimensiona al contenido.
-# Con líneas cortas de test nunca se nota; con un párrafo real, el
-# panel entero se desborda de la ventana y el autowrap del Label
-# nunca tiene ancho contra el que envolver.
-[node name="UIPanel" parent="Root" instance=ExtResource("...")]
-layout_mode = 0
-```
-
-```gdscript
-# BIEN — ancho real, autowrap funciona de verdad
-[node name="UIPanel" parent="Root" instance=ExtResource("...")]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -350.0
-offset_top = -250.0
-offset_right = 350.0
-offset_bottom = 250.0
-```
-
-Encontrado en `narrative_scene_panel.tscn` en Spike 3, Grupo B — no se
-había detectado antes porque todo el contenido de prueba de Spike 1/2
-eran líneas cortas (`TEST_NARRATIVE_STREAK` y similares). Cualquier
-panel nuevo con texto largo real debe anclarse a un tamaño explícito
-desde el principio, no confiar en que el contenido lo dimensione bien.
-
-**Actualizado en mejoras post-Spike 3, Grupo 4:** el panel narrativo ya
-no usa el ejemplo de arriba (centrado, offsets fijos de 700×500), sino
-anclas relativas al tercio inferior (`0.04 / 0.66 / 0.96 / 0.96`) con
-`grow_vertical = 0` (BEGIN). La regla se mantiene — sigue teniendo un
-tamaño explícito — y además, si un texto largo supera la altura
-anclada, el panel crece **hacia arriba** en vez de salirse por abajo
-y cortar las opciones. `grow_vertical` por defecto es END (1): hay que
-escribir el 0 explícitamente.
-
-**Matiz de Spike 11 — crecer hacia arriba no siempre es lo que conviene.**
-En `DialoguePanel`, un número de opciones que varía diálogo a diálogo (no
-un desbordamiento raro de texto largo) hacía que el panel creciera y
-"subiera" invadiendo pantalla en cada apertura con más de 2-3 opciones —
-un caso rutinario, no una excepción. El criterio: si el desbordamiento es
-un caso de borde ocasional (texto largo puntual), crecer con `grow_vertical
-= BEGIN` sigue siendo correcto, como en el panel narrativo; si el
-contenido variable es la norma (número de opciones, longitud de una lista),
-mejor un `ScrollContainer` alrededor de ese contenido, para que el panel
-se quede en su tamaño anclado y el desbordamiento se resuelva con scroll,
-no cambiando el tamaño del panel en cada apertura.
-
-**Actualizado en el Spike 15:** el `ScrollContainer` de `DialoguePanel` evita que
-el panel crezca, pero por sí solo no basta: con `size_flags_vertical = 3` en el
-texto y en el `ScrollContainer`, el hueco se reparte a partes iguales y a 648 de
-alto se cortaba la tercera opción. La franja de opciones reserva ahora su altura
-natural (`custom_minimum_size.y` = filas × alto de botón + separaciones) y el
-scroll queda solo como red de seguridad.
-
----
-
+ 
+Sin ancho ni anclaje, el `Control` se dimensiona al contenido y el `autowrap_mode` del `Label` nunca tiene ancho contra el que envolver; con líneas cortas de prueba no se nota, con un párrafo real el panel se desborda. Anclar a tamaño explícito (anclas relativas u offsets).
+ 
+`grow_vertical` por defecto es END (1); para que un desbordamiento ocasional crezca **hacia arriba** hay que escribir `grow_vertical = 0` (BEGIN), como en el panel narrativo (anclas `0.04 / 0.66 / 0.96 / 0.96`).
+ 
+Pero si el contenido variable es la norma (número de opciones, longitud de una lista), mejor un `ScrollContainer` alrededor para que el panel conserve su tamaño anclado. Un `PanelContainer` no se encoge por debajo del mínimo de sus hijos. Además, `ScrollContainer` + `size_flags_vertical = 3` junto a otro hijo expansivo reparte el hueco a partes iguales: hay que reservar la altura natural con `custom_minimum_size` y dejar el scroll solo como red de seguridad (`DialoguePanel`).
+ 
 ### ❌ `TextureRect` de contenido con `expand_mode` por defecto
-
-```gdscript
-# MAL — expand_mode sin fijar = EXPAND_KEEP_SIZE: el tamaño mínimo del
-# TextureRect ES el de su textura. Dentro de un contenedor, una imagen
-# real de 1376×768 empuja al contenedor y al panel entero fuera de
-# pantalla. stretch_mode no lo evita — solo decide cómo se pinta.
-[node name="SceneImage" type="TextureRect" parent="..."]
-stretch_mode = 5
+ 
 ```
-
-```gdscript
-# BIEN — el tamaño lo deciden las anclas/el contenedor, no la imagen
-[node name="SceneImage" type="TextureRect" parent="Root"]
-anchors_preset = 15
+# MAL: EXPAND_KEEP_SIZE → el mínimo es el tamaño de la textura; una imagen real
+# de 1376×768 empuja al contenedor fuera de pantalla (stretch_mode no lo evita)
+# BIEN
 expand_mode = 1        # IGNORE_SIZE
 stretch_mode = 6       # KEEP_ASPECT_COVERED para fondos a pantalla completa
-mouse_filter = 2       # IGNORE — un fondo no debe tragarse clics
+mouse_filter = 2       # IGNORE: un fondo no debe tragarse clics
 ```
-
-Encontrado en `narrative_scene_panel.tscn` en mejoras post-Spike 3,
-Grupo 4 — latente desde Spike 1, invisible porque ninguna escena tenía
-`image_path` relleno. Cualquier `TextureRect` que vaya a mostrar
-imágenes de contenido (fondos, ilustraciones, retratos grandes) debe
-fijar `expand_mode` explícitamente.
-
----
-
-### ❌ Texto claro sobre imagen sin contorno, o velo calibrado "a ojo"
-
-```gdscript
-# MAL — un velo pensado para imágenes oscuras (0.6) empasta una imagen
-# clara hasta el mismo valor que las fichas; sin velo, el texto claro
-# desaparece sobre fondo claro. Ningún alfa sirve para todo.
-background_scrim.color.a = 0.6
-```
-
-```gdscript
-# BIEN — velo calibrado contra la luminosidad REAL de las imágenes que
-# se usan (no contra el prompt con el que se generaron), y contorno en
-# todo texto que se pinte directamente sobre la imagen, desde tokens
-var scrim_color: Color = UITokens.COLOR_PANEL
-scrim_color.a = UITokens.COMBAT_BACKGROUND_SCRIM_ALPHA
-label.add_theme_constant_override("outline_size", UITokens.TEXT_OUTLINE_SIZE)
-label.add_theme_color_override("font_outline_color", UITokens.COLOR_TEXT_OUTLINE)
-```
-
-Encontrado en mejoras post-Spike 3, Grupo 4 al pasar la arena de
-combate de un fondo de prueba oscuro a mapas reales sobre pergamino.
-
----
-
+ 
+### ❌ Texto claro sobre imagen sin contorno, o velo calibrado «a ojo»
+ 
+El velo se calibra contra la luminosidad **real** de las imágenes (no contra el prompt con el que se generaron), desde tokens (`COMBAT_BACKGROUND_SCRIM_ALPHA`), y todo texto pintado directamente sobre una imagen lleva contorno (`TEXT_OUTLINE_SIZE`, `COLOR_TEXT_OUTLINE`).
+ 
 ### ❌ Razón de `changed()` nueva sin consumidor en la View
-
-```gdscript
-# MAL — el ViewModel emite una razón nueva, pero la View no la
-# conoce todavía. Cae en el caso `_:` por defecto — ni un error ni
-# un crash, solo un push_warning fácil de no ver, y la pantalla se
-# queda sin actualizar.
-func _on_vm_changed(reason: String) -> void:
-    match reason:
-        "opened", "node_changed": _render_node()
-        "closed": visible = false
-        _: push_warning("Razón desconocida: %s" % reason)
-```
-
-Pasó con `"streak_progress"` (tiradas acumulativas, Spike 2): el
-ViewModel exponía `streak_current`/`streak_required` desde que se
-diseñó la racha, pero como el test de esa pieza probaba el ViewModel
-con fixtures en código (sin View real de por medio), nadie notó que
-la View nunca añadió el caso correspondiente — hasta la primera
-partida real con una tirada acumulativa, en Spike 3, Grupo B.
-
-**Regla derivada:** cuando un ViewModel gana una razón nueva de
-`changed()`, añadir el caso en la View en el mismo cambio, no como
-tarea aparte — y si el ViewModel se valida con fixtures aislados de
-la View (como aquí), no dar por hecho que el contrato está completo
-solo porque el ViewModel pasa sus propios tests.
-
----
-
+ 
+Cae en el `_:` por defecto: solo un `push_warning`, y la pantalla no se actualiza. Pasó con `"streak_progress"` (el test probaba el ViewModel con fixtures sin View real). También por despliegue parcial (ViewModel nuevo con View antigua): se diagnostica por el número de línea del rastreo.
+ 
 ### ❌ Overlay/subpantalla anidable sin señal `closed` propia
-
+ 
 ```gdscript
-# MAL — asume que la subpantalla se auto-libera al cerrarse, y por
-# tanto que tree_exiting es suficiente para saber cuándo restaurar
-# la pantalla contenedora.
-func _open_subscreen(scene_path: String, init_callback: Callable) -> void:
-    _subscreen = load(scene_path).instantiate()
-    add_child(_subscreen)
-    init_callback.call(_subscreen)
-    visible = false
+# MAL: asume que la subpantalla se libera sola
+_subscreen.tree_exiting.connect(_on_subscreen_closed)
+ 
+# BIEN: prioriza closed; tree_exiting solo como fallback con aviso
+if _subscreen.has_signal("closed"):
+    _subscreen.closed.connect(_on_subscreen_closed)
+else:
+    push_warning("%s no expone 'closed'" % scene_path.get_file())
     _subscreen.tree_exiting.connect(_on_subscreen_closed)
-```
-
-```gdscript
-# BIEN — prioriza una señal closed explícita; tree_exiting solo
-# como fallback defensivo, con aviso si tampoco existe.
-func _open_subscreen(scene_path: String, init_callback: Callable) -> void:
-    _subscreen = load(scene_path).instantiate()
-    add_child(_subscreen)
-    init_callback.call(_subscreen)
-    visible = false
-    if _subscreen.has_signal("closed"):
-        _subscreen.closed.connect(_on_subscreen_closed)
-    else:
-        push_warning("%s no expone 'closed' — cayendo a tree_exiting" % scene_path.get_file())
-        _subscreen.tree_exiting.connect(_on_subscreen_closed)
-
+ 
 func _on_subscreen_closed() -> void:
-    _subscreen.queue_free()   # nadie más lo hace por ella
+    _subscreen.queue_free()      # nadie más lo hace
     _subscreen = null
     visible = true
 ```
-
-Encontrado en mejoras post-Spike 3, Grupo 3 (overlays de inventario/party/stats
-durante narrativa), pero es un bug de motor preexistente, no introducido por
-ese grupo: ninguna pantalla del proyecto (`InventoryUI`, `PlayerMenuScreen`,
-`LoadoutScreen`, `SkillTreeScreen`) hace `queue_free()` sobre sí misma en su
-propio camino de cierre — todas solo ponen `visible = false`. `tree_exiting`
-por tanto nunca se disparaba, y `PlayerMenuScreen._open_subscreen()` llevaba
-así desde que existe. No se había detectado porque hasta este grupo nadie
-había necesitado *cerrar* una subpantalla y comprobar que el contenedor
-volvía a aparecer — reproducido en playtest real al anidar un segundo nivel
-(`NarrativeScenePanel → PlayerMenuScreen (sub-overlay) → InventoryUI
-(subpantalla propia de PlayerMenu)`): cerrar la capa más profunda dejaba las
-tres colgadas invisibles, sin ninguna forma de volver atrás — indistinguible
-de un crash desde fuera, sin ninguna excepción real del motor.
-
-**Regla derivada:** toda pantalla pensada para anidarse (como subpantalla o
-como sub-overlay de otra) expone su propia señal `closed`, emitida junto al
-`visible = false` de su cierre. Quien la instancia se conecta a esa señal y
-hace `queue_free()` él mismo — nunca asumir que la pantalla se destruye sola.
-
----
-
+ 
+Ninguna pantalla del proyecto se auto-libera en su cierre (solo `visible = false`): sin `closed`, anidar un segundo nivel deja las capas colgadas e invisibles, indistinguible de un crash. Toda pantalla anidable emite `closed` junto a su `visible = false`; quien la instancia hace `queue_free()`.
+ 
 ### ❌ Redimensionar un Control cuyo contenido usa offsets fijos
-
-```gdscript
-# MAL — el token en sí encoge, pero sus hijos (TokenVisual, HpValueLabel,
-# TypeIcon...) están anclados con desplazamientos en píxeles ABSOLUTOS,
-# calculados para un lienzo exacto de 96×144 (offset_bottom = 112.0, con
-# anchor_bottom = 0 — medido desde arriba, no proporcional al alto real).
-# Al forzar un .size real menor vía custom_minimum_size, esos offsets fijos
-# ya no encajan — el contenido interno se descoloca, no se reescala junto
-# con el círculo. Confirmado en playtest: iconos quedando fuera de la ficha.
-token.custom_minimum_size = target_size
-token.custom_maximum_size = target_size
-```
-
-```gdscript
-# BIEN — el token NUNCA cambia de tamaño real (su anclaje interno sigue
-# siendo válido). Un Control envoltorio es lo único que el Container
-# redimensiona de verdad; el token, dentro, se encoge solo VISUALMENTE
-# con .scale (transform puro, no relayout) mientras su contenido sigue
-# posicionado sobre un lienzo de 96×144 perfectamente válido.
-var slot := Control.new()
-slot.custom_minimum_size = UICombatToken.BASE_SIZE
-slot.add_child(token)
-enemy_column.add_child(slot)
-# ...al recalcular el tamaño objetivo:
-slot.custom_minimum_size = target_size
-slot.custom_maximum_size = target_size
-token.scale = Vector2(scale_factor, scale_factor)
-```
-
-Encontrado en Spike 8 (Punto 4 — columna de enemigos desbordada con 6-8
-fichas) en `UICombatToken`/`combat_arena_panel.gd`. Cualquier componente del
-Design System cuyos hijos usen anclas + desplazamientos fijos en píxeles (en
-vez de proporciones) asume un lienzo de tamaño exacto. **Regla derivada:**
-para encoger un componente así dentro de un `Container`, envolver en un
-`Control` intermedio que el `Container` redimensiona, y aplicar `.scale` al
-componente en sí — nunca reducir directamente su propio `custom_minimum_size`.
-
----
-
-### ❌ La View construye su propio payload de evento en vez de delegar en el dueño del estado
-
-```gdscript
-# MAL — combat_arena_panel.gd construía su propio action_data a mano, sin
-# pasar por PlayerCombatController: el único sitio del proyecto que sabe
-# cuál es el target actual (auto-target al entrar en combate, ciclado con
-# Tab). El campo "target" simplemente nunca se incluía.
-EventBus.player_action_requested.emit({
-    "actor": "player",
-    "skill_id": skill_id,
-    "slot_id": slot_id,
-})
-```
-
-```gdscript
-# BIEN — delega en el sistema que ya resuelve y trackea ese estado
-var controller: Node = get_tree().get_first_node_in_group("player_combat_controller")
-controller.request_skill(skill_id)
-```
-
-Encontrado en Spike 8 (Punto 5) — `combat_arena_panel.gd` y
-`PlayerCombatController` construían dos versiones distintas del mismo
-despacho `player_action_requested`, y la de los botones de UI era la
-incompleta (de ahí el error "No target specified" de `combat_system.gd` al
-atacar). **Regla derivada:** si un dato derivado (aquí, "el objetivo actual")
-ya tiene un dueño único en el proyecto, cualquier punto de entrada nuevo
-(aquí, la View del combate de producción) llama a su API pública — nunca
-reconstruye el mismo estado por su cuenta. Dos caminos para lo mismo
-divergen tarde o temprano.
-
-Lección relacionada, mismo Punto 5: el orden de conexión entre dos nodos
-distintos a la misma señal (`combat_started`) no está garantizado — el
-auto-target de `PlayerCombatController`, emitido antes de que
-`CombatArenaViewModel` hubiera construido las fichas, se perdía sin dejar
-rastro (ningún token existía todavía para recibir la marca de "objetivo").
-Corregido leyendo `PlayerCombatController.get_current_target()` directamente
-al construir las fichas, en vez de fiarse de recibir esa señal a tiempo.
-
----
-
+ 
+`UICombatToken` ancla sus hijos con desplazamientos absolutos calculados para 96×144 (`BASE_SIZE`). Forzar un `.size` menor descoloca el contenido. Correcto: un `Control` envoltorio que el `Container` redimensiona, y `.scale` sobre el componente, que nunca cambia de tamaño real.
+ 
 ### ❌ Nodo hijo colgado del padre equivocado en un `PanelContainer`
-
-Un `PanelContainer` (y por tanto `UIPanel`) coloca **todos** sus hijos en el mismo rectángulo, uno
-encima del otro. Un nodo que debía ir en una columna pero cuelga del panel de cabecera, o un mensaje
-que cuelga del panel en lugar del `VBoxContainer`, no da error: se dibuja superpuesto. Encontrado en
-Spike 16 al montar `shop_ui.tscn` a mano (`ShopItemsScroll` dentro de la cabecera y `FeedbackLabel`
-fuera del `Content`). **Regla:** el contenido de un panel va dentro de un único contenedor de layout
-(`VBoxContainer` / `HBoxContainer`), y al montar escenas a mano se verifica el padre de cada nodo.
-
+ 
+Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectángulo: un nodo mal anidado no da error, se dibuja encima. El contenido de un panel va dentro de un único `VBoxContainer`/`HBoxContainer`, y al montar escenas a mano se verifica el padre de cada nodo.
+ 
 ---
-
-## Design System — `UIPanel`: marco decorativo opt-in (Spike 9)
-
-`UIPanel` puede dibujar un marco ornamental (doble filete + esquineras) sobre
-su fondo. Se activa por instancia, nunca por defecto.
-
-| Propiedad | Tipo | Por defecto | Descripción |
-|-----------|------|-------------|-------------|
-| `decorative_frame` | `bool` | `false` | Activa el marco. Cualquier `Variant` lo admite |
-| `corner_texture` | `Texture2D` | `null` | Esquinera única (diseñada para la esquina superior izquierda), rotada en las 4 esquinas. Sin asignar se usa la esquinera por defecto del Design System (`UITokens.FRAME_CORNER_TEXTURE_PATH`, 64×64); solo si tampoco carga esa, se dibujan los filetes sin esquinas y se avisa **una vez por ejecución** (`push_warning` fuera de `_draw()`, Spike 15) |
-
-- **Dibujo:** `_draw()` sobre el propio `UIPanel` (un `StyleBoxFlat` solo
-  admite un borde de un color, así que no puede producir varios filetes
-  concéntricos). Tres `draw_rect(..., filled=false)` concéntricos + cuatro
-  `draw_texture` con `draw_set_transform(esquina, rotación)`: el origen de
-  la textura queda anclado en cada esquina y al rotar se extiende hacia
-  dentro, sin offsets manuales. `resized` → `queue_redraw()` solo si el
-  marco está activo.
-- **Con el marco activo el panel anula su borde y `corner_radius`** (pasan
-  a 0): evita duplicar líneas y fondo redondeado bajo un marco de esquina viva.
-- **Tokens** (`UITokens`): `COLOR_FRAME_OUTER`, `COLOR_FRAME_FILLET`,
-  `COLOR_FRAME_INNER`, `FRAME_OUTER_WIDTH`, `FRAME_FILLET_WIDTH`,
-  `FRAME_INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING` (16, Spike 15) y `FRAME_CORNER_TEXTURE_PATH` (esquinera por defecto, Spike 15).
-- **Arte:** `res://ui/design_system/assets/frames/frame_corner_64x64.png`
-  (en uso) y `frame_corner_96x96.png` (reserva; invadía el texto del panel
-  narrativo).
-- **Cómo activarlo en una pantalla:** en el inspector de la instancia de
-  `ui_panel.tscn`, grupo «Marco decorativo (Spike 9)»: marcar
-  `Decorative Frame` (`Corner Texture` es opcional desde el Spike 15: sin
-  asignar se usa la esquinera por defecto) y **guardar la escena**. Ningún
-  cambio de script en la View.
-- **Padding con marco (Spike 15):** con `padding = -1` (por defecto) y
-  `decorative_frame = true`, el padding efectivo no baja de
-  `UITokens.FRAME_MIN_PADDING` (16, = `SPACE_LG`): la esquinera de 64 px es
-  mayor que el padding por defecto. Un `padding` explícito (≥ 0) nunca se
-  modifica.
-- **Activación en runtime (Spike 15):** `decorative_frame` y `corner_texture`
-  tienen setter y reaplican estilo y redibujan. Los setters de un `@export`
-  se ejecutan al cargar la escena **antes de `_ready()`**, así que comprueban
-  `is_node_ready()`.
-- **Variantes con consumidores reales (Spike 16):** `DEFAULT` lo usan Character Creation (3 paneles),
-  Diálogo, Narrativa, los sub-paneles del menú principal, las cabeceras de columna de la tienda y la
-  fila `ShopItemSlot`. **`OVERLAY` lo usa la tienda** (panel principal, con marco). `POPUP` no tiene
-  consumidores. **`OVERLAY` es opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0).
-- **Diagnóstico si «no cambia nada»:** un `print` en `_ready()` con
-  `decorative_frame` distingue «el script nuevo no carga» de «el flag no
-  está activo en esa instancia» en una sola ejecución.
-- **Activado en:** `NarrativeScenePanel` (`Root/UIPanel`, Spike 9) y `DialoguePanel` (`Root/Panel`, Spike 11). Validado en ambos: la ventana de inventario no cambia. Desde el Spike 15 el diálogo muestra además la esquinera por defecto sin asignar nada (antes no se veía por no tener `corner_texture`).
-
----
-
-## Design System — `UIButton`: modo solo icono (Spike 13, opt-in)
-
-`UIButton` gana dos opciones, **apagadas por defecto** (ningún botón existente cambia), pensadas para los hotspots con icono del mapa interactivo:
-
+ 
+## Design System
+ 
+### `UIPanel` — variantes
+ 
+| Variante | Qué es | Consumidores |
+|---|---|---|
+| `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation, Diálogo, Narrativa, sub-paneles del menú, cabeceras y filas de la tienda |
+| `POPUP` | `COLOR_PANEL_ALT`, borde de foco, padding 8 | ninguno |
+| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party |
+ 
+### `UIPanel` — marco decorativo (opt-in)
+ 
+`decorative_frame` (false por defecto) dibuja doble filete + cuatro esquineras sobre el fondo.
+ 
+| Propiedad | Por defecto | Descripción |
+|---|---|---|
+| `decorative_frame: bool` | `false` | Activa el marco; cualquier variante lo admite |
+| `corner_texture: Texture2D` | `null` | Sin asignar usa `UITokens.FRAME_CORNER_TEXTURE_PATH` (64×64); solo si tampoco carga, se dibujan los filetes sin esquinas y avisa una vez por ejecución |
+ 
+- Se dibuja con `_draw()` sobre el propio panel (un `StyleBoxFlat` solo admite un borde de un color): tres `draw_rect` concéntricos + cuatro `draw_texture` con `draw_set_transform(esquina, rotación)`.
+- Con el marco activo el panel anula su borde y `corner_radius`.
+- Con `padding = -1` y marco, el padding efectivo no baja de `FRAME_MIN_PADDING` (16). Un `padding` explícito (≥ 0) nunca se modifica.
+- `decorative_frame` y `corner_texture` tienen setter y reaplican estilo y redibujan en runtime. Los setters de `@export` corren **antes de `_ready()`**: protegerlos con `is_node_ready()`.
+- Para activarlo: inspector de la instancia, grupo «Marco decorativo (Spike 9)», marcar `Decorative Frame` y **guardar la escena**. Sin cambios de script. Si «no cambia nada», un `print` en `_ready()` distingue «el script no carga» de «el flag no está activo en esa instancia».
+- Tokens: `COLOR_FRAME_OUTER/FILLET/INNER`, `FRAME_OUTER/FILLET/INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING`, `FRAME_CORNER_TEXTURE_PATH`. Arte en `ui/design_system/assets/frames/`.
+- Activado en: panel narrativo, diálogo, tienda, inventario y Party.
+### `UIButton` — modo solo icono (opt-in)
+ 
 | Opción | Efecto |
 |---|---|
-| `min_square: int = 0` | `> 0` = botón de solo icono, cuadrado de ese lado en px y con relleno mínimo (`UITokens.SPACE_XS`). `0` = comportamiento normal (alto según el tamaño, relleno horizontal de texto). |
-| `icon_backdrop: bool = false` | Solo con `min_square > 0`: disco oscuro semitransparente (radio = mitad del lado) con borde de foco; hover y pressed lo hacen más opaco, y el anillo de foco también es circular. Sirve para que un medallón claro se lea sobre un fondo claro y recargado. |
+| `min_square: int = 0` | `> 0` = botón de solo icono, cuadrado de ese lado en px y relleno mínimo (`SPACE_XS`). `0` = comportamiento normal |
+| `icon_backdrop: bool = false` | Solo con `min_square > 0`: disco oscuro semitransparente con borde de foco; hover/pressed lo hacen más opaco |
+ 
+- `variant`, `btn_size`, `min_square` e `icon_backdrop` se fijan **antes de `add_child()`**: `UIButton` los lee en `_ready()` y fuerza `custom_minimum_size.y`.
+- Para solo icono: vaciar `text` y pasar el nombre a `tooltip_text`. Sin `icon_path` válido sigue siendo un botón de texto (fallback sin código extra).
+- Un icono claro sobre fondo claro no destaca solo: el disco oscuro lo resuelve; en arte nuevo, interior más oscuro.
+- `UICombatToken` está acoplado al combate y no sirve como icono de mapa.
+### Fila de lista: `ShopItemSlot`
+ 
+Patrón reutilizable: `[icono opcional] [nombre] [xN] [precio] [botón]`.
+ 
+- Raíz `PanelContainer` con script que `extends UIPanel` (`DEFAULT`); fija `padding = SPACE_XS` **antes** de `super._ready()`. Alto 40 px, suelo de anchura 380 px (un `Label` con elipsis tiene anchura mínima 0).
+- Contrato: `setup(item_data, buy_mode)` **después** de `add_child()`; señal `item_clicked(item_id, is_buy)`; `set_busy(bool)` bloquea la acción durante una transacción y nunca habilita lo que la fila no permite. No se comprueban métodos por nombre.
+- Estados con tokens, sin `modulate`: no asequible (precio `COLOR_DANGER_SOFT`, botón deshabilitado, tooltip), no disponible (`TEXT_MUTED`).
+- Préstamo: la clave `"is_loan"` cambia el precio por «Préstamo» (`COLOR_INFO`) y el botón por «Tomar»; en venta queda bloqueado.
+- `%IconRect` oculto hasta que la entrada traiga `"icon"` (`Texture2D`).
+- Hover: `BG_RAISED` + `BORDER_ACCENT`; `mouse_exited` llega también al entrar en un hijo, así que solo es salida si el ratón ya no está dentro de `get_global_rect()`.
+- Listas: `VBoxContainer` en `ScrollContainer` (`horizontal_scroll_mode = DISABLED`); al reconstruir, `remove_child()` antes de `queue_free()`; mensajes con altura reservada: vaciar el texto en lugar de ocultar el `Label`.
+### `UIResourceBar` — uso desde una View MVVM (19b)
 
-Uso (`InteractiveSceneView._create_hotspot_button()`): `variant = GHOST`, `min_square = ICON_HOTSPOT_SIZE` (88 px en la propuesta; ajustable), `icon_backdrop = true`, `icon`, `expand_icon = true`, `icon_alignment` y `vertical_icon_alignment` centrados, y el nombre del hotspot en `tooltip_text`.
+- La View llama a `set_values(current, max)` con lo que le da el ViewModel. `bind()` se conecta a `Resources` por sí misma: accede al juego y no se usa desde una View MVVM.
+- El relleno va anclado a izquierda y alto, y su ancho se ajusta con `offset_right` (un control con anclas opuestas distintas ignora `size`). Se recalcula al cambiar de tamaño la barra; el primer valor se pinta sin animar y cada refresco cancela el tween anterior.
+- Alto `RESOURCE_BAR_HEIGHT` (14 px); dos barras con 4 px de separación caben en una cabecera de 36 px. Para el recurso que se regenera (estamina) el ViewModel emite una razón propia (`resources`) agrupada por frame, no repinta la pantalla entera.
 
-Reglas que se descubrieron:
-
-- **`variant`, `btn_size`, `min_square` e `icon_backdrop` se fijan ANTES de `add_child()`.** `UIButton` los lee en `_ready()` (`_apply_style()`) y fuerza `custom_minimum_size.y`: un `custom_minimum_size` fijado antes se pisa en parte (la altura).
-- **Un icono claro sobre un fondo claro no destaca por sí solo.** El primer intento (medallón sobre `GHOST` sin fondo) no se leía sobre el mapa del pueblo; el disco oscuro lo resolvió sin regenerar el arte. Para nuevas generaciones de arte, interior más oscuro.
-- Un `Button` con `icon` y `text` muestra los dos: para solo icono hay que vaciar `text` y pasar el nombre a `tooltip_text`.
-- Un hotspot sin `icon_path` válido sigue siendo un botón de texto del Design System: sirve de fallback sin código extra.
-- `UICombatToken` (la "ficha de combate") **no** es reutilizable como icono de mapa: está acoplado al combate (anillos de vida/energía, triángulo de turno, retícula). Los iconos de hotspot son PNG propios.
-
-
-## Design System — fila de lista: `ShopItemSlot` (Spike 16)
-
-Patrón reutilizable (Party, Inventario) para una lista de objetos con acción por fila:
-`[icono opcional] [nombre] [xN] [precio] [botón]`.
-
-- **Raíz:** `PanelContainer` con un script que `extends UIPanel` (variante `DEFAULT`). El script fija
-  `padding = UITokens.SPACE_XS` **antes** de `super._ready()`: el estilo se aplica en el `_ready()` de
-  `UIPanel` con el padding que tenga en ese momento. Alto 40 px, suelo de anchura 380 px
-  (un `Label` con elipsis tiene anchura mínima 0).
-- **Contrato:** `setup(item_data, buy_mode)` **después** de `add_child()` (sin `await` en la View);
-  señal `item_clicked(item_id, is_buy)`; `set_busy(bool)` bloquea la acción mientras hay una
-  transacción en vuelo y se combina con el estado propio de la fila (nunca habilita lo que no se
-  puede comprar o vender). No se comprueban métodos por nombre.
-- **Estados con tokens, sin `modulate`:** normal, no asequible (precio `COLOR_DANGER_SOFT`, botón
-  deshabilitado, tooltip), no disponible (texto `TEXT_MUTED`, botón deshabilitado, tooltip).
-- **Préstamo (16b):** la clave opcional `"is_loan"` de la entrada cambia el precio por «Préstamo»
-  (`COLOR_INFO`), el botón de compra por «Tomar» y bloquea el de venta con su tooltip.
-- **Hover:** `BG_RAISED` con `BORDER_ACCENT` sobreescribiendo el estilo `panel`; se restaura con
-  `_apply_style()`. `mouse_exited` se emite también al entrar en un hijo: solo es salida si el ratón ya
-  no está dentro de `get_global_rect()`.
-- **Gancho de icono:** `%IconRect` (`TextureRect`) permanece oculto hasta que la entrada del snapshot
-  traiga la clave `"icon"` (un `Texture2D`). Cuando `EconomySystem` la incluya, la fila lo muestra sin
-  más cambios.
-- **Listas:** `VBoxContainer` dentro de `ScrollContainer` con `horizontal_scroll_mode = DISABLED`.
-  Al reconstruir, `remove_child()` antes de `queue_free()`. Mensaje de lista vacía en un `Label`
-  hermano del scroll.
-
+### `UISlot` y overlay a pantalla completa
+ 
+- **API:** `set_item(ItemInstance)`, `set_definition(definition, quantity = 1)`, `clear()`, `get_item_id()`, `is_empty()`; flags `set_selected()`, `set_equipped_mark()`, `set_overflow()` (borde discontinuo de peligro); `border_color_override`; arrastre con `draggable`, `accept_drops`, `drop_source_filter`, `equipment_slot_id`; `owner_id` (id opaco del dueño, viaja en el payload). Sin icono: placeholder teñido con `COLOR_TEXT_MUTED`.
+- **Señales:** `slot_clicked(slot)` (se emite **al soltar** el botón dentro del slot, no al pulsar, para que un arrastre no dispare una selección), `slot_drop_received(slot, item_id)` y `slot_item_dropped(slot, item_id, from_owner_id)` (justo después de la anterior).
+- **No conoce el juego:** no equipa ni mueve nada; avisa por señal y la View lo traduce en una intención del ViewModel.
+- **Drops entre mochilas (19b):** `drop_exclude_owner` (apagado por defecto) rechaza drops cuyo `owner_id` coincide con el del slot; `highlight_drop_targets` (apagado por defecto) resalta el borde de los slots que aceptarían el arrastre en curso (`NOTIFICATION_DRAG_BEGIN/END`, `gui_get_drag_data()`). Un slot de equipo no lo activa: aceptaría y resaltaría cualquier ítem aunque no encaje.
+- **Overlay a pantalla completa:** `Backdrop` (`ColorRect` opaco, `mouse_filter = STOP`) + `Frame` (`UIPanel` OVERLAY con marco, padding 16) con fracción 0,9 y **tamaño máximo 1400×820**, centrado, recalculado en `get_viewport().size_changed` y al abrir. Sin tope, a 1680×1050 el panel queda vacío.
+- **Rejilla variable:** pool de `UISlot` reutilizados (los sobrantes se ocultan); columnas con el ancho real del `ScrollContainer` más una reserva para la barra de scroll. Lo que excede la capacidad se muestra con borde discontinuo, no se descarta.
+- **Categorías en datos:** `data/ui/inventory_categories.json` (primera coincidencia por prioridad); el ViewModel las traduce a pestañas.
+- **Columna de equipo:** 6 `UISlot` de 64 px en vertical con la etiqueta dentro del slot (no cabe debajo con 6 slots en 648 de alto). No arrastrables; aceptan solo drops con `source == "inventory"`.
+- **Bloques informativos** (estadísticas, bonos): `UIPanel` `DEFAULT` con un único contenedor de layout dentro. Los bonos suman solo modificadores `add`.
+- Una subclase de `UIPanel` (`ItemDetailPanel`, `ShopItemSlot`) llama a `super._ready()`; si no, el estilo no se aplica.
+- Una clase interna de la View (`ColumnView`) evita duplicar el pintado de columnas idénticas (Party).
+- **`BagCapacity`** (`ui/inventory/bag_capacity.gd`, `RefCounted`): `compute(definition, used_count, entity_id = "")` devuelve `definition.inventory_slots` (o `used_count` con aviso si no hay definición). Único punto de cálculo de la capacidad de una mochila.
+- Limitación conocida: el estado `DISABLED` de `UISlot` usa `modulate` (atenúa también el contenido).
 ---
-
-## Design System — `UISlot` y patrón de overlay a pantalla completa (Spike 18)
-
-- **`UISlot`** es el slot de ítem del Design System (inventario y equipo; Party lo adopta desde el Spike 19). API: `set_item(ItemInstance)`, `set_definition(definition, quantity = 1)`, `clear()`, `get_item_id()`, `is_empty()`; flags de estado `set_selected()`, `set_equipped_mark()` y `set_overflow()` (borde discontinuo de peligro); `border_color_override` (la View colorea por categoría con tokens); arrastre con `draggable`, `accept_drops`, `drop_source_filter` y `equipment_slot_id`. Sin icono muestra un placeholder teñido con `COLOR_TEXT_MUTED`.
-- **El clic se emite al soltar** el botón dentro del slot, no al pulsar: si no, cada arrastre dispara una selección. Señales: `slot_clicked(slot)`, `slot_drop_received(slot, item_id)` y, desde el Spike 19, `slot_item_dropped(slot, item_id, from_owner_id)` (con el dueño del slot de origen).
-- **El componente no conoce el juego.** No equipa ni mueve nada: avisa por señal y la View lo traduce en una intención del ViewModel (`request_*()`), como en cualquier otra pantalla.
-- **Overlay a pantalla completa:** `Backdrop` (`ColorRect` opaco, `mouse_filter = STOP`, para no ver ni pulsar lo de debajo) + `Frame` (`UIPanel` OVERLAY con marco) con **tamaño máximo** (inventario: fracción 0,9 y tope 1400×820), centrado, con el rectángulo recalculado en `get_viewport().size_changed` y al abrir. Sin tope, a 1680×1050 el panel queda vacío.
-- **Rejilla variable:** pool de `UISlot` reutilizados (los sobrantes se ocultan), columnas calculadas con el ancho real del `ScrollContainer` y reserva para la barra de scroll.
-- **Categorías en datos, no en código:** `data/ui/inventory_categories.json` (versión 1, primera coincidencia por prioridad); el ViewModel las traduce a pestañas y la View solo pinta.
-- **Una raíz que `extends UIPanel`** (`ItemDetailPanel`, `ShopItemSlot`) llama a `super._ready()`; si no, el estilo no se aplica.
-- **Bloques informativos** (estadísticas, bonos del equipo): `UIPanel` DEFAULT con un único contenedor de layout dentro (un `PanelContainer` apila a sus hijos).
-- **Spike 19 — `owner_id`.** `UISlot` gana `@export var owner_id: String` (id opaco de la entidad dueña del slot; el componente no lo interpreta ni accede a sistemas), lo incluye en el payload del arrastre (`"owner_id"`) y emite `slot_item_dropped(slot, source_item_id, from_owner_id)` justo después de `slot_drop_received`. El inventario no lo usa (owner vacío, sin oyentes de la señal nueva).
-- **Capacidad de mochila: `BagCapacity`** (`ui/inventory/bag_capacity.gd`). `BagCapacity.compute(definition, used_count, entity_id = "")` devuelve `definition.inventory_slots` (o `used_count` con aviso si no hay definición). Es el único punto de cálculo; `InventoryViewModel` y `PartyViewModel` resuelven la definición de su entidad y delegan solo la regla. Cualquier mecanismo futuro de aumento de capacidad entra aquí.
-- **Columna «equipo + mochila» (Party, Spike 19).** Equipo en una columna vertical de 6 `UISlot` de 64 px fijos a la izquierda de una mochila en `ScrollContainer` con pool de `UISlot` según la capacidad del personaje (columnas calculadas con el ancho real). Una clase interna de la View (`ColumnView`) agrupa los nodos y el estado de pintado de una columna, y el mismo código pinta jugador y compañero. Ver `docs/spike_19_party.md`.
-
+ 
+## Contrato de pantalla y resolución de referencia
+ 
+Reglas de toda pantalla nueva o rediseñada del hito:
+ 
+1. **MVVM.** La View no accede a sistemas core; todo pasa por el ViewModel (`changed(reason)`, `request_X()`). El ViewModel es hijo de la View.
+2. **`closed`.** Toda pantalla anidable la expone, junto a su `visible = false`; quien la instancia hace `queue_free()`.
+3. **Nombres únicos `%`.** Nunca rutas `$A/B/C/D` ni `get_node("X")`. Nada depende del nombre del nodo raíz (el orquestador puede renombrarlo).
+4. **Marco decorativo** opt-in por pantalla.
+5. **Tokens.** Sin `Color(...)` literales ni tamaños de fuente sueltos. Superficies/bordes/texto → `BG_*`/`BORDER_*`/`TEXT_*`; marca, semánticos, recursos y slots → `COLOR_*`. Nada se migra a la fuerza; un mismo valor en las dos familias es un **alias** apuntando hacia atrás (el orden de declaración importa en GDScript).
+6. **Texto.** `tr()` con clave `PANTALLA_ELEMENTO` en el CSV de la pantalla. Textos de habilidades (`SKILL_<ID>_NAME`/`_DESC`) en `skills.csv`; textos de pantalla (`SKILL_TREE_*`…) en su CSV o `translations.csv`. Alta manual de cada `.csv` nuevo.
+7. **Layout.** Anclas y fracciones, no píxeles fijos. Si una medida depende de otro nodo (el hueco de un retrato), se calcula desde el borde real de ese nodo y se recalcula en `resized`.
+8. **Contenido variable.** Si el número de hijos varía entre aperturas, reservar su altura natural con `custom_minimum_size` más un `ScrollContainer` como red de seguridad.
+9. **Teclado.** Si hay opciones seleccionables, un control toma el foco al abrirse (`grab_focus`, diferido) y el foco se ve: el estilo `focus` por defecto de un `Button` puede recortarse; usar el estilo `hover` (`add_theme_stylebox_override("focus", btn.get_theme_stylebox("hover"))`).
+10. **Contratos públicos** (`open()`, `open_inventory()`, `show_shop_direct()`, `closed`…) se conservan salvo que el spike declare lo contrario.
+**Resolución de referencia:** sin estiramiento, valores por defecto (ventana 1152×648, sin `stretch/mode`). `canvas_items` con base 1280×720 ablandaba el texto (≈15 % en la medición) y se descartó. Mínimo que no debe romperse: 1152×648; referencia de diseño: 1680×1050 a pantalla completa (así se juega). Las pantallas de píxeles fijos se corrigen en el spike de cada una.
+ 
 ---
-
-## Contrato de pantalla y resolución de referencia (Spike 15)
-
-Reglas que cumple toda pantalla nueva o rediseñada del hito (spikes 16-24):
-
-1. **MVVM.** La View no accede a sistemas core (`Inventory`, `Equipment`,
-   `Characters`, `Resources`, `Party`…). Todo pasa por el ViewModel
-   (`changed(reason)`, intenciones `request_X()`). El ViewModel es hijo de la View.
-2. **`closed`.** Toda pantalla anidable expone su señal `closed`, emitida junto
-   a su `visible = false`; quien la instancia hace `queue_free()` al recibirla.
-3. **Nodos por nombre único.** La View referencia sus nodos con `%Nombre`
-   (`unique_name_in_owner`), nunca con rutas `$A/B/C/D` ni `get_node("X")`. Nada
-   depende del **nombre del nodo raíz** de la pantalla (el orquestador puede
-   renombrarlo).
-4. **Marco decorativo opt-in.** `UIPanel.decorative_frame` apagado por defecto,
-   activado por pantalla.
-5. **Tokens.** Sin `Color(...)` literales ni tamaños de fuente sueltos; tokens
-   del vocabulario fusionado (ver README del Design System): `BG_*`/`BORDER_*`/
-   `TEXT_*` para superficies, bordes y texto; `COLOR_*` para marca, semánticos,
-   recursos y slots.
-6. **Texto.** Todo texto visible con `tr()` y clave en la localización, formato
-   `PANTALLA_ELEMENTO` (prefijo de pantalla en mayúsculas). Los textos de las
-   habilidades (`SKILL_<ID>_NAME`/`_DESC`) viven en `skills.csv`; los textos de
-   pantalla (`SKILL_TREE_*`…) en el CSV de la pantalla o en `translations.csv`.
-   Un `.csv` nuevo necesita alta manual en Project Settings → Localization.
-7. **Layout.** Anclas y fracciones, no píxeles fijos, para una ventana mínima de
-   1152×648. Si una medida depende de otro nodo (p. ej. el hueco de un retrato),
-   se calcula desde el borde real de ese nodo, no con un número fijo.
-8. **Contenido variable.** Si el número de hijos varía de una apertura a otra
-   (opciones de diálogo, listas), se reserva su altura natural con
-   `custom_minimum_size` y se deja un `ScrollContainer` como red de seguridad. Un
-   `ScrollContainer` con `size_flags_vertical = 3` junto a otro hijo expansivo
-   reparte el hueco **a partes iguales**: sin reserva, el contenido se corta.
-9. **Teclado.** Si la pantalla tiene opciones seleccionables, un control toma el
-   foco al abrirse (`grab_focus`, diferido) y el foco se ve (el estilo `focus`
-   por defecto de un `Button` puede recortarse: usar el estilo `hover`).
-10. Se conservan los contratos públicos de cada pantalla (`open()`,
-    `open_inventory()`, `show_shop_direct()`, `closed`…) salvo que el spike
-    declare lo contrario.
-
-### Resolución de referencia
-
-Decidida en el Spike 15 con un experimento (ver
-`docs/spike_15_cimientos_design_system.md`): **sin estiramiento**, valores por
-defecto (ventana de 1152×648, sin `stretch/mode`). `canvas_items` con base
-1280×720 ablandaba el texto (≈ 15 % en la medición) y se descartó. Consecuencias:
-
-- Las pantallas se diseñan con anclas para una ventana mínima de 1152×648 y deben
-  adaptarse al crecer (p. ej. 1680×1050 a pantalla completa).
-- Las pantallas de píxeles fijos (lista en el plan del hito, §3.2) no se adaptan y
-  se corrigen en el spike de cada una.
-
----
-
-### Contextos de apertura del inventario (Spike 17)
-
+ 
+## Contextos de apertura
+ 
+### Inventario
+ 
 | Contexto | Quién instancia | `closed` | Quién libera |
 |---|---|---|---|
 | Overlay en exploración (tecla `I`) | `SceneOrchestrator.open_inventory()` (toggle) | conectada por el orquestador | `_on_overlay_closed()` |
 | Subpantalla de PlayerMenu | `PlayerMenuScreen._open_subscreen()` | conectada | PlayerMenu |
 | Sub-overlay de narrativa | `NarrativeScenePanel._open_sub_overlay()` (nunca vía orquestador) | conectada | el panel |
-
-Reglas derivadas:
-- `SceneOrchestrator` tiene un único `_current_overlay`. Si no conecta `closed`, una pantalla cerrada (solo oculta) sigue ocupando el slot y la siguiente pulsación de la tecla la destruye en vez de abrirla (dos pulsaciones). `open_inventory()` y `open_party()` conectan `closed` a `_on_overlay_closed(overlay)`.
-- `ui_cancel`: la pantalla lo consume con `set_input_as_handled()` y cierra; el input no manejado se propaga de hijo a padre, así que en el anidado cierra solo la capa más profunda.
-- Una pantalla con `closed` nunca se libera a sí misma.
-- **Spike 18:** los tres contextos y estas reglas no cambian con el rediseño.
-
-### Contextos de apertura de Party (Spike 19)
-
+ 
+### Party
+ 
 | Contexto | Quién instancia | `closed` | Quién libera |
 |---|---|---|---|
 | Overlay en exploración (tecla `O`) | `SceneOrchestrator.open_party()` (toggle) | conectada por el orquestador | `_on_overlay_closed()` |
-| Sub-overlay de narrativa | `NarrativeScenePanel._open_sub_overlay()` (nunca vía orquestador; llama a `open()`) | conectada | el panel |
-
-- `PlayerMenu` **no** abre Party (solo Loadout, Inventory y SkillTree).
-- Cierra con `O`, con Esc y con la X; la View consume `open_party` y `ui_cancel`. En narrativa, cerrar solo muestra de nuevo el panel (`_on_sub_overlay_closed`): no avanza nodo ni racha.
-- Con Party abierta, `I` la cierra en vez de abrir el inventario: el orquestador tiene un único `_current_overlay` y `open_inventory()` hace toggle. Limitación conocida del orquestador, no de Party (→ Spike 22).
-- Contrato público intacto: `open()`, `close()`, `toggle()`, `closed`, `layer = 10`.
-
+| Sub-overlay de narrativa | `NarrativeScenePanel._open_sub_overlay()` (llama a `open()`) | conectada | el panel |
+ 
+Reglas comunes:
+- `SceneOrchestrator` tiene un único `_current_overlay` (no una pila). Si no conecta `closed`, la pantalla cerrada (solo oculta) sigue ocupando el slot y la siguiente pulsación la destruye en vez de abrirla (dos pulsaciones). `open_inventory()` y `open_party()` conectan `closed`.
+- `ui_cancel`: la pantalla lo consume con `set_input_as_handled()` y cierra; el input no manejado se propaga de hijo a padre, así que en anidado cierra solo la capa más profunda. Una pantalla con `closed` nunca se libera a sí misma.
+- Limitación conocida del orquestador (→ Spike 22): con Party abierta, `I` la cierra en vez de abrir el inventario; `I` dentro de PlayerMenu cierra el menú entero. `PlayerMenu` no abre Party (solo Loadout, Inventory y SkillTree).
+- Party en narrativa: cerrar solo vuelve a mostrar el panel; no avanza nodo ni racha.
 ---
-
+ 
 ## Referencia de pantallas existentes
-
-| Pantalla | ViewModel | View | Descripción |
-|----------|-----------|------|-------------|
-| MainMenu | `main_menu_viewmodel.gd` | `main_menu_screen.gd` | Menú principal del juego. Main Scene del proyecto. Pantalla única con sub-paneles internos (opciones, créditos, confirmación de salida). No instanciada por SceneOrchestrator — arranca directamente. |
-| WorldObject | `world_object_panel_viewmodel.gd` | `world_object_interaction_panel.gd` | Panel piloto del patrón. El más simple. Buen punto de partida para entender el flujo. |
-| Inventory | `inventory_viewmodel.gd` | `inventory_ui.gd` | **Spike 17:** cumple el contrato MVVM (ver «Contextos de apertura del inventario» arriba). View pasiva (`CanvasLayer`, raíz `InventoryUi`, nodos `%`, textos `tr()` con claves `INVENTORY_*`), ViewModel como hijo con `changed(reason)` (`opened/inventory/equipment/stats/selection/feedback/closed`). Feedback decidido por el ViewModel (usado/equipado/desequipado/errores) y mostrado en `FeedbackPopup`, que se oculta solo. Esc cierra (la View consume `ui_cancel`). **Spike 18:** rediseño con el Design System. `Backdrop` opaco + `Frame` (`UIPanel` OVERLAY con marco, tamaño máximo 1400×820 centrado, rectángulo recalculado en `size_changed`); tres columnas por proporciones: equipo (6 `UISlot` con la etiqueta dentro), mochila (pestañas de categoría `UIButton` SM + rejilla de `UISlot` con pool, desbordamiento con borde discontinuo y marca «E» de equipado) y detalle (`ItemDetailPanel extends UIPanel`, con modificadores y comparación con lo equipado) + bloque «Bonos del equipo» (suma de los modificadores `add` de lo equipado) + bloque de estadísticas (valores base). Cabecera con oro, peso y huecos usados/capacidad (`inventory_slots` de `CharacterDefinition`, un único punto: `_compute_capacity()`, que desde el Spike 19 delega en `BagCapacity`). Categorías en `data/ui/inventory_categories.json`. Razones de `changed` ampliadas con `categories`; los bonos salen con `equipment`. `FeedbackPopup` sobre la parte baja de la mochila. Textos `INVENTORY_*` (58 claves). Contratos públicos intactos. `equip_slot` e `item_slot` se retiraron en el Spike 19 (Party pasó a `UISlot`). Ver `docs/spike_18_inventario_rediseno.md`. |
-| Party | `party_viewmodel.gd` | `party_ui.gd` | **Spike 19 (19a)** — rediseño con el Design System: `UIPanel` OVERLAY con marco, `UIButton`, `UISlot` y solo tokens; layout L3 (equipo en columna vertical de 6 `UISlot` de 64 px a la izquierda de la mochila de cada personaje), marco al 90 % con tope 1400×820 y `Backdrop` opaco (mismo patrón que el inventario). View pasiva (sin acceso a `Inventory`, `Equipment`, `Characters`, `Party` ni `Items`): el ViewModel entrega datos listos para pintar (`ColumnData` con `BagEntry`/`EquipEntry`, capacidad con `BagCapacity`, estrategias y pestañas ya traducidas). Razones de `changed`: `opened`, `player_column`, `companion_column`, `companion_changed`, `party_changed` (entra o sale un compañero con la pantalla abierta), `feedback` y `closed`; refresco agrupado con `call_deferred`. Pestañas de compañero solo con 2 o más (con uno, su nombre). Estrategia con `OptionButton` estilizado y mapeada por id de enum. `request_equip_drop(slot, ítem, destino, origen)` valida el slot antes de mover, desequipa en el origen, equipa la copia del destino si ya la tiene y revierte si falla (ver los dos antipatrones nuevos de arriba). Feedback localizado con `FeedbackPopup`; claves `PARTY_*` en `party.csv`. `UISlot` gana `owner_id` y `slot_item_dropped`. `item_slot` y `equip_slot` retirados. Ningún cambio al contrato MVVM. Ver `docs/spike_19_party.md`. |
-| Shop | `shop_viewmodel.gd` | `shop_ui.gd` | Tienda con snapshot inmutable, abierta desde `SceneOrchestrator` vía `show_shop_direct()`. **Spike 16:** primera pantalla del hito que adopta el Design System. Panel `UIPanel` `OVERLAY` con marco (anclas 0.05–0.95), `layer = 10` fijado por el script; dos columnas (inventario del jugador a la izquierda, tienda a la derecha), cada una con cabecera `UIPanel` (título + oro; la tienda añade huecos), `ScrollContainer` y `VBoxContainer` de filas; botón Cerrar arriba a la derecha (`UIButton` secundario SM) y tira de mensaje de altura reservada. Mensajes de lista vacía. Textos `SHOP_*` en `shops.csv`; tokens, sin `Color(...)` ni tamaños de fuente literales. Conserva `show_shop_direct()`, el cierre por `shop_closed` y los nombres `%`. **Spike 16b:** `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible) y añade `is_loan` a las entradas del snapshot; `trade_type` gana el valor `"loan"`. `ShopViewModel` cambia `_on_trade_success` (distingue compra, venta y préstamo y usa el nombre visible) y traduce `LOAN_ITEM`. Ver la sección «Fila de lista del Design System». |
-| Dialogue | `dialogue_viewmodel.gd` | `dialogue_panel.gd` | Panel de diálogo con portrait, texto y opciones. El más reactivo — sin intenciones complejas. **Spike 11** lo rediseñó por completo: base de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`, marco del Spike 9); único retrato (se descarta el layout de dos retratos original), hermano del panel — no hijo — para poder sobresalir por encima del marco (layout C: franja inferior, anclas por fracción de pantalla `0.04/0.57/0.96/0.96`, no píxeles fijos); fondo de ambiente propio (`BackgroundImage` + `Background` como velo, mismo patrón que `CombatArenaViewModel`/Grupo 4, razón `"background"` de `changed()` emitida solo cuando cambia el path); exports de configuración visual sin efecto real retirados. `dialogue_node_shown` pasa de 4 a 7 argumentos (`mood`, `portrait_folder`, `background_id`) sin romper los oyentes existentes — GDScript descarta los argumentos de más al emitir si el callback conectado acepta menos. Ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2. Antipatrón nuevo, ver sección propia: `OptionsContainer` dentro de un `ScrollContainer` — un `PanelContainer` no se encoge por debajo del mínimo de sus hijos, y con `grow_vertical = BEGIN` un número variable de opciones lo hacía crecer invadiendo pantalla en vez de quedarse en su franja fija. **Spike 15:** opciones en `GridContainer` (`OptionsContainer`): 1 columna hasta 3 opciones, 2 desde 4, relleno por filas; la franja `OptionsScroll` reserva su altura natural (`custom_minimum_size.y`) para cualquier número de opciones y el `ScrollContainer` queda como red de seguridad; el margen izquierdo del texto se calcula desde el borde derecho real del retrato (`+ PORTRAIT_TEXT_GAP` = 3 px) y se recalcula en `resized`, ya no es un 240 fijo; la primera opción toma el foco y el foco usa el estilo `hover` del botón. `MarginContainer` y `OptionsScroll` son nodos con nombre único (`%`). Sin cambios en el contrato MVVM ni en `closed`. |
-| CharacterCreation | `character_creation_viewmodel.gd` | `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools separados, 1 reroll), nombre, resumen con `RichTextLabel`+BBCode. Interacción por click (no drag&drop) — chip seleccionado + slot destino. Spike 3/B: el kit fijo de skills del jugador se lee de `player_new.tres`, ya no de una constante duplicada en el ViewModel. |
-| PlayerMenu | `player_menu_viewmodel.gd` | `player_menu_screen.gd` | Panel de solo lectura: recursos, atributos derivados, buffs activos, nombre del personaje. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (Opción A) — SceneOrchestrator no interviene en esa navegación interna. |
-| NarrativeScene | `narrative_scene_viewmodel.gd` | `narrative_scene_panel.gd` | Escena narrativa (imagen fija + texto + opciones), con tirada de habilidad opcional por opción y ramificación por grado de resultado (`SkillRoller`, 5 grados desde Spike 2). Spike 2 amplió el ViewModel sin tocar el contrato MVVM: nueva razón de `changed()` (`"streak_progress"`, para tiradas acumulativas con contador de racha), progresión de skill narrativa opcional por opción, y agregación de grupo (jugador + companions) para la tirada — todo dentro del mismo patrón `changed(reason)` ya existente. Spike 3, Grupo A añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`) sin tocar el ViewModel en sí. **Spike 3, Grupo B cerró dos huecos que llevaban abiertos desde Spike 2:** `narrative_scene_panel.gd` ya consume `"streak_progress"` de verdad (antes caía en el `_:` por defecto — ver antipatrón nuevo arriba), y el ViewModel ahora también resuelve `grant_item_*` y `combat_encounter` en `_apply_outcome()`, registrando los enemigos en `CharacterSystem`/`ResourceSystem` antes de `start_combat()` (hueco que no existía por no haber ningún combate disparado desde narrativa hasta este grupo). `UIPanel` anclado a tamaño fijo (ver antipatrón "Panel sin tamaño fijo con texto largo"). Spike 3, Grupo C reutilizó el contrato tal cual para el contenido de la guarida (4 escenas más, `combat_encounter` inline con refuerzos por primera vez) sin necesitar ningún cambio en el ViewModel ni en la View. **Spike 3, Grupo D** extendió `_apply_outcome()` con `grant_resource_*` ("otorgar recurso", análogo a `grant_item_*` vía `Resources.add_resource()`) — cambio interno del ViewModel, resuelto en el mismo bloque silencioso que `grant_item_*`, sin ninguna razón `changed()` nueva ni cambio en `narrative_scene_panel.gd` (a diferencia de `"streak_progress"` en Grupo B, esto no necesita renderizarse — es una entrega puntual, no un estado que la View deba mostrar). **Mejoras post-Spike 3, Grupo 3** añadió tres razones más de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`), emitidas por tres intenciones nuevas (`request_open_inventory/party/player_menu`) con el mismo guard que `request_option()` — no tocan `current_node` ni la racha, así que el estado del ViewModel no se entera de que hay un sub-overlay abierto encima. `narrative_scene_panel.gd` gana `_unhandled_input()` (antes no tenía ninguno) y gestión propia de sub-overlay (`_open_sub_overlay`/`_close_sub_overlay`, ver antipatrón "Overlay/subpantalla anidable sin señal `closed` propia" más arriba) para Inventory/Party/PlayerMenu, instanciados como hijos directos del panel — nunca vía `SceneOrchestrator`, precisamente para no pisar su `_current_overlay` de slot único (que en `NARRATIVE_SCENE` apunta al propio panel narrativo). **Mejoras post-Spike 3, Grupo 2** extendió el mismo mecanismo de sub-overlay a Diálogo: `NarrativeSceneOutcome.dialogue_id` (nuevo campo) abre `DialoguePanel` igual que Inventory/Party/PlayerMenu, pero con una diferencia deliberada — al cerrarse, si el outcome traía `next_scene_id`, la escena avanza (`resume_after_dialogue()`) en vez de quedarse en el mismo nodo como hacen los otros tres. La View distingue cuál de los cuatro sub-overlays se cerró (`_sub_overlay_is_dialogue`) para decidir si llama a ese método o no. `DialoguePanel` ganó su propia `signal closed` en este grupo (no la tenía, a diferencia de las cuatro pantallas ya arregladas en Grupo 3). **Mejoras post-Spike 3, Grupo 1** añadió `DialogueOptionDefinition.triggers_save` — sin ningún cambio al contrato MVVM ni a `DialoguePanel`/`NarrativeScenePanel`: la opción de diálogo marcada como savepoint guarda la partida desde `DialogueSystem.select_option()` (capa de sistemas, no de View), el sub-overlay de Diálogo se abre/cierra exactamente igual que antes. **Mejoras post-Spike 3, Grupo 4** cambió solo el `.tscn` (layout B1: `SceneImage` a pantalla completa detrás, `UIPanel` en el tercio inferior con texto y opciones en `HBoxContainer`) — el script no cambió porque los tres nodos se siguen resolviendo por nombre único (`%`). Ninguna razón de `changed()` nueva. **Spike 9** activó el marco decorativo de `UIPanel` en esta pantalla (`decorative_frame = true` + esquinera 64×64 desde el inspector del nodo `Root/UIPanel`) — solo `.tscn`, cero cambios en `narrative_scene_panel.gd`. **Spike 10** reutilizó el sub-overlay de Diálogo de Grupo 2 para los dos diálogos restantes del sheriff sin tocar la View ni el contrato: el único cambio en el ViewModel es interno a `_apply_outcome()` — se restauró el bloque `grant_item_*` que se había perdido (resuelto en el mismo bloque silencioso que `grant_resource_*`, antes del retorno temprano de `dialogue_id`, sin ninguna razón `changed()` nueva). |
-| CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` compuesto como `action_menu`) | `combat_arena_panel.gd` | **Mejoras post-Spike 3, Grupo 5** — sustituye a `combat_hud.tscn` como pantalla de combate de producción real (`SceneOrchestrator.OVERLAY_COMBAT_HUD`). Primer caso de composición de ViewModels del proyecto (ver "Composición de ViewModels" arriba): `CombatArenaViewModel` no sustituye a `combat_hub_viewmodel.gd` (menú de 8 acciones del jugador), lo compone tal cual como `action_menu`. Fichas de party/enemigos dinámicas (`combat_tokens: Array[CombatTokenData]`, instanciadas/actualizadas por `entity_id`, nunca reconstruidas enteras) porque companions/enemigos pueden unirse a mitad de combate — rescate narrativo (`EventBus.companion_joined`), refuerzos cronometrados (`EventBus.reinforcement_spawned`, con un frame de margen porque el registro de la entidad lo hace otro listener fuera de orden garantizado). Log narrado (`log_entries: Array[LogEntryData]`) con 4 categorías de `changed("log_entry")`, cada una con su propia fuente de señal: `ATTACK` vía `combat_action_executed` (siempre trae `roll_result`, graduado por `SkillRoller`), `DODGE`/`STAGGERED`/`DISARMED` vía `combat_action_completed` (sin roll), `DEFEND` vía señales propias de `DefenseModule` (`defense_activated`/`defense_expired`), `FLEE` vía señales propias de `EscapeModule` (`escape_attempted`/`escape_succeeded`/`escape_failed` — el intento y la resolución llegan en turnos distintos, no en el mismo evento). Se conecta a `Resources.resource_changed` directamente (la señal del autoload `ResourceSystem`, no `EventBus.resource_changed`). **Spike 5** cerró el bug de motor que esto documentaba: nada reenviaba `ResourceSystem.resource_changed` a `EventBus.resource_changed`, así que `combat_hub_viewmodel.gd` (y también `player_menu_viewmodel.gd`, segundo consumidor real confirmado por Find in Files) no actualizaban el HP/EN en vivo — arreglado con un reenvío en `ResourceSystem._emit_resource_changed()`, sin tocar la conexión directa de `CombatArenaViewModel` aquí descrita, que ya era correcta. **Spike 6** encontró que, pese al reenvío, `player_menu_viewmodel.gd` seguía mostrando un HP/EN desincronizado en pantalla real — bug distinto, no del bridge: leía el `current` desde `CharacterState.get_resource()`, un accesor fósil congelado desde la creación del personaje, en vez del estado vivo de `ResourceSystem` que sí recibía correctamente vía el bridge. Arreglado apuntando `_refresh_resources()` a `Resources.get_resource_amount()`. Ver `docs/mejoras_grupo5_combate_produccion_informe_cierre.md`, `docs/spike_6_investigacion_motor_combate.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (componentes del Design System, integración real en `SceneOrchestrator`, hallazgos de motor). **Mejoras post-Spike 3, Grupo 4** añadió una razón de `changed()` (`"background"`) y `background_texture`, leída de `GameLoop.get_current_encounter().background_path` con `call_deferred()`; la View pone la imagen en `BackgroundImage` y usa `Background` como velo encima. Durante la validación se reprodujo el antipatrón "razón de `changed()` nueva sin consumidor en la View" por despliegue parcial (ViewModel nuevo con View antigua) — diagnosticado por número de línea del rastreo. **Spike 8** cerró cinco hallazgos de UI/UX preexistentes: (1) `_display_name()`/`_initials_for()` solo leían `CharacterState.character_name` (vacío para toda entidad no-jugador) sin caer a `tr(CharacterDefinition.name_key)` — arreglado con ese fallback, cierra a la vez el `??` de fichas de companion/enemigo y los IDs internos sin localizar en el log (misma causa exacta); (2) los 8 botones del menú de acciones no mostraban nombre porque el `LoadoutState` del jugador nunca había sido asignado desde la pantalla de Loadout — no era bug de este ViewModel/View, ambos leían fielmente un loadout vacío; (3) `EnemyColumn` (`GridContainer`) sin límite de altura se desbordaba con 6-8 fichas — resuelto con el patrón "Control envoltorio + `.scale`" (ver antipatrón nuevo arriba), nunca redimensionando `UICombatToken` directamente; (4) `_on_slot_action_pressed()` construía su propio `action_data` sin `target`, saltándose `PlayerCombatController` (ver antipatrón nuevo arriba) — causa real del error "No target specified" de `combat_system.gd` al atacar; (5) el auto-target de `PlayerCombatController` al entrar en combate se perdía visualmente por orden de señales entre nodos distintos — `CombatArenaViewModel._on_combat_started()` ahora sincroniza el objetivo leyendo `get_current_target()` directamente, sin depender de recibir `target_changed` a tiempo. Validado en combate real contra un grupo de 6-8 lobos. Ver `docs/spike_8_ui_ux_combate.md` para el detalle completo. |
-| InteractiveScene | `interactive_scene_viewmodel.gd` | `interactive_scene_view.gd` | **Spike 12** — vista PERMANENTE de la escena de exploración basada en mapa de puntos de interés (fondo + un `UIButton` por hotspot visible — **Spike 13:** solo icono con tooltip si el hotspot tiene `icon_path`). No es overlay ni la instancia `SceneOrchestrator`: vive en `ExplorationInteractiveMap`, en un `CanvasLayer` de capa -1. Sin `PanelState` (sin estados de pantalla). Ver la sección de abajo. |
-
-### Pantallas sin ViewModel (casos especiales)
-
-| Pantalla | Script | Descripción |
-|----------|--------|-------------|
-| LoadingScreen | `loading_screen.gd` | Pantalla de carga pasiva. Sin ViewModel por ausencia de estado complejo. Usa `ResourceLoader.load_threaded_request()` y emite `loading_finished(packed_scene)`. Actualmente implementada pero no conectada a `SceneOrchestrator`. |
-| GameOver | `game_over_ui.gd` | Pantalla de fin de partida. Sin ViewModel. Spike 3/B: `_on_new_game_pressed()` reinicia vía `enter_main_menu()` → `enter_character_creation()` (antes saltaba directo a una escena de exploración sin pasar por Character Creation, dejando al jugador muerto registrado con sus stats viejas). |
-
-### Vista permanente sin overlay: `InteractiveSceneView` (Spike 12)
-
-A diferencia del resto de pantallas, no la instancia `SceneOrchestrator` como overlay: vive **dentro de la escena de exploración** (`ExplorationScene`, bajo `get_tree().root`) en un `CanvasLayer` de capa -1, por debajo del HUD (capa 5), de los overlays y de la escena de combate. Consecuencias del patrón:
-
-- **El ViewModel lo crea la escena raíz** (`InteractiveSceneViewModel.new()` + `add_child`) y llama a `map_view.bind(view_model)` DESPUÉS de que la vista esté en el árbol (sus `@onready` ya resueltos — el `_ready()` del padre corre tras el de sus hijos).
-- **Contrato `changed(reason)`** con dos razones: `"scene_loaded"` (definición nueva) y `"hotspots_refreshed"` (recálculo de visibilidad). La View reconstruye todos los botones en ambas (`remove_child` + `queue_free` antes de crear los nuevos, sin fijar `name`, para evitar renombrados automáticos).
-- **Señal de intención hacia fuera, sin EventBus.** Además de `changed`, el ViewModel emite `hotspot_activated(interaction_type, target_id, enemy_definitions)`. La escena raíz (composición pura) la reenvía a `ExplorationController.request_interaction()`. No pasa por `EventBus` porque `enemy_definitions` no cabe en `interaction_requested(type, target_id)`. Es el segundo caso del proyecto, junto con la composición de Grupo 5, en que un ViewModel se comunica con su entorno por una señal propia y no por `EventBus`.
-- **Guard de estado en el ViewModel.** `activate_hotspot()` exige `GameState == EXPLORATION`: es un punto de entrada de input y necesita su propio guard (`is_input_blocked()` por sí solo deja pasar `PAUSE` y `MENU`).
-- **Visibilidad.** El ViewModel se suscribe (método con nombre, no lambda) a `EventBus.game_state_changed` y recalcula al volver a `EXPLORATION`; evalúa `required_flags`/`blocked_flags` contra el autoload `Narrative`. La View no conoce flags ni `GameLoop`.
-- **Layout pasivo.** Posiciones de hotspots normalizadas (0–1) sobre el rectángulo REAL que ocupa la imagen dentro de la vista (`STRETCH_KEEP_ASPECT_CENTERED` deja franjas si las proporciones difieren), recolocadas en `resized`. `expand_mode`/`stretch_mode` del `TextureRect` fijados en código, además del editor (ver antipatrón del `TextureRect` de contenido).
-- **La visibilidad de la capa la gestiona la escena raíz**, no la vista ni el ViewModel: oculta el `MapLayer` en `COMBAT_ACTIVE`/`VICTORY`/`DEFEAT` para que los botones no queden visibles ni clicables a través del combate.
-- **Nombres de variable en scripts de `Control`:** evitar `scale`, `size`, `position` como locales — sombrean propiedades de la clase base (`SHADOWED_VARIABLE_BASE_CLASS`, error con warnings-as-errors).
-- **Los hotspots son `UIButton` (Spike 13)**, no `Button` estándar: con `icon_path` válido salen como botón de solo icono (`GHOST` + `min_square` + `icon_backdrop`) con el nombre en `tooltip_text`; sin él, botón de texto (`SECONDARY`, tamaño `MD`). Ver la sección "`UIButton`: modo solo icono". La View sigue reconstruyendo todos los botones en cada `changed()`.
-- **Primera visita (Spike 13):** el ViewModel expone `request_first_visit()`, que reutiliza `hotspot_activated`. Solo actúa en `EXPLORATION`, marca su flag ANTES de actuar y la escena raíz la llama con `call_deferred` desde su `_ready()` (para no abrir una escena narrativa mientras `SceneOrchestrator` aún atiende `EXPLORATION`). La View no interviene.
-
-Ningún antipatrón nuevo de arquitectura UI: el patrón es una variante de los ya documentados (composición, ViewModel sin overlay), no una ruptura.
-
-
----
-
-*Última actualización: Spike 19 — Party (19a, cerrado y validado en partida real, 2026-10-26). Rediseño con `UIPanel`/`UIButton`/`UISlot`/tokens, layout L3, capacidad real por personaje (`BagCapacity`, compartido con el inventario), contrato MVVM cumplido (la View ya no llama a `Inventory`), feedback localizado y orden de transferencia corregido. `UISlot` gana `owner_id` y `slot_item_dropped`; `item_slot` y `equip_slot` retirados. Dos antipatrones nuevos («Transferir antes de validar, o mover sin poder deshacer» y «Deducir el origen de un arrastre buscando el ítem en los inventarios»), dos reglas nuevas en «Reglas que no se rompen» y sección «Contextos de apertura de Party». Ningún cambio al contrato MVVM. Ver `docs/spike_19_party.md`. Godot 4.7.x.*
-
-*Última actualización anterior: Spike 18 — Inventario B (cerrado y validado en partida real, 2026-10-22). Rediseño con `UIPanel`/`UIButton`/`UISlot`/tokens; sección nueva «`UISlot` y patrón de overlay a pantalla completa» (clic al soltar, tamaño máximo + fondo opaco, rejilla con pool, categorías en datos); fila Inventory actualizada. Ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura. Ver `docs/spike_18_inventario_rediseno.md`. Godot 4.7.x.*
-
-*Última actualización anterior: Spike 17 — Inventario A (17a cerrada). El inventario cumple el contrato MVVM (fila Inventory y sección «Contextos de apertura del inventario»). `SceneOrchestrator` conecta `closed` en inventario y party (dos pulsaciones). Ningún cambio al contrato en sí. Ver `docs/spike_17_inventario_mvvm.md`. Godot 4.7.x.*
-
-*Última actualización anterior: Spike 16 — Tienda (cerrado y validado en partida real; incluye la 16b). Primera adopción real del Design System por una pantalla del hito: `UIPanel` `OVERLAY` con marco, `UIButton`, tokens, dos columnas por anclas, claves `SHOP_*` en `shops.csv` y fila de lista `ShopItemSlot` (nueva sección). Parte B: `EconomySystem` trata el tag `quest_loan` como préstamo (sin coste, no vendible), primer cambio del hito que toca el core. `ShopViewModel` cambia el mensaje de éxito (compra, venta y préstamo, con nombre visible) y traduce `LOAN_ITEM`. Antipatrón nuevo: nodo colgado del padre equivocado en un `PanelContainer`. Ningún cambio al contrato MVVM. Ver `docs/spike_16_tienda.md`. Godot 4.7.x.*
-
-*Última actualización anterior: Spike 15 — Cimientos del Design System (cerrado y validado en partida real). Nueva sección «Contrato de pantalla y resolución de referencia»: reglas de pantalla para el hito (MVVM, `closed`, nombres únicos `%`, marco opt-in, tokens, `tr()` con claves `PANTALLA_ELEMENTO`, anclas para 1152×648, reserva de altura, foco de teclado) y la decisión de resolución (sin estiramiento). `UIPanel`: esquinera por defecto, padding mínimo con marco, activación en runtime, `OVERLAY` documentado como opaco. `DialoguePanel`: opciones en rejilla, altura reservada, margen del texto proporcional al retrato, foco de teclado. Corregida la fila de Inventory (la View de producción es `inventory_ui.gd`, sin ViewModel). Ningún cambio al contrato MVVM. Ver `docs/spike_15_cimientos_design_system.md` y el README del Design System. Godot 4.7.x.*
-
-*Última actualización: Spike 13 — Reautoría del pueblo de "Los Telmori" sobre el motor de escenas interactivas — ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura UI. Los hotspots de `InteractiveSceneView` pasan de `Button` estándar a `UIButton` (cerrando la deuda que dejó el Spike 12): con `icon_path` válido son botones de solo icono con el nombre en tooltip, sin él botones de texto. `UIButton` gana `min_square` e `icon_backdrop` (opt-in, apagados por defecto; sección propia "`UIButton`: modo solo icono") y una regla de uso: sus propiedades se fijan antes de `add_child()` porque se leen en `_ready()`. `InteractiveSceneViewModel` expone `request_first_visit()` (acción de primera visita, llamada diferida desde la escena raíz). Las fichas de combate (`UICombatToken`) se descartaron como icono de mapa por estar acopladas al combate. Ver `docs/spike_13_reautoria_pueblo_telmori.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico. Godot 4.7.2.*
-
-*Última actualización anterior: Spike 12 — Motor de escenas interactivas (mapa de puntos de interés) — ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura UI. Nueva pantalla de referencia `InteractiveScene` (`interactive_scene_viewmodel.gd` / `interactive_scene_view.gd`) y una sección propia sobre el patrón de **vista permanente sin overlay**: la instancia la escena de exploración (no `SceneOrchestrator`), en un `CanvasLayer` de capa -1; el ViewModel lo crea la escena raíz, emite `changed(reason)` (`scene_loaded`/`hotspots_refreshed`) y una señal de intención `hotspot_activated` que la escena raíz reenvía a `ExplorationController.request_interaction()` (no pasa por `EventBus`: `enemy_definitions` no cabe en `interaction_requested`). Guard de estado propio en `activate_hotspot()` (`GameState == EXPLORATION`). Lección de scripts de `Control`: no llamar `scale`/`size`/`position` a variables locales (sombrean la clase base, error con warnings-as-errors). Validado en partida real de principio a fin. Ver `docs/spike_12_motor_mapa_poi.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (`request_interaction()`, `SaveSystem` sin `Player`, deudas hacia el Spike 13). Godot 4.7.2.*
-
-*Última actualización anterior: Spike 11 — Rediseño de la ventana de diálogo (fondo, retrato, estado de ánimo) — ningún cambio al contrato MVVM en sí ni a la señal `closed`/`resume_after_dialogue()` de sub-overlay de Grupo 2, confirmado tras el rediseño. `DialoguePanel` migra de `PanelContainer` plano a `UIPanel` (`decorative_frame = true`), cerrando el pendiente que dejó abierto el Spike 9 para esta pantalla. Layout nuevo: franja inferior con retrato único (se descarta el de dos retratos) sobresaliendo por el marco, y fondo de ambiente propio (`BackgroundImage`+`Background`, mismo patrón que Grupo 4/`CombatArenaViewModel`). Antipatrón "Panel sin tamaño fijo con texto largo" matizado: crecer con `grow_vertical = BEGIN` vale para desbordamiento ocasional, no para contenido variable rutinario como el número de opciones — ahí, `ScrollContainer`. Ver la fila `Dialogue` arriba y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo. Godot 4.7.2.*
-
-*Última actualización anterior: Spike 10 — Diálogos restantes del sheriff — ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura UI: los dos diálogos nuevos reutilizan tal cual el sub-overlay de Diálogo de mejoras post-Spike 3, Grupo 2 (`dialogue_id` en el outcome, `resume_after_dialogue()`), y `NarrativeScenePanel`/`narrative_scene_panel.gd` no cambiaron. Único cambio que toca esta capa, interno al ViewModel: `_apply_outcome()` recupera el bloque `grant_item_*` que se había perdido en algún parche (síntoma en silencio: ningún ítem llegaba al inventario) y todo `grant_*` deja ahora una línea de log. Durante la validación se confirmó de paso que Inventory/Party/PlayerMenu siguen abriéndose como sub-overlay tras un diálogo dentro de `NARRATIVE_SCENE` (el jugador leyó un libro desde el inventario entre `training` y `pelts`). Ver `docs/spike_10_dialogos_sheriff.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (camino A de entregas, `SkillSystem.learn_skill()`, localización). Godot 4.7.2.*
-
-*Última actualización anterior: Spike 9 — Marco decorativo de ventana (`UIPanel.decorative_frame`, opt-in, cerrado y validado en el panel narrativo; la ventana de inventario no cambia). Ningún cambio al contrato MVVM ni antipatrón nuevo de arquitectura UI: es una opción del Design System dibujada con `_draw()` sobre el propio `UIPanel` (un `StyleBoxFlat` no admite varios filetes). `NarrativeScenePanel` ya usaba `UIPanel` como base, así que se activó solo desde el inspector, sin tocar su script. Regla nueva: toda opción visual nueva de un componente compartido entra apagada por defecto. Ver la sección «Design System — UIPanel: marco decorativo opt-in» y `docs/spike_9_marco_decorativo_ui_panel.md`. Godot 4.7.2.*
-
-*Última actualización anterior: Spike 8 — UI/UX de combate (cinco puntos de alcance
-cerrados y validados en combate real). Dos antipatrones nuevos, ambos
-encontrados en `combat_arena_panel.gd`/`UICombatToken`/`PlayerCombatController`
-durante la validación de Grupo 5, no en un spike de motor aislado:
-"Redimensionar un Control cuyo contenido usa offsets fijos" (Punto 4 — la
-ficha de combate nunca cambia de tamaño real, un `Control` envoltorio es lo
-que el `Container` redimensiona, el token se encoge solo con `.scale`) y "La
-View construye su propio payload de evento en vez de delegar en el dueño del
-estado" (Punto 5 — `combat_arena_panel.gd` duplicaba, incompleto, el
-despacho que `PlayerCombatController.request_skill()` ya hacía bien). Ningún
-cambio al contrato MVVM en sí — los cinco puntos son hallazgos dentro de
-`CombatArenaViewModel`/`combat_arena_panel.gd` ya documentados como fila
-`CombatArena` arriba, no un patrón nuevo de pantalla. Ver
-`docs/spike_8_ui_ux_combate.md` y `athelia_estructura_proyecto_actualizado.md`
-para el detalle técnico completo. Godot 4.7.2.
-
-*Última actualización anterior: Spike 7 — F9 quickload en EXPLORATION (cerrado sin arreglo, NO OPERATIVO) — ningún cambio al contrato MVVM en sí ni antipatrón nuevo de arquitectura UI confirmado: `NarrativeScenePanel`/`NarrativeSceneViewModel` se revisaron a fondo durante la investigación y no cambiaron — el bug que motivó el spike (botón sin respuesta a clics tras F9 en sesión activa) nunca se localizó dentro de este patrón pese a una investigación extensa, y quedó sin resolver. El único cambio real de esta capa es de sistemas, no de UI: `GameLoopSystem.enter_post_load_state()` (nuevo) centraliza la decisión `enter_narrative_scene()`/`enter_exploration()` tras cargar, usada por `MainMenuViewModel.request_load_game()` y por `ExplorationController._quickload()` (reenfocado a marcar intención + recargar escena, ya no carga en caliente). Ver `docs/spike_7_f9_quickload_exploration.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (incluida la lección de arquitectura sobre `ExplorationScene` como hermano de `current_scene` bajo `root`, invisible a `reload_current_scene()`). Godot 4.7.2.
-
-*Última actualización anterior: Spike 6 — Investigación de motor de combate — ningún cambio al contrato MVVM en sí ni antipatrón nuevo de arquitectura UI: el grupo fue de motor puro (`ResourceSystem`, `GameLoopSystem`, `CombatSystem`). Único punto que toca esta capa: `player_menu_viewmodel._refresh_resources()` cambia su fuente de datos del `current` (de un accesor fósil de `CharacterState` al estado vivo de `Resources`) — ver la fila de `CombatArena` arriba, actualizada con el detalle. Ver `docs/spike_6_investigacion_motor_combate.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (los hallazgos de este spike son de motor/sistemas, no de este patrón). Godot 4.7.2.
-
-*Última actualización anterior: Mejoras post-Spike 3, Grupo 4 — Arte narrativo — dos antipatrones nuevos ("`TextureRect` de contenido con `expand_mode` por defecto", latente desde Spike 1 en `narrative_scene_panel.tscn`; "Texto claro sobre imagen sin contorno, o velo calibrado a ojo", encontrado al pasar la arena a mapas reales) y actualización del antipatrón "Panel sin tamaño fijo con texto largo" (el panel narrativo pasa a anclas relativas en el tercio inferior con `grow_vertical = BEGIN`). Layout narrativo B1 sin tocar el script — reestructurar una escena manteniendo los nombres únicos (`%`) de los nodos no obliga a cambiar la View. `CombatArenaViewModel` gana la razón `"background"`. Ningún cambio al contrato MVVM en sí. Ver `docs/mejoras_grupo4_arte_narrativo_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico. Godot 4.7.2.
-
-*Última actualización anterior: Mejoras post-Spike 3, Grupo 1 — Guardado de partida — ningún antipatrón nuevo de arquitectura UI ni cambio al contrato MVVM en sí (guardar/cargar es capa de sistemas: `DialogueSystem`, `SaveManager`, `SceneOrchestrator`, `GameLoopSystem` — documentado en `athelia_estructura_proyecto_actualizado.md`). Único cambio real que toca esta capa: el flujo documentado de `MainMenuScreen` (sección "Caso especial: MainMenuScreen" arriba) — "Cargar Partida" pasa de `enter_exploration()` incondicional a decidir entre `enter_narrative_scene()`/`enter_exploration()` según `SaveManager.get_pending_narrative_scene_id()`. `DialogueOptionDefinition` gana `triggers_save`, sin tocar `DialoguePanel` ni el sub-overlay de Diálogo que ya dejó construido Grupo 2. Ver `docs/mejoras_grupo1_guardado_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico completo (schema de guardado, `VALID_STATE_TRANSITIONS`, hallazgo de reentrada en `TelmoriVillage._ready()`). Godot 4.7.2.
-
-*Última actualización anterior: Mejoras post-Spike 3, Grupo 5 — Pantalla de combate de producción. Nuevo patrón de arquitectura documentado: **composición de ViewModels** (ver sección propia arriba) — `CombatArenaViewModel` compone a `combat_hub_viewmodel.gd` existente como `action_menu` en vez de sustituirlo o fusionarlo, primer caso en el proyecto. La View se conecta a las señales `changed` de ambos por separado; olvidar la segunda conexión es un error fácil de cometer (confirmado en la sesión) — la pantalla sigue funcionando pero la parte compuesta nunca se renderiza, sin error visible. Nueva fila `CombatArena` en la referencia de pantallas, sustituyendo a `combat_hud.tscn` como pantalla de combate real. Ningún antipatrón nuevo de arquitectura UI aparte de la composición — el resto de hallazgos de este grupo son de motor (Design System, `SceneOrchestrator`, registro de entidades), documentados en `athelia_estructura_proyecto_actualizado.md` y `docs/mejoras_grupo5_combate_produccion_informe_cierre.md`. Validado jugando la aventura completa de "Los Telmori" de principio a fin. Godot 4.7.2.
-
-*Última actualización anterior: Mejoras post-Spike 3, Grupo 2 — Diálogo con NPCs desde narrativa — ningún cambio al contrato MVVM en sí: el sub-overlay de Diálogo reutiliza exactamente el mecanismo (`_open_sub_overlay`/`_close_sub_overlay`, señal `closed`) que Grupo 3 ya dejó construido, solo con una rama de reenganche nueva (`resume_after_dialogue()`) para los casos donde el diálogo es contenido narrativo real, no una charla lateral. `NarrativeSceneViewModel` gana `request_open_dialogue()`/`resume_after_dialogue()` sin tocar `current_node` ni la racha, mismo criterio que las intenciones de Grupo 3. Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (comprobaciones de código previas, hallazgo del guard de `_on_dialogue_ended()`, escaneo recursivo de `DialogueRegistry`).
-
-*Última actualización anterior: Mejoras post-Spike 3, Grupo 3 — Overlays de inventario/party/stats durante narrativa — un antipatrón nuevo ("Overlay/subpantalla anidable sin señal `closed` propia") y dos reglas nuevas en "Reglas que no se rompen", encontrados en playtest real al anidar un segundo nivel de subpantallas, no en un spike de motor aislado. `NarrativeSceneViewModel` gana tres razones de `changed()` (`"open_inventory"`/`"open_party"`/`"open_player_menu"`) sin tocar el contrato MVVM en sí — mismo patrón que las razones añadidas en Spike 2/Grupo B, ninguna cambia `current_node` ni la racha. `narrative_scene_panel.gd` gana su primer `_unhandled_input()` y gestión de sub-overlay, deliberadamente sin pasar por `SceneOrchestrator` (hallazgo no anticipado por el spec: su `_current_overlay` es un slot único, no una pila — ver `athelia_estructura_proyecto_actualizado.md`). Ver `docs/mejoras_grupo3_overlays_narrativa_informe_cierre.md` para el detalle completo. Godot 4.7.2.
-
-*Última actualización anterior: Spike 3, Grupo D — Cierre — ningún cambio al contrato MVVM ni a ningún antipatrón nuevo de arquitectura UI: el grupo fue contenido narrativo (6 escenas JSON), una skill nueva, cuatro ítems nuevos y motor de reconexión narrativa (`exploration_telmori_village.gd`, fuera de la capa de pantallas MVVM). `NarrativeSceneViewModel._apply_outcome()` sí cambió (nuevo bloque `grant_resource_*`), pero es una extensión de datos resuelta internamente, del mismo tipo que `grant_item_*` en Grupo B — no genera ninguna razón `changed()` nueva ni toca `narrative_scene_panel.gd`. Único hallazgo de motor relevante para esta capa: un campo nuevo en una data class (`NarrativeSceneOutcome.grant_resource_target`) necesita su declaración como propiedad y su asignación en `from_dict()` en el mismo cambio — perder una de las dos no falla en compilación, falla en runtime al cargar el primer JSON que la use ("Invalid assignment of property or key"). Con este grupo, "Los Telmori" es jugable de principio a fin. Ver `docs/spike_3_grupoD_cierre_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (recompensa multicapa, botín mágico, reconexión narrativa sin combate).
-
-*Última actualización anterior: Spike 3, Grupo C — La guarida — ningún cambio al contrato MVVM ni a ningún patrón de arquitectura UI: el grupo fue contenido narrativo (4 escenas JSON), una skill nueva y el motor de reconexión narrativa tras combate (`exploration_telmori_village.gd`, fuera de la capa de pantallas MVVM). `NarrativeSceneViewModel`/`narrative_scene_panel.gd` no cambiaron — el `combat_encounter` inline y `combat_enemy_definitions` que usa Grupo C ya los resolvió Grupo B en `_apply_outcome()`. Ver `docs/spike_3_grupoC_guarida_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (fusión de salas, reconexión tras combate generalizada, restricción de `reinforcement_definition_id`).
-
-*Última actualización anterior: Spike 3, Grupo B — Del pueblo a la puerta de la guarida — dos antipatrones nuevos (panel sin tamaño fijo con texto largo; razón de `changed()` sin consumidor en la View, ambos encontrados en la primera partida real de contenido, no en spikes de motor aislados) y cierre de los dos huecos que dejó abiertos Spike 2 en `NarrativeSceneViewModel`/`narrative_scene_panel.gd`. Ningún cambio al contrato MVVM en sí. Ver `docs/spike_3_grupoB_pueblo_guarida_informe_cierre.md` para el detalle completo (motor, no patrón de UI).
-
-*Última actualización anterior: Spike 3, Grupo A — Motor y limpieza — ningún cambio al contrato MVVM ni a ningún patrón de arquitectura UI: el grupo fue deliberadamente de motor (`GameLoopSystem`) y limpieza de andamiaje de Spike 1, sin tocar ViewModels ni Views de producción. `NarrativeSceneViewModel` en sí no cambió — solo se le añadió cobertura de test (`test/test_narrative_scene_viewmodel.gd`, fixtures en código sin JSON ni `NarrativeSceneDB`, cerrando el hueco abierto desde Spike 1) y se retiró la tecla de debug F1 que lo invocaba desde `ExplorationController`. Ver `docs/spike_3_grupoA_motor_limpieza_informe_cierre.md` y `athelia_estructura_proyecto_actualizado.md` para el detalle técnico (moral de grupo, `EnemyWorldLink`).
-
-*Última actualización anterior: Spike 2 — Reglas de RuneQuest para el Motor Narrativo — NarrativeScene ampliada (grado especial, progresión narrativa, tiradas acumulativas, agregación de grupo) sin ningún cambio al contrato MVVM en sí: todo entra como lógica de dominio nueva dentro de `request_option()` y razones adicionales de `changed(reason)`, ningún antipatrón nuevo de arquitectura UI detectado en este spike. Ver `docs/spike_2_reglas_runequest_informe_cierre.md` para el detalle completo (los hallazgos de este spike son de GDScript/sistemas de combate, documentados en `athelia_estructura_proyecto_actualizado.md`, no de este patrón).
-
-*Última actualización anterior: Spike 1 Motor Narrativo (pivote hacia RPG narrativo) — añadida NarrativeScene a la referencia de pantallas, nuevo antipatrón de self-reference por class_name dentro del propio script, regla de nombrado PanelState (nunca SceneState) elevada de ejemplo a regla explícita. Spike Character Creation — CharacterCreationScreen implementada (ya no es stub), nuevo antipatrón de ViewModel persistente sin listener de EventBus (detectado en MainMenuViewModel). Spike Producción Post-Character-Creation — añadida PlayerMenu a la referencia de pantallas (bug corregido: `character_name` leía `definition_id` en vez del nombre real). Godot 4.7.1.*
+ 
+| Pantalla | ViewModel / View | Estado vigente |
+|----------|------------------|----------------|
+| MainMenu | `main_menu_viewmodel.gd` / `main_menu_screen.gd` | Main Scene. Pantalla única con sub-paneles (opciones, créditos, confirmar salida). No la instancia `SceneOrchestrator`. Ver «Caso especial». |
+| WorldObject | `world_object_panel_viewmodel.gd` / `world_object_interaction_panel.gd` | Panel piloto del patrón; el más simple. Vestigial en el camino jugable. |
+| Inventory | `inventory_viewmodel.gd` / `inventory_ui.gd` | `Backdrop` + `Frame` (`UIPanel` OVERLAY con marco, tope 1400×820). Tres columnas: equipo (6 `UISlot`), mochila (pestañas `UIButton` SM + rejilla de `UISlot` con pool, marca «E», desbordamiento con borde discontinuo) y detalle (`ItemDetailPanel` con modificadores y comparación) + bonos del equipo + estadísticas (valores base). Cabecera con oro, peso y huecos (`_compute_capacity()` → `BagCapacity`). Razones de `changed`: `opened/inventory/equipment/stats/selection/feedback/categories/closed`. Feedback decidido por el ViewModel en `FeedbackPopup` (se oculta solo). Esc cierra. Textos `INVENTORY_*` (`inventory.csv`). |
+| Party | `party_viewmodel.gd` / `party_ui.gd` | Mismo patrón de overlay que el inventario. Layout L3: por columna, equipo en 6 `UISlot`, mochila (pool según capacidad), cajetín de detalle (`ItemDetailPanel`, compacto bajo 700 px de marco) y cabecera con nombre, barras HP/estamina y huecos. View pasiva: el ViewModel entrega `ColumnData` (`BagEntry`/`EquipEntry`, recursos, atributos para el tooltip, selección y `ItemDetailData`), `StrategyOption` y `CompanionTab` ya traducidos. Clic en la mochila = seleccionar (selección por columna, se limpia al cambiar de pestaña). Arrastre: al slot de equipo (`request_equip_drop`) o mochila a mochila (`request_transfer`: 1 unidad, Mayús = pila; valida préstamo, apilado y hueco antes de mover). Un `quest_loan` solo puede estar en el jugador. Razones: `opened`, `player_column`, `companion_column`, `companion_changed`, `party_changed`, `resources`, `feedback`, `closed`. Pestañas solo con 2 o más compañeros. Textos `PARTY_*` (`party.csv`); el cajetín usa claves `INVENTORY_*`. |
+| Shop | `shop_viewmodel.gd` / `shop_ui.gd` | `UIPanel` OVERLAY con marco (anclas 0.05–0.95), `layer = 10`; dos columnas (inventario del jugador, tienda) con cabeceras `UIPanel` (título + oro), `ScrollContainer` de filas `ShopItemSlot`, botón Cerrar arriba a la derecha y tira de mensaje de altura reservada. Snapshot inmutable abierto vía `show_shop_direct()`; cierre por `EventBus.shop_closed`. `trade_type` admite `"loan"` (tag `quest_loan`: sin coste, no vendible). Textos `SHOP_*` (`shops.csv`). |
+| Dialogue | `dialogue_viewmodel.gd` / `dialogue_panel.gd` | Base `UIPanel` con marco. Franja inferior (anclas `0.04/0.57/0.96/0.96`) con un único retrato como **hermano** del panel (sobresale por el marco), fondo de ambiente (`BackgroundImage` + `Background` como velo, razón `"background"`) y opciones en `GridContainer` (1 columna hasta 3, 2 desde 4) con altura natural reservada y `ScrollContainer` de seguridad. Margen del texto calculado desde el borde real del retrato. Foco inicial en la primera opción. Retrato resuelto por cascada `<portrait_id>_<mood>.png` → `<portrait_id>.png` → ninguno. `dialogue_node_shown` lleva 7 argumentos. Como sub-overlay de narrativa expone `closed` y `resume_after_dialogue()`. |
+| CharacterCreation | `character_creation_viewmodel.gd` / `character_creation_screen.gd` | Roll-and-assign de atributos (2 pools, 1 reroll), nombre, resumen `RichTextLabel`+BBCode. Interacción por clic. Kit de skills leído de `player_new.tres`; `AdventureStarter.apply()` da companions y kit al confirmar. |
+| PlayerMenu | `player_menu_viewmodel.gd` / `player_menu_screen.gd` | Recursos, atributos derivados, buffs, nombre. Gestiona Loadout/Inventory/SkillTree como subpantallas hijas propias (`_open_subscreen`); `SceneOrchestrator` no interviene en esa navegación. HP/EN desde el estado vivo de `Resources`. |
+| NarrativeScene | `narrative_scene_viewmodel.gd` / `narrative_scene_panel.gd` | Fondo `SceneImage` a pantalla completa (`IGNORE_SIZE` + `KEEP_ASPECT_COVERED`) y `UIPanel` con marco en el tercio inferior (`grow_vertical = BEGIN`). Opciones con tirada opcional (`SkillRoller`, 5 grados), tiradas acumulativas (`"streak_progress"`), progresión narrativa y agregación de grupo. Razones además: `open_inventory`/`open_party`/`open_player_menu`. Sub-overlays (Inventory, Party, PlayerMenu, Diálogo) gestionados por el propio panel (`_open_sub_overlay`/`_close_sub_overlay`, nunca vía `SceneOrchestrator`, cuyo `_current_overlay` apunta al panel narrativo); solo el de Diálogo reengancha (`_sub_overlay_is_dialogue` → `resume_after_dialogue()`). `_apply_outcome()` resuelve en orden: flag → otorgar ítem → quitar ítem → otorgar recurso → `dialogue_id` (retorno temprano) → combate (registra enemigos antes de `start_combat`) → `next_scene_id`. Cierre desacoplado por `EventBus.narrative_scene_closed`. |
+| CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` como `action_menu`) / `combat_arena_panel.gd` | Pantalla de combate de producción (`OVERLAY_COMBAT_HUD`). Fichas dinámicas (`combat_tokens`), log narrado (`log_entries`, 4 categorías con fuente de señal propia) y menú de 8 acciones. Se conecta a `Resources.resource_changed` directamente. Fondo por encuentro (`background_path`, razón `"background"`). Nombres resueltos con fallback a `tr(CharacterDefinition.name_key)`. Columna enemiga con envoltorio + `.scale` (ver antipatrón). Acciones delegadas en `PlayerCombatController.request_skill()`. |
+| InteractiveScene | `interactive_scene_viewmodel.gd` / `interactive_scene_view.gd` | Vista **permanente** del mapa de puntos de interés. Ver siguiente sección. |
+| Loadout | `loadout_viewmodel.gd` / `loadout_screen.gd` | Pendiente de rediseño (Spike 20): rutas `$Root/...`, botones por código, selección en dos pasos sin pista visual. |
+| SkillTree | `skill_tree_viewmodel.gd` / `skill_tree_screen.gd` | Pendiente de rediseño (Spike 21): UI construida por código, fondos y bordes emulados a mano. |
+ 
+### Pantallas sin ViewModel
+ 
+| Pantalla | Descripción |
+|----------|-------------|
+| LoadingScreen (`loading_screen.gd`) | Carga asíncrona con `ResourceLoader.load_threaded_request()`; emite `loading_finished(packed_scene)`. Implementada pero no conectada a `SceneOrchestrator`. |
+ 
+(Game Over ya tiene `GameOverViewModel` desde el Spike 14: una intención, `request_return_to_menu()`, y una View sin acceso a `core`.)
+ 
+### Vista permanente sin overlay: `InteractiveSceneView`
+ 
+Vive **dentro de la escena de exploración** (`ExplorationScene`, bajo `get_tree().root`) en un `CanvasLayer` de capa -1, no como overlay del orquestador.
+ 
+- La escena raíz crea el ViewModel (`new()` + `add_child`) y llama a `map_view.bind(view_model)` **después** de que la vista esté en el árbol (sus `@onready` ya resueltos).
+- `changed(reason)` con dos razones: `"scene_loaded"` y `"hotspots_refreshed"`; la View reconstruye todos los botones en ambas (`remove_child` + `queue_free`, sin fijar `name`).
+- Señal de intención `hotspot_activated(interaction_type, target_id, enemy_definitions)` que la escena raíz reenvía a `ExplorationController.request_interaction()`. No pasa por `EventBus` porque `enemy_definitions` no cabe en `interaction_requested(type, target_id)`.
+- `activate_hotspot()` exige `GameState == EXPLORATION` (`is_input_blocked()` por sí solo deja pasar `PAUSE` y `MENU`).
+- Visibilidad: `required_flags`/`blocked_flags` contra `Narrative`, recalculada al cargar y en cada `game_state_changed → EXPLORATION`. La View no conoce flags ni `GameLoop`.
+- Layout pasivo: posiciones normalizadas (0–1) sobre el rectángulo **real** de la imagen (`STRETCH_KEEP_ASPECT_CENTERED` deja franjas), recolocadas en `resized`.
+- La escena raíz oculta el `MapLayer` en `COMBAT_ACTIVE`/`VICTORY`/`DEFEAT`.
+- Hotspots como `UIButton`: con `icon_path` válido, solo icono (`GHOST` + `min_square` + `icon_backdrop`, nombre en tooltip); sin él, botón de texto (`SECONDARY`, `MD`).
+- `request_first_visit()`: acción de una sola vez al entrar; solo en `EXPLORATION`, marca su flag antes de actuar, y la escena raíz la llama con `call_deferred` desde su `_ready()`.

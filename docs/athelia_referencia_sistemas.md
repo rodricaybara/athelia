@@ -1,98 +1,91 @@
 # Athelia — Referencia de sistemas (estado actual)
  
-Motor: Godot 4.7.2 (Forward Plus)
-Proyecto: RPG por turnos con exploración, combate, diálogo, economía y narrativa.
+Motor: Godot 4.7.2 (Forward Plus). RPG por turnos con escenas narrativas e interactivas, combate, diálogo, economía y guardado.
  
-Este fichero describe el estado ACTUAL de los sistemas del proyecto — qué
-existe y cómo se comporta hoy. No lleva historial de spikes: el porqué de
-cada decisión y la narrativa de cómo se llegó aquí vive en
-`athelia_historial_spikes.md`. Las lecciones técnicas reutilizables (bugs,
-patrones, antipatrones de motor) viven en `athelia_lecciones_tecnicas.md`.
-La estructura de carpetas completa vive en `athelia_estructura_carpetas.md`.
-El Design System y el patrón MVVM de UI viven solo en
-`athelia_ui_architecture.md` — no se duplican aquí.
+Este fichero describe **qué existe hoy y cómo se comporta**. El porqué de cada decisión está en `athelia_historial_spikes.md`; las lecciones reutilizables en `athelia_lecciones_tecnicas.md`; el árbol de ficheros en `athelia_estructura_carpetas.md`; el patrón MVVM y el Design System en `athelia_ui_architecture.md` (no se duplican aquí).
  
 ---
  
-## Autoloads (Singletons globales)
- 
-Estos sistemas están disponibles globalmente en todo el proyecto sin necesidad de referencia explícita.
+## Autoloads
  
 ### Infraestructura base
 | Singleton | Script | Descripción |
-|-----------|--------|-------------|
-| `EventBus` | `core/event_bus.gd` | Bus de eventos desacoplado. Canal de comunicación entre sistemas sin dependencias directas. |
-| `GameLoop` | `core/game_loop_system.gd` | Máquina de estados global del juego. Gestiona los estados (`MENU`, `CHARACTER_CREATION`, `EXPLORATION`, `DIALOGUE`, `SHOP`, `NARRATIVE_SCENE`, `COMBAT_ACTIVE`, `VICTORY`, `DEFEAT`, `PAUSE`, `SAVE_TRANSITION`) y las fases de turno del combate (`ROUND_START → PLAYER_TURN → COMPANION_ACTION_RESOLVE → ENEMY_TURN → ROUND_END`). Controla la iniciativa, el orden de turno y las condiciones de victoria/derrota. |
-| `SceneOrchestrator` | `core/scene_orchestrator.gd` | Reacciona a cambios de `GameState` (vía EventBus) para mostrar/ocultar overlays de UI (diálogo, tienda, inventario, escena narrativa) y cargar/descargar la escena de combate. No modifica el estado del juego directamente, solo responde a él. |
-| `SaveManager` | `core/save/save_system.gd` | Sistema de guardado y carga de partida. Slot único: `"quicksave"`. |
-| `UITokens` | `ui/design_system/tokens/ui_tokens.gd` | Sistema de tokens de diseño (colores, espaciado, tamaños). Usado por todos los componentes del Design System. |
+|---|---|---|
+| `EventBus` | `core/event_bus.gd` | Bus de eventos desacoplado. |
+| `GameLoop` | `core/game_loop_system.gd` | Máquina de estados global y fases de turno de combate. Ver «GameLoop». |
+| `SceneOrchestrator` | `core/scene_orchestrator.gd` | Reacciona a `game_state_changed` para mostrar/ocultar overlays y cargar/descargar escenas. Nunca modifica `GameState`. Ver «SceneOrchestrator». |
+| `SaveManager` | `core/save/save_system.gd` | Guardado/carga. Slot único `"quicksave"`. Ver «Guardado». |
+| `UITokens` | `ui/design_system/tokens/ui_tokens.gd` | Tokens de diseño. |
  
-### Sistemas de personaje
+### Personaje
 | Singleton | Script | Descripción |
-|-----------|--------|-------------|
-| `Characters` | `core/characters/character_system.gd` | Gestión de personajes: creación, acceso y ciclo de vida. |
-| `Modifiers` | `core/characters/modifier_applicator.gd` | Aplicación de modificadores sobre atributos de personajes. |
-| `Resources` | `core/resources/resource_system.gd` | Gestión de recursos vitales (vida, stamina, oro). **Desde Spike 6**: `register_entity()` depende de `Characters`/`AttributeResolver` (llama a `AttributeResolver.resolve_resource_max()` para sincronizar `max_effective` de cualquier entidad) — requiere que `Characters.register_entity()` ya se haya llamado antes para esa entidad, o se queda sin sincronizar (con warning). Primera dependencia real de `ResourceSystem` hacia otro sistema; antes era autocontenido. |
-| `Skills` | `core/skills/skill_system.gd` | Sistema de habilidades: registro, acceso y uso. `SkillRoller` (no autoload, `class_name` estático) resuelve las tiradas D100: 5 grados desde Spike 2 (`FUMBLE/FAILURE/SUCCESS/SPECIAL/CRITICAL`), con `CRITICAL`/`SPECIAL` dinámicos (skill/20, skill/5) y `FUMBLE` absoluto (≥98). `learn_skill()` (Spike 10) enseña a una entidad una skill fuera de su kit inicial (p. ej. desde un libro). |
-| `SkillProgression` | `core/skills/skill_progression_service.gd` | Progresión y aprendizaje de habilidades. |
-| `SkillEventHandler` | `core/skills/skill_event_handler.gd` | Manejo de eventos relacionados con habilidades. |
-| `Stress` | `core/skills/stress_system.gd` | Sistema de estrés del personaje. |
+|---|---|---|
+| `Characters` | `core/characters/character_system.gd` | Creación, acceso y ciclo de vida de personajes. |
+| `Modifiers` | `core/characters/modifier_applicator.gd` | Aplica modificadores sobre atributos. |
+| `Resources` | `core/resources/resource_system.gd` | Recursos vitales (vida, stamina, oro). `register_entity()` depende de `Characters`/`AttributeResolver` (sincroniza `max_effective` vía `AttributeResolver.resolve_resource_max()`): `Characters.register_entity()` debe haberse llamado antes. Su lista de recursos en `_load_resource_definitions()` está hardcodeada (`health`, `stamina`, `gold`), a diferencia de Skills/Items. `_emit_resource_changed()` reenvía a `EventBus.resource_changed`. |
+| `Skills` | `core/skills/skill_system.gd` | Registro, acceso y uso de habilidades. `SkillRoller` (estático, no autoload) resuelve D100 con 5 grados: `FUMBLE`/`FAILURE`/`SUCCESS`/`SPECIAL`/`CRITICAL`; `CRITICAL` (skill/20) y `SPECIAL` (skill/5) dinámicos, `FUMBLE` absoluto (≥98). `learn_skill()` enseña una skill fuera del kit inicial. |
+| `SkillProgression` | `core/skills/skill_progression_service.gd` | Progresión y aprendizaje. `notify_skill_outcome()` solo combate; `execute_learning_session()` es el camino fuera de combate (libros, entrenadores, narrativa con `SourceType.NARRATIVE`). |
+| `SkillEventHandler` | `core/skills/skill_event_handler.gd` | Eventos de habilidades. |
+| `Stress` | `core/skills/stress_system.gd` | Estrés del personaje (escucha `character_unregistered`). |
  
-### Sistemas de ítems y equipo
+### Ítems y equipo
 | Singleton | Script | Descripción |
-|-----------|--------|-------------|
-| `Items` | `core/items/item_registry.gd` | Registro global de definiciones de ítems. |
-| `Inventory` | `core/items/inventory_system.gd` | Gestión del inventario del jugador. |
-| `Equipment` | `core/items/equipment_manager.gd` | Gestión del equipo equipado por el personaje. |
-| `Bridge` | `core/items/item_character_bridge.gd` | Adaptador puro entre el sistema de ítems y los sistemas de personaje/recursos. Escucha `item_use_requested` y aplica los modificadores del ítem sobre `Characters`, `Resources` o `Skills` según el tipo (`CONSUMABLE` / `EQUIPMENT`). También gestiona libros de aprendizaje: mejora la skill vía `SkillProgression` si la entidad ya la tiene, o la enseña vía `Skills.learn_skill()` si no (Spike 10); el libro solo se consume si el aprendizaje se aplicó. No modifica `ItemSystem`, `CharacterSystem` ni `InventorySystem` directamente. |
+|---|---|---|
+| `Items` | `core/items/item_registry.gd` | Registro de definiciones (escaneo recursivo de `data/items/`). |
+| `Inventory` | `core/items/inventory_system.gd` | Inventario por entidad. `add_item` no valida capacidad y devuelve `true` aunque sobrescriba una pila no apilable existente o recorte al tope de pila (quien transfiera pre-valida). |
+| `Equipment` | `core/items/equipment_manager.gd` | Equipo por entidad. **Independiente de `Inventory` por diseño:** equipar no saca el ítem de la mochila y quitarlo de la mochila no lo desequipa. |
+| `Bridge` | `core/items/item_character_bridge.gd` | Adaptador ítems ↔ Characters/Resources/Skills. Ver «ItemCharacterBridge». |
  
-### Sistemas de mundo y combate
+### Mundo y combate
 | Singleton | Script | Descripción |
-|-----------|--------|-------------|
-| `Combat` | `core/combat/combat_system.gd` | Sistema de combate por turnos. |
-| `CombatLootSpawner` | `core/combat/combat_loot_spawner.gd` | Generación de loot al finalizar combate. |
-| `Economy` | `core/economy/economy_system.gd` | Sistema económico: compra, venta y precios. |
-| `WorldObjects` | `core/world_objects/world_object_registry.gd` | Registro de objetos interactuables del mundo. |
-| `WorldObjectSystem` | `core/world_objects/world_object_system.gd` | Lógica de interacción con objetos del mundo. |
-| `EnemyWorldLink` | `core/combat/enemy_world_link.gd` | **[Spike 3, Grupo A]** Hueco genérico para limpiar la representación en exploración/world objects de un enemigo que huye (`EventBus.enemy_group_fled`). Guarda un `Callable` de limpieza por `entity_id` vía `register_fled_cleanup()` — no conoce WorldObjectSystem ni ningún tipo de representación concreta. No-op si nadie registró nada. |
+|---|---|---|
+| `Combat` | `core/combat/combat_system.gd` | Combate por turnos. `_active_buffs` no se limpia al terminar un combate (`clear_buffs()` solo lo llama `SessionReset`). |
+| `CombatLootSpawner` | `core/combat/combat_loot_spawner.gd` | Loot al terminar combate. `spawn_pending_loot()` no tiene llamador en producción. |
+| `Economy` | `core/economy/economy_system.gd` | Compra, venta y precios. `reset_session()` recarga las `ShopInstance`. El tag `quest_loan` se trata como préstamo (sin coste, no vendible; `trade_type = "loan"`, error `LOAN_ITEM`). |
+| `WorldObjects` / `WorldObjectSystem` | `core/world_objects/` | Objetos interactuables del mundo. Sin uso en el camino jugable actual. |
+| `EnemyWorldLink` | `core/combat/enemy_world_link.gd` | Hueco para limpiar la representación de enemigos que huyen (`enemy_group_fled`). Sin casos de uso reales. |
  
-### Sistemas de narrativa y diálogo
+### Narrativa y diálogo
 | Singleton | Script | Descripción |
-|-----------|--------|-------------|
-| `Narrative` | `core/narrative/narrative_system.gd` | Sistema narrativo principal. Almacén real de flags/variables (`set_flag`, `clear_flag`, `set_variable`, `get_variable`, `get_active_flags`). |
-| `NarrativeDB` | `core/narrative/narrative_registry.gd` | Base de datos de eventos narrativos. |
-| `Dialogue` | `core/dialogue/dialogue_system.gd` | Sistema de diálogo con NPCs. |
-| `DialogueDB` | `core/dialogue/dialogue_registry.gd` | Base de datos de diálogos. |
-| `Checkpoints` | `core/narrative/checkpoint_system.gd` | Sistema de checkpoints narrativos. Consolida/limpia vectores narrativos en transiciones de acto — no es el almacén de flags de uso general (eso es `Narrative`). |
-| `CheckpointDB` | `core/narrative/checkpoint_registry.gd` | Base de datos de checkpoints. |
-| `NarrativeSceneDB` | `core/narrative_scenes/narrative_scene_registry.gd` | **[Spike 1]** Registro de escenas narrativas (imagen + texto + opciones), cargadas desde JSON. Sin estado runtime — consulta local síncrona por `scene_id`. El estado de progreso por una escena vive en `NarrativeSceneViewModel`, no aquí. |
-| `InteractiveSceneDB` | `core/interactive_scenes/interactive_scene_registry.gd` | **[Spike 12]** Registro de escenas interactivas (imagen de fondo + puntos clicables con visibilidad por flags), cargadas desde `data/interactive_scenes/*.json` (escaneo SIN recursión). Sin estado runtime — mismo patrón que `NarrativeSceneDB`. |
+|---|---|---|
+| `Narrative` | `core/narrative/narrative_system.gd` | Almacén de flags y variables (`set_flag`, `clear_flag`, `set_variable`, `get_variable`, `get_active_flags`). |
+| `NarrativeDB` | `core/narrative/narrative_registry.gd` | Eventos narrativos. |
+| `Checkpoints` / `CheckpointDB` | `core/narrative/` | Hitos narrativos; no es el almacén de flags. |
+| `Dialogue` / `DialogueDB` | `core/dialogue/` | Sistema y registro de diálogos. El registro escanea subcarpetas de forma recursiva. |
+| `NarrativeSceneDB` | `core/narrative_scenes/narrative_scene_registry.gd` | Escenas narrativas desde JSON. Consulta local síncrona, sin estado runtime. |
+| `InteractiveSceneDB` | `core/interactive_scenes/interactive_scene_registry.gd` | Escenas interactivas (mapa de puntos de interés) desde `data/interactive_scenes/*.json`. **Escaneo sin recursión.** Sin estado runtime. |
  
-### Companions y party
+**No confundir:** `core/narrative/` (hitos/eventos recordados) y `core/narrative_scenes/` (qué nodo de escena se muestra ahora). `InteractionOutcome.narrative_event_id` dispara `NarrativeSystem.apply_event()`, no `GameLoop.enter_narrative_scene()`.
+ 
+### Companions
 | Singleton | Script | Descripción |
-|-----------|--------|-------------|
-| `Party` | `core/companions/party_manager.gd` | Gestión del grupo de personajes (party). |
-| `PartyEventHandler` | `core/companions/party_event_handler.gd` | Manejo de eventos relacionados con la party. |
+|---|---|---|
+| `Party` | `core/companions/party_manager.gd` | Grupo de personajes. `MAX_PARTY_SIZE = 3` (la decisión de diseño era 2: pendiente de decidir; la interfaz de Party no impone máximo). Party no deja pasar un `quest_loan` a un compañero. |
+| `PartyEventHandler` | `core/companions/party_event_handler.gd` | Eventos de party. |
  
+### Clases estáticas y helpers (no autoload)
+- `SessionReset.apply()` y `EntityLifecycle.unregister_everywhere(id)` (`core/session/`). Ver «Reinicio de sesión».
+- `AdventureStarter.apply(adventure_id)` (`core/adventures/`). Ver «Arranque de aventura».
+- `BagCapacity.compute(...)` (`ui/inventory/`): único punto de cálculo de capacidad de mochila.
 ---
  
-## Notas arquitectónicas clave
+## GameLoop — estados y fases de turno
  
-### GameLoop — Estados y fases de turno
- 
-Estados del juego (`GameState`) y transiciones válidas:
+Transiciones válidas de `GameState`:
 ```
-MENU → EXPLORATION, CHARACTER_CREATION, NARRATIVE_SCENE  ⭐ NARRATIVE_SCENE añadido en mejoras post-Spike 3, Grupo 1
+MENU               → EXPLORATION, CHARACTER_CREATION, NARRATIVE_SCENE
 CHARACTER_CREATION → EXPLORATION, MENU
-EXPLORATION → DIALOGUE, SHOP, NARRATIVE_SCENE, COMBAT_ACTIVE, PAUSE, SAVE_TRANSITION
-DIALOGUE → EXPLORATION, COMBAT_ACTIVE
-SHOP → EXPLORATION
-NARRATIVE_SCENE → EXPLORATION, COMBAT_ACTIVE
-COMBAT_ACTIVE → VICTORY, DEFEAT, EXPLORATION
-VICTORY / DEFEAT → EXPLORATION / MENU
+EXPLORATION        → DIALOGUE, SHOP, NARRATIVE_SCENE, COMBAT_ACTIVE, PAUSE, SAVE_TRANSITION
+DIALOGUE           → EXPLORATION, COMBAT_ACTIVE
+SHOP               → EXPLORATION
+NARRATIVE_SCENE    → EXPLORATION, COMBAT_ACTIVE
+COMBAT_ACTIVE      → VICTORY, DEFEAT, EXPLORATION
+VICTORY            → EXPLORATION, NARRATIVE_SCENE
+DEFEAT             → EXPLORATION, MENU
 ```
+Una transición nueva debe comprobarse contra `VALID_STATE_TRANSITIONS`; una inválida solo emite `push_warning` y es fácil de perder. `DEFEAT` nunca va directo a `CHARACTER_CREATION`.
  
-Fases de turno de combate (`TurnPhase`) en orden:
+Fases de turno de combate:
 ```
 ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RESOLVE
 → COMPANION_ACTION_RESOLVE (uno por companion activo)
@@ -100,258 +93,148 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 → TURN_END → ROUND_END → ROUND_START
 ```
  
-- La iniciativa se calcula al inicio del combate y determina el `turn_order`. Se calcula una sola vez en `_calculate_initiative()`, llamada solo desde `start_combat()` — nunca se recalcula ronda a ronda.
-- Los companions actúan **después del jugador, antes de los enemigos**.
-- Un companion incapacitado permanece en `turn_order` pero `CompanionAI` skipea su turno.
-- Victoria: todos los enemigos muertos. Derrota: jugador muerto (los companions no evitan la derrota actualmente).
-- `start_combat()` acepta como estado de origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard explícito, independiente de `VALID_STATE_TRANSITIONS` — `start_combat()` transiciona directo con `_transition_game_state()`, no pasa por `request_state_change()`). **Spike 13:** firma `start_combat(enemy_ids, encounter = null, victory_scene_id = "")` — la escena a abrir al ganar vive en `_pending_victory_scene_id` (ver "Spike 13").
-- **`_transition_to_phase()` devuelve `bool` desde Spike 6** (antes `void`) — `_end_turn()`/`_end_round()` abortan sin reemitir señales si la transición es rechazada. Causa raíz confirmada de un bug de motor real: una invocación duplicada de `_end_turn()` (candidato: señal `combat_action_completed` de un actor equivocado, mal atribuida por fase en vez de por `actor`) dejaba pasar el error de transición y seguía igual, duplicando `round_ended` y el incremento de `round_number` a la vez. `_on_combat_action_completed()` ahora compara `result["actor"]` contra el actor que realmente tiene el turno (`_current_acting_entity`) antes de procesar — requirió añadir `"actor"` al payload de la resolución normal de skill en `CombatSystem`, que no lo llevaba (solo las ramas de excepción staggered/disarmed/dodge sí). Ver `docs/spike_6_investigacion_motor_combate.md` para el detalle completo.
-- **Nota sobre `request_state_change()` (confirmado en Spike 3/B):** `DEFEAT` solo tiene transición válida hacia `EXPLORATION`/`MENU` — nunca directo a `CHARACTER_CREATION`. Cualquier flujo de reinicio de partida tras Game Over debe pasar por `enter_main_menu()` antes de `enter_character_creation()`, igual que el camino real de "Nueva Partida" desde el menú.
-- **`MENU → NARRATIVE_SCENE` (mejoras post-Spike 3, Grupo 1):** habilita "Cargar Partida" para resumir directamente dentro de una escena narrativa, si el save se hizo desde ahí. Antes de este grupo era un camino inexistente — la única entrada a `NARRATIVE_SCENE` era desde `EXPLORATION`. Ver sección propia de Grupo 1 más abajo para el hallazgo de reentrada que este camino nuevo expuso en `SceneOrchestrator`/`TelmoriVillage._ready()`.
-- **Sorpresa de combate (Spike 3, Grupo B):** `CombatEncounterDefinition.surprise_favors` no toca `turn_order` ni `TurnPhase` — la estructura de fases ya obliga a jugador+companions a actuar antes que los enemigos cada ronda, así que reordenar iniciativa no tendría ningún efecto real. En su lugar, el bando sorprendido recibe el buff `staggered` ya existente en `CombatSystem` (pierde su primera acción) y, opcionalmente, `vulnerable` (`surprise_vulnerable_pct`, daño extra recibido). Lógica compartida en `GameLoopSystem._apply_surprise()`, llamada desde `start_combat()` y `configure_active_encounter()` — esta segunda ruta hace falta porque un combate disparado desde `ExplorationController` ya está en marcha antes de que se le adjunte el encounter. El `turns_left` del buff `vulnerable` es asimétrico: 2 si perjudica a jugador/companions (actúan antes en la ronda, necesitan sobrevivir a su propio tick), 1 si perjudica a enemigos (actúan al final, su tick ya llega después del ataque).
-### Nomenclatura y organización de escenas de juego
+- La iniciativa se calcula una sola vez (`_calculate_initiative()`, solo desde `start_combat()`). Los companions actúan después del jugador y antes de los enemigos; un companion incapacitado permanece en `turn_order` y `CompanionAI` salta su turno.
+- Victoria: todos los enemigos muertos. Derrota: jugador muerto (los companions no la evitan).
+- `start_combat(enemy_ids, encounter = null, victory_scene_id = "")` acepta como origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard propio; transiciona con `_transition_game_state()`, sin pasar por `request_state_change()`).
+- **Escena de victoria:** `victory_scene_id` vive en `GameLoop._pending_victory_scene_id` (no en el encuentro, que puede ser `null` y se limpia en `end_combat()`). `consume_pending_victory_scene()` lo devuelve y vacía; `end_combat()` lo descarta tras emitir `combat_ended`, para que no se fugue al combate siguiente.
+- `_transition_to_phase()` devuelve `bool`; `_end_turn()`/`_end_round()` abortan si la transición es rechazada. `_on_combat_action_completed()` compara `result["actor"]` con `_current_acting_entity`.
+- `_start_player_turn()` sale si el combate terminó dentro de `player_turn_started` (la huida se resuelve ahí).
+- `GameLoop.enter_post_load_state()` decide tras cargar entre `enter_narrative_scene(scene_id)` y `enter_exploration()`.
+### Encuentros de combate (`CombatEncounterDefinition`, opcional)
+- **Moral de grupo:** `morale_threshold_pct`. Los enemigos supervivientes huyen juntos cuando el HP total del grupo cae bajo el umbral (señal `enemy_group_fled`; nunca pasa por `character_died`: sin loot ni animación de muerte). La base (`_group_morale_base_hp`) es dinámica: un refuerzo marca `_group_morale_base_dirty` y se recalcula en el siguiente `_check_group_morale()` (solo tras una muerte, nunca golpe a golpe).
+- **Refuerzos cronometrados:** `reinforcement_trigger` / `reinforcement_delay_rounds` (disparables con `GameLoop.trigger_combat_event()`); `reinforcement_definition_id` es un único id (un refuerzo no admite tipos mixtos).
+- **Sorpresa:** `surprise_favors` (`"party"`/`"enemies"`) y `surprise_vulnerable_pct`. No toca `turn_order`: el bando sorprendido recibe el buff `staggered` y, opcionalmente, `vulnerable` (`turns_left` 2 si perjudica a jugador/companions, 1 si perjudica a enemigos). Lógica en `_apply_surprise()`, llamada desde `start_combat()` y `configure_active_encounter()` (necesaria cuando el combate ya está en marcha).
+- **Fondo:** `background_path`; lo carga `CombatArenaViewModel` con `call_deferred()` desde `GameLoop.get_current_encounter()`. Un encuentro sustituido a mitad de combate no actualiza el fondo.
+---
  
-Convención para toda escena de tipo exploración/combate/narrativa (no aplica a pantallas de `ui/`, que siguen su propia convención MVVM):
+## SceneOrchestrator
  
-```
-<tipo>_<identificador_semántico>.tscn        # nunca numeración secuencial (ej. NO "_1", "_2")
-```
+- Escucha `game_state_changed` y nunca modifica `GameState`. Los overlays se instancian y destruyen en cada apertura (`queue_free`). Tiene un **único `_current_overlay`** (no una pila).
+- **Combate:** carga aditiva (la escena de exploración sigue viva debajo). `SCENE_COMBAT` = `combat_production_scene.tscn` (sin UI: IA + `PlayerCombatController`) y `OVERLAY_COMBAT_HUD` = `combat_arena_panel.tscn`; ambas se instancian en `_handle_combat()`. Fuga conocida: no guarda referencia a `SCENE_COMBAT` ni la libera (mitigado: `combat_production_scene.gd` se libera sola en `combat_ended`). `combat_test.tscn`/`combat_hud.tscn` siguen como escena de test independiente.
+- **Exploración:** `SCENE_EXPLORATION` = `scenes/exploration/interactive_map/exploration_interactive_map.tscn`, que carga `telmori_village` (para pruebas se cambia `interactive_scene_id` a `poi_test_map`). `_ensure_exploration_scene_instantiated()` la crea si no existe (tanto desde `_handle_exploration()` como desde `_handle_narrative_scene()`) y fuerza `name = "ExplorationScene"`, así que el nombre del nodo raíz del `.tscn` es libre. Al ejecutar una escena de exploración suelta con F6, su raíz debe llamarse `"ExplorationScene"`.
+- **Narrativa:** `_handle_narrative_scene(scene_id)` = `_hide_current_overlay()` → `_show_overlay(OVERLAY_NARRATIVE_SCENE)` → `open(scene_id)`. El `scene_id` llega por `_pending_context`. Cierre por `EventBus.narrative_scene_closed` → `enter_exploration()`.
+- **Victoria con escena:** `_on_combat_ended` abre la escena de victoria pendiente; si el id no existe, `push_error` y vuelve a `EXPLORATION`. No repite `enter_exploration()` tras una huida (`end_combat("escaped")` ya transiciona).
+- **Tienda:** el evento `shop_opened` se emite antes de que exista el overlay; se resuelve con `show_shop_direct()` y un snapshot de `Economy`.
+- **Character Creation:** usa `_show_overlay()` como el resto (instanciarla a mano la deja huérfana de `_current_overlay`).
+- **Inventario/Party:** `open_inventory()`/`open_party()` conectan `closed` a `_on_overlay_closed(overlay)`. Los tres (`open_inventory/party/player_menu`) permiten `EXPLORATION` y `NARRATIVE_SCENE`, pero en narrativa bloquean la ruta de `_current_overlay` (lo resuelve el panel narrativo como sub-overlay).
+- `_on_dialogue_ended()` solo actúa en `GameState.DIALOGUE`.
+- **Game Over:** `_show_game_over()` guarda `_game_over_ui` y no lo instancia dos veces.
+- **Menú principal:** `_handle_main_menu()` libera `GameOverUI`, `CombatHud`, `CombatScene` y `ExplorationScene` y lanza `_run_session_reset()`.
+---
  
-Organización de carpetas: scripts **compartidos** por todas las escenas de ese tipo viven en la raíz de `scenes/<tipo>/`; cada zona/contexto concreto vive en su propia subcarpeta:
+## Reinicio de sesión (`core/session/`)
  
-```
-scenes/exploration/
-├── interactable.gd              ← compartido por todas las zonas
-├── exploration_controller.gd    ← compartido
-├── exploration_hud.gd           ← compartido
-├── player_exploration.gd        ← compartido
-├── tutorial/                    ← una zona = una subcarpeta (OBSOLETA desde Spike 3/B)
-│   ├── exploration_tutorial.tscn
-│   └── exploration_tutorial.gd
-├── telmori_village/             ← NUEVO (Spike 3, Grupo B) — zona de producción real (Spike 12: ya no es SCENE_EXPLORATION)
-│   ├── exploration_telmori_village.tscn
-│   └── exploration_telmori_village.gd
-└── interactive_map/             ← NUEVO (Spike 12) — escena de exploración basada en mapa de puntos de interés
-    ├── exploration_interactive_map.tscn
-    └── exploration_interactive_map.gd
-```
+Al entrar en `MENU`, `SceneOrchestrator` libera las escenas de la partida, espera un frame, comprueba que el estado sigue en `MENU`/`CHARACTER_CREATION` y llama a `SessionReset.apply()`, que ejecuta con orden fijo y solo APIs públicas: `Dialogue.reset()`, `Combat.clear_buffs()`, `Party.leave_party()` de cada miembro, baja de todas las entidades de `Characters.get_registered_entities()` con `EntityLifecycle.unregister_everywhere()` (Characters → Resources → Skills → Equipment → Inventory, idempotente; también la usa `PartyManager`), `Narrative.clear_all()`, `Checkpoints.reset()`, `Economy.reset_session()`.
  
-Mismo patrón previsto para `scenes/combat/arena_<nombre>/` y una futura `scenes/narrative/<evento>/`. El orden de progresión del jugador (qué zona sigue a cuál) debe vivir en datos (futuro registro de niveles/zonas), no en el nombre del archivo — un número no comunica contenido y se rompe al reordenar. Decidido en `docs/spike_produccion_post_character_creation_informe_cierre.md`.
+- Pasar por `MENU` por sí solo no limpia nada: lo hace el orquestador + `SessionReset`.
+- La carga **sobrescribe, no borra**: para que cargar equivalga a un arranque en frío, el reinicio debe haber ocurrido antes.
+- Limitación: una entidad registrada solo en `Skills`/`Resources` y no en `Characters` no la vería el reinicio.
+- Game Over: `GameOverViewModel` (una intención, `request_return_to_menu()`); la View no conoce sistemas de `core`.
+---
  
-### SceneOrchestrator — Gestión de overlays
+## Guardado
  
-- Escucha `game_state_changed` vía EventBus y **nunca modifica GameState**.
-- Los overlays (diálogo, tienda, inventario, escena narrativa) se instancian y destruyen en cada apertura/cierre (`queue_free`).
-- La escena de combate se carga de forma **aditiva** (la escena de exploración permanece en memoria debajo) — `SCENE_COMBAT` y `OVERLAY_COMBAT_HUD` son dos piezas separadas, instanciadas ambas en `_handle_combat()`. **Desde Grupo 5**: `SCENE_COMBAT` apunta a `combat_production_scene.tscn` (sin UI, solo IA de enemigos/companions + `PlayerCombatController`) y `OVERLAY_COMBAT_HUD` a `combat_arena_panel.tscn` (la pantalla real, fichas+log+menú). `combat_test.tscn`/`combat_hud.tscn` dejan de ser producción pero no se retiran, siguen como escena de test independiente. **Fuga preexistente encontrada en Grupo 5, no arreglada**: `_handle_combat()` guarda referencia a la instancia de `OVERLAY_COMBAT_HUD` (`_combat_hud`, liberada en `_on_combat_ended()`) pero nunca a la de `SCENE_COMBAT` — esa instancia no se libera nunca desde `SceneOrchestrator`. `combat_production_scene.gd` se libera a sí misma escuchando `combat_ended` directamente, como mitigación local; el fondo del problema (mismo patrón ya existía con `combat_test_scene.gd`) sigue sin resolver a nivel de `SceneOrchestrator`.
-- El inventario es especial: se abre como overlay dentro de `EXPLORATION` sin cambiar `GameState`. Se accede vía `SceneOrchestrator.open_inventory()`.
-- Hay un problema de timing conocido con la tienda (el evento `shop_opened` se emite antes de que el overlay exista); se resuelve llamando directamente a `show_shop_direct()` con un snapshot del `EconomySystem`. **NarrativeScene no tiene este problema** — `NarrativeSceneDB.get_scene()` es una consulta local síncrona, así que `_handle_narrative_scene()` no necesita ningún `show_X_direct()` especial, el `scene_id` llega vía `_pending_context` igual que `dialogue_id`/`shop_id`.
-- El menú principal es la **Main Scene** del proyecto. `_handle_main_menu()` solo limpia overlays residuales; no instancia nada.
-- `_handle_character_creation()` usa `_show_overlay()` (igual que Shop/Inventory/Party) — importante: instanciarla manualmente contra `get_tree().root` sin pasar por `_show_overlay()` deja la escena huérfana de `_current_overlay`, y `_hide_current_overlay()` nunca la destruye al salir.
-- `_handle_exploration()` instancia `SCENE_EXPLORATION` si no existe ya en el árbol (comprobando por nombre de nodo `"ExplorationScene"`) — necesario para el flujo real Menú → Character Creation → Exploration, no solo para correr una escena de exploración de forma aislada. El nodo instanciado se **renombra** a `"ExplorationScene"` en el propio `_handle_exploration()`, independientemente del nombre que tenga el nodo raíz dentro del `.tscn` — así que el nombre interno del `.tscn` no tiene que coincidir. **Importante para pruebas manuales:** si ejecutas `exploration_test.tscn` suelto (F6), su nodo raíz debe llamarse literalmente `"ExplorationScene"` o esta búsqueda falla y el sistema intenta instanciar otra copia de la escena de producción encima, en medio del arranque del árbol (`add_child()` con "Parent node is busy setting up children").
-- **`SCENE_EXPLORATION` apunta ahora a `res://scenes/exploration/telmori_village/exploration_telmori_village.tscn`** (Spike 3, Grupo B) — antes apuntaba a `exploration_tutorial.tscn`, que queda obsoleta (pensada para un mundo 2D más amplio que ya no es el centro de la jugabilidad tras el pivote narrativo) y pendiente de retirar del proyecto.
-- **`SCENE_EXPLORATION` apunta ahora (Spike 12) a `res://scenes/exploration/interactive_map/exploration_interactive_map.tscn`** — el mapa de PRUEBA (`poi_test_map`). La línea del pueblo queda comentada justo debajo (revertible descomentándola; mismo patrón que ya se usó con el tutorial). El nombre del nodo raíz del `.tscn` es libre: `_ensure_exploration_scene_instantiated()` fuerza `instance.name = "ExplorationScene"` al instanciar. Spike 13 decide el estado final.
-- **Spike 13:** `SCENE_EXPLORATION` sigue apuntando a `exploration_interactive_map.tscn`, que ahora carga `telmori_village` (el mapa de prueba queda para pruebas cambiando `interactive_scene_id`). Las líneas comentadas de `SCENE_EXPLORATION` (pueblo antiguo, tutorial), si siguen ahí, son restos candidatos a limpieza.
-- `_handle_narrative_scene(scene_id)` — calcado de `_handle_dialogue()`: `_hide_current_overlay()` → `_show_overlay(OVERLAY_NARRATIVE_SCENE)` → `open(scene_id)` en el overlay instanciado. Cierre vía `EventBus.narrative_scene_closed` → `_on_narrative_scene_closed()` → `GameLoop.enter_exploration()`, mismo patrón que `_on_shop_closed()`.
-### Interactable — tipos de interacción (Spike 3, Grupo B)
+- `SaveManager`/`SaveData`, `SAVE_VERSION = 6` (migración rellena `current_narrative_scene_id`). Guarda personaje (`definition_id`, `character_name`, `attributes`), recursos, skills, inventario, equipo, party y `narrative_state` (flags, variables, eventos completados, checkpoints, `current_narrative_scene_id`).
+- **Solo se guarda eligiendo una opción de diálogo con `DialogueOptionDefinition.triggers_save`** (NPCs savepoint concretos, p. ej. el sheriff; `DialogueSystem.select_option()` llama a `SaveManager.save_game()`). F5 está retirado. «Cargar Partida» desde el menú resume en la escena narrativa guardada vía `get_pending_narrative_scene_id()`. F9 (quickload en sesión activa) **no es operativo** y no se vuelve a tratar.
+- `_restore_state()` restaura primero `CharacterSystem` (puede bootstrapear la entidad por `definition_id`) y registra en frío en `ResourceSystem`/`SkillSystem` si falta (`has_entity()`); `EquipmentManager` e `InventorySystem` se auto-registran en su `load_save_state()` (el aviso «Entity not registered for load» es inofensivo). `SkillSystem.load_save_state()` recrea las skills aprendidas en runtime.
+- `_collect_player_state()` guarda sin la clave `position` si no hay nodo `Player` (`position` es dato vestigial). `SaveSystem._find_player()` busca bajo `"ExplorationScene"`.
+- `SaveFeedbackUI` escucha `save_completed`/`save_failed`.
+- Un guardado dentro de una cadena que entrega recompensas permitiría cobrar dos veces: por eso el hub del sheriff no ofrece guardado en la etapa de recompensa.
+---
  
-`Interactable.interaction_type` (`@export_enum`) admite 5 valores:
+## Escenas de exploración y mapa interactivo
  
-| `interaction_type` | Efecto en `ExplorationController._on_interaction_requested()` |
-|---|---|
-| `"dialogue"` | `GameLoop.enter_dialogue(target_id)` |
-| `"shop"` | `GameLoop.enter_shop(target_id)` |
-| `"combat"` | Registra enemigos (`enemy_id → definition_id` leído de `Interactable.enemy_definitions`) y llama a `GameLoop.start_combat()` |
-| `"item"` | Recoge ítem vía `WorldObjectSystem`, sin cambio de `GameState` |
-| `"narrative_scene"` | `GameLoop.enter_narrative_scene(target_id)` — **nuevo en Spike 3/B**. Antes no existía ningún camino de producción para entrar en una escena narrativa desde exploración; la única vía que había existido nunca era una tecla de debug (F1) de Spike 1, ya retirada en Spike 3, Grupo A |
+- **Convención de nombres:** `<tipo>_<identificador_semántico>.tscn`, nunca numeración secuencial. Scripts compartidos en la raíz de `scenes/<tipo>/`; cada zona en su subcarpeta. El orden de progresión debe vivir en datos, no en el nombre.
+- **`ExplorationController.request_interaction(type, target_id, enemy_definitions := {})`** es el **único punto de routing** de interacciones (`dialogue` → `GameLoop.enter_dialogue`, `shop` → `enter_shop`, `combat` → registra enemigos y `start_combat`, `narrative_scene` → `enter_narrative_scene`). Tiene guard propio (`is_input_blocked()`); `enemy_definitions` llega como parámetro.
+- **Motor de escenas interactivas** (`core/interactive_scenes/`): `InteractiveSceneDefinition` (`scene_id`, `image_path`, `hotspots`, `on_first_visit_*`) e `InteractiveHotspotDefinition` (`hotspot_id`, `map_position` normalizada 0–1, `icon_path`, `label_key`, `interaction_type`, `target_id`, `enemy_ids_override`, `enemy_definitions`, `required_flags`, `blocked_flags`). `item` no es tipo válido. `validate()` marca error por tipo inválido, `label_key`/target vacío o `hotspot_id` duplicado; warning por posición fuera de 0–1 o icono inexistente. Visibilidad declarativa, recalculada al cargar y en cada `game_state_changed → EXPLORATION` (un flag puesto sin cambio de estado no refresca hasta la siguiente vuelta a `EXPLORATION`). Flujo: View → `InteractiveSceneViewModel.activate_hotspot()` → `hotspot_activated` → escena raíz → `request_interaction()`.
+- **`on_first_visit`:** acción de una sola vez al entrar (`request_first_visit()`, llamada con `call_deferred`); el pueblo abre así `telmori_village_arrival` (`flag.telmori_village_visited`).
+- **El pueblo de Los Telmori** es un hub (`telmori_village.json`: 11 hotspots en 4 posiciones —sheriff, herrería, taberna, salida— mutuamente excluyentes por flags según la etapa). Las etapas se gobiernan con `flag.telmori_sheriff_briefed` → `ambush_won` → `tracked_to_lair` → `lair_cleared` → `adventure_completed`. Un flag solo demuestra que se GANÓ si lo pone una escena que solo se alcanza al ganar.
+- **`Interactable` es vestigial:** ningún consumidor en el camino jugable; su camino físico nunca se validó y no se va a validar. `exploration_tutorial`, `exploration_test` y `exploration_telmori_village` están obsoletas (candidatas a borrar).
+- **Input de exploración:** `ExplorationController._unhandled_input()` gestiona `interact`, `open_inventory`, `open_party`, `open_player_menu`. `ExplorationHUD` comprueba también `GameLoop.is_input_blocked()`. El nodo `Player` real usa `PlayerExploration`; `player.gd` es código muerto (limpieza bloqueada por `test/test_shop_ui.gd`).
+- **Atajo de desarrollo F2** (keycode crudo, solo `OS.is_debug_build()`): lee `user://debug_shortcut.json` en cada pulsación (no la raíz del proyecto; en Windows `%APPDATA%\Godot\app_userdata\<proyecto>\`), aplica `Narrative.set_flag()` por cada entrada de `"flags"` y `Characters.set_skill_value("player", id, valor)` por cada `"skills"`. Se comprueba antes de `is_input_blocked()`; es mutación en memoria, nunca toca `SaveManager`.
+---
  
-**Spike 12 — correcciones tras revisar el código real (Fase 0):**
+## Menú principal, carga y Character Creation
  
-- El routing ya no vive en `_on_interaction_requested()`, sino en `ExplorationController.request_interaction(type, target_id, enemy_definitions := {})`. `_on_interaction_requested()` delega en él pasando el `enemy_definitions` del `_current_interactable`; el comportamiento del camino físico no cambia. Motivo: la señal `interaction_requested(type, target_id)` no puede llevar `enemy_definitions` (un signal de GDScript no admite parámetros opcionales) y un punto sin nodo físico no tiene de dónde leerlo — sin el canal nuevo el combate degradaba en silencio a `enemy_base`.
-- El `@export_enum` de `interactable.gd` **NO lista `"narrative_scene"`** (solo `dialogue`/`shop`/`combat`/`item`). El valor funciona porque `exploration_telmori_village.gd` lo asigna con `area.set("interaction_type", "narrative_scene")`; el enum es solo cosmético (el campo es `String`). La descripción de `interactable.gd` de más arriba y la de la tabla contaban el enum como si lo incluyera.
-- En el pueblo, `Interactable` solo se usa con `narrative_scene` y siempre creado por código (rastro, aftermath, recompensa del sheriff); el `.tscn` del pueblo no tiene ninguno. Los `.tscn` de `exploration_test`/`exploration_tutorial` sí los instancian, pero ninguna de las dos es ya `SCENE_EXPLORATION`.
-- **Spike 13 — `Interactable` queda VESTIGIAL.** El pueblo ya no usa ninguno (`telmori_village.json` es declarativo) y un mapa estático no puede tenerlos (sin jugador, física ni proximidad). Fernando descartó `exploration_tutorial` y `exploration_test` (no eran escenas de producción), así que no queda ningún consumidor en el camino jugable. El camino físico refactorizado en Spike 12 (`request_interaction()`) **nunca se validó en partida real y ya no se va a validar**. Candidato a limpieza en la recopilación final.
-### Menú principal — Arquitectura
+- **Menú principal:** Main Scene (`MainMenuScreen`, `CanvasLayer`). Estados del ViewModel: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`. Escucha `game_state_changed` (ver `athelia_ui_architecture.md`).
+- **LoadingScreen:** carga asíncrona con barra; implementada y sin conectar al orquestador.
+- **Character Creation:** MVVM. **6 atributos** (no 7 de RuneQuest): `strength, dexterity, constitution, intelligence, wisdom, charisma`. Roll-and-assign: 3D6 (STR/DEX/CHA), 2D6+6 (CON/INT/WIS), 1 reroll. Estados: `ROLLING → ASSIGNING → NAMING → SUMMARY → TRANSITIONING`. Usa `data/characters/player_new.tres` (no `player_base.tres`, plantilla de test). `_create_player_entity()` registra en `Characters`, `Resources`, `Skills`, `Equipment` e `Inventory`; `Resources.register_entity()` debe preceder a `set_base_attribute()` (este dispara `ModifierApplicator` de forma síncrona). El kit de skills se lee de `definition.skills`, nunca de una lista duplicada. Usa `skills.has_entity("player")`.
+## Arranque de aventura
  
-El menú principal sigue el patrón MVVM con una única escena que muestra/oculta paneles internos:
- 
-```
-MainMenuScreen (CanvasLayer)        ← Main Scene del proyecto
-└── Control
-    ├── BackgroundRect              ← placeholder, futuro: ilustración
-    ├── TitleLabel                  ← "ATHELIA", futuro: logo
-    ├── MainPanel                   ← botones principales
-    ├── OptionsPanel                ← volumen, fullscreen, idioma
-    ├── CreditsPanel                ← texto scrolling
-    └── ConfirmQuitPanel            ← diálogo Sí/No
-```
- 
-Estados del `MainMenuViewModel`: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`
- 
-**Importante:** `MainMenuViewModel` escucha `EventBus.game_state_changed` — vuelve a `"main"` al reentrar en `GameState.MENU`, y se oculta (`"hidden"`) en cualquier otro estado. Como `MainMenuScreen` es la Main Scene, nunca se destruye — sin este listener, tras la primera transición fuera de `MENU` se quedaba permanentemente en `TRANSITIONING` con los botones deshabilitados.
- 
-**Actualizado en mejoras post-Spike 3, Grupo 1:** el guardado **sí está disponible desde el menú principal** vía "Cargar Partida" — pero ya no se guarda con F5 desde la exploración (retirado del todo). Guardar solo es posible seleccionando una opción de diálogo ofrecida por NPCs concretos marcados como savepoint (`DialogueOptionDefinition.triggers_save`), dentro de una escena narrativa. "Cargar Partida" resume directamente en esa misma escena narrativa si el save se hizo así (`MainMenuViewModel.request_load_game()` decide entre `enter_narrative_scene()`/`enter_exploration()` según `SaveManager.get_pending_narrative_scene_id()`). Ver sección propia de Grupo 1 más abajo.
- 
-### LoadingScreen
- 
-Pantalla de carga pasiva sin ViewModel. Usa `ResourceLoader.load_threaded_request()` para carga asíncrona con barra de progreso. Emite `loading_finished(packed_scene)` al completar. Actualmente implementada pero no conectada a `SceneOrchestrator` — se integrará cuando las escenas de exploración crezcan en tamaño, o junto a la futura escena de introducción/transición narrativa entre Character Creation y Exploration.
- 
-### Character Creation — Arquitectura
- 
-Sigue el patrón MVVM estándar. Atributos reales del proyecto: **6**, no los 7 de RuneQuest — `strength, dexterity, constitution, intelligence, wisdom, charisma` (no hay `SIZ` ni `POW`).
- 
-```
-CharacterCreationScreen (CanvasLayer)
-└── Root (Control, full rect)
-    ├── AttributeRollPanel   ← roll-and-assign: 3D6 (STR/DEX/CHA), 2D6+6 (CON/INT/WIS), 1 reroll
-    ├── NamePanel
-    └── SummaryPanel         ← RichTextLabel + BBCode
-```
- 
-Estados del `CharacterCreationViewModel`: `ROLLING → ASSIGNING → NAMING → SUMMARY → TRANSITIONING`
- 
-Usa `data/characters/player_new.tres` (no `player_base.tres`, que es plantilla de test/debug con skillset completo pre-desbloqueado). `_create_player_entity()` registra la entidad en `Characters`, `Resources`, `Skills` (kit fijo explícito, no el catálogo completo), `Equipment` e `Inventory`, en un orden concreto: `Resources.register_entity()` debe preceder a `set_base_attribute()`, porque este último dispara `ModifierApplicator` de forma síncrona y necesita que `ResourceSystem` ya conozca a la entidad.
- 
-**Spike 3, Grupo B — el kit fijo de skills se lee de la propia `CharacterDefinition`.** Antes, `_create_player_entity()` registraba el kit vía una constante hardcodeada (`STARTING_SKILL_VALUES`) duplicada e independiente de `player_new.tres` — al añadir skills nuevas al `.tres` sin tocar la constante, `SkillSystem` nunca las registraba (aunque `CharacterState.skill_values`, que sí lee del `.tres` directamente, funcionaba bien — de ahí que las tiradas resolvieran con % correcto pero `SkillSystem.get_skill_instance()` fallara al terminar combate). Eliminada la constante; ahora se lee `chars.get_definition(PLAYER_DEFINITION_ID).skills`.
- 
-**Spike 13 — el arranque de aventura sale del ViewModel y de la escena.** `request_confirm_character()` llama a `AdventureStarter.apply(DEFAULT_ADVENTURE_ID)` justo después de `_create_player_entity()` y antes de `enter_exploration()`: une a `companion_mira` y da y equipa el kit inicial de `player` y de la companion, leído de `data/adventures/telmori.json`. Sustituye a `STARTING_ITEMS` (ahora vacío) y a `_equip_starter_gear()` de la escena del pueblo, que dejaba dos espadas y dos armaduras al jugador y re-añadía el kit en cada `_ready()` (también al cargar partida; no verificado en el código antiguo, eliminado de raíz).
- 
-Ver `docs/spike_character_creation_informe_cierre.md` para el detalle completo.
- 
-### Skills — dos sistemas paralelos de valores (aclarado en Spike 3, Grupo B)
- 
-Dos accesores distintos para lo que parece "lo mismo", sin relación entre sí:
- 
-- **`CharacterState.skill_values`** (vía `Characters.get_skill_value()` / `Characters.list_known_skills()`) — se inicializa desde `CharacterDefinition.starting_skill_values` dentro de `CharacterState.new(definition)`, en el propio `register_entity()`. Es lo que leen tanto combate como las tiradas narrativas para resolver el % de una tirada.
-- **`SkillSystem._entity_skills`** (vía `Skills.get_skill_instance()` / `Skills.register_entity_skills()`) — registro separado, una sola vez (`register_entity_skills()` tiene guard de registro único: `if _entity_skills.has(entity_id): return`), usado solo para desbloqueo (`is_unlocked`) y conteo de progresión (`SkillProgressionService._process_improvement_rolls()` itera `list_known_skills()` pero busca la instancia aquí).
-Si el registro de `SkillSystem` no incluye una skill que sí aparece en `list_known_skills()` (porque se pasó una lista distinta a `register_entity_skills()`), el síntoma es un aviso de `SkillSystem` ("Skill not found for entity") al terminar combate, sin que las tiradas en sí se vean afectadas — fácil de pasar por alto. Tanto `CharacterCreationViewModel` (jugador) como `PartyManager._register_in_systems()` (companions) deben pasar `definition.skills` explícitamente a `register_entity_skills()`, nunca una lista propia ni el array vacío por defecto (que registra el catálogo entero).
- 
-**Skills fuera del kit inicial (Spike 10).** Un libro (o cualquier fuente futura) puede enseñar una skill que la entidad no tiene registrada. `SkillSystem.learn_skill(entity_id, skill_id)` crea la instancia si falta y la desbloquea reutilizando `unlock_skill()` — se siguen comprobando `prerequisite_requirements`; `requires_unlock` no bloquea, porque aprenderla es lo que resuelve ese bloqueo. Si el desbloqueo falla, retira la instancia (nunca quedan skills a medias); con una skill ya registrada no salta su bloqueo. El **valor inicial** (`CharacterState.skill_values`) no lo fija `SkillSystem` sino `ItemCharacterBridge` (que ya conecta ambos sistemas): clave opcional `initial_value` en `learning_data`, por defecto el `base_success_rate` de la skill, y solo si la entidad no tenía ya un valor > 0. Persistencia: `CharacterState` guarda y restaura `skill_values` entero, y `SkillSystem.load_save_state()` recrea desde su definición las instancias que no están en el kit — sin eso una skill aprendida en runtime se perdía al cargar. Curtido (`skill.exploration.tanning`) es el primer caso real.
- 
-### Narrative Scene — Arquitectura (motor base del pivote hacia RPG narrativo)
- 
-Sigue el patrón MVVM estándar. Vive fuera de `core/narrative/` deliberadamente — ese paquete (`NarrativeSystem`/`CheckpointSystem`) gestiona hitos recordados; `core/narrative_scenes/` resuelve "qué nodo se muestra ahora", responsabilidad distinta. Sin "system" runtime propio: `NarrativeSceneDB` es una consulta local síncrona sobre datos cargados de JSON, sin estado — el progreso por una escena vive enteramente en `NarrativeSceneViewModel`.
- 
-```
-NarrativeScenePanel (CanvasLayer, layer 10)
-└── Root (Control, full rect)
-    ├── SceneImage (TextureRect, %)          ← Grupo 4: fondo a pantalla completa, IGNORE_SIZE + KEEP_ASPECT_COVERED
-    └── UIPanel                              ← Grupo 4: tercio inferior (anclas 0.04/0.66/0.96/0.96), crece hacia arriba; Spike 9: decorative_frame = true + esquinera 64×64
-        └── MarginContainer → HBoxContainer
-            ├── SceneText (Label, %)         ← ratio 1.4
-            └── OptionsContainer (VBoxContainer, %)   ← ratio 1.0, UIButton instanciado por opción
-```
- 
-**Mejoras post-Spike 3, Grupo 4 — layout B1.** Hasta este grupo, `SceneImage` vivía dentro del `VBoxContainer`, encima del texto, con `expand_mode` por defecto (`KEEP_SIZE`) — nunca se notó porque ninguna escena tenía `image_path` relleno, pero una imagen real habría reventado el panel (el tamaño mínimo de un `TextureRect` con `KEEP_SIZE` es el de su textura). El layout se eligió tras maquetar tres variantes; el cambio es solo de `.tscn` — el script sigue encontrando los tres nodos por nombre único. Una escena con `image_path` vacío muestra ahora la caja inferior con la exploración visible detrás (antes: panel centrado).
- 
-Estados del `NarrativeSceneViewModel`: `HIDDEN → SHOWING ↔ WAITING_ROLL → TRANSITIONING → HIDDEN` (`WAITING_ROLL` reservado, no se emite todavía — `SkillRoller.roll_skill()` es síncrono, sin ventana real de espera en Spike 1).
- 
-Contrato de datos (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `NarrativeSceneOutcome`, todos Resource en fichero propio, no clases internas): una opción sin `skill_id` resuelve directo por `outcome_default`; con `skill_id`, tira contra `Characters.get_skill_value(entity_id, skill_id) + roll_modifier` vía `SkillRoller.roll_skill()`, y el grado de resultado (`FUMBLE`/`FAILURE`/`SUCCESS`/`SPECIAL`/`CRITICAL` desde Spike 2) determina qué `NarrativeSceneOutcome` aplicar (con fallback: fumble→failure, special→success, critical→success si no están definidos). Un outcome puede: cerrar la escena, encadenar a otro `next_scene_id`, marcar un flag vía `Narrative.set_flag()`, disparar combate vía `GameLoop.start_combat(enemy_ids)`, u **otorgar un ítem** (Spike 3/B, ver abajo).
- 
-**Spike 3, Grupo B — `NarrativeSceneOutcome` extendido:**
-- `combat_encounter: CombatEncounterDefinition` (opcional, null por defecto) — se pasa directo a `start_combat()`, sustituye la necesidad de `configure_active_encounter()` para este caso.
-- `combat_enemy_definitions: Dictionary` (enemy_id → definition_id, mismo formato que `Interactable.enemy_definitions`) — necesario porque un combate disparado desde narrativa no tiene ningún `Interactable` del que leer este mapeo. Sin él, los enemigos nunca se registrarían en `CharacterSystem`/`ResourceSystem` antes de `start_combat()`.
-- `grant_item_id` / `grant_item_quantity` / `grant_item_target` — entrega puntual de un ítem, resuelto vía `Inventory.add_item()`. `grant_item_target` es configurable en el JSON (por defecto `"player"`), pensado para poder entregar a un companion.
-**Spike 3, Grupo D — `NarrativeSceneOutcome` extendido de nuevo:**
-- `grant_resource_id` / `grant_resource_amount` / `grant_resource_target` — "otorgar recurso", análogo a `grant_item_*` pero vía `Resources.add_resource()` en vez de `Inventory.add_item()`. Mismo criterio deliberadamente mínimo: un solo recurso por outcome, sin condiciones ni tabla de recompensas. Se resuelve en `_apply_outcome()` justo después de `grant_item_*`, con la misma independencia respecto a si el outcome también dispara combate o encadena escena.
-- **Bug real al integrar el patch:** la primera versión declaró `grant_resource_id`/`grant_resource_amount` pero no `grant_resource_target` como propiedad de la clase (se quedó solo el comentario) — `from_dict()` sí intentaba asignarla, y GDScript permite asignación dinámica sobre un `Resource` pero falla en tiempo de ejecución si la propiedad no existe como miembro declarado: `Invalid assignment of property or key 'grant_resource_target'`. Lección reutilizable: al añadir un campo nuevo a una data class por parches sucesivos, verificar que la declaración y el `from_dict()` viajan juntos en el mismo cambio — un error de este tipo no lo detecta el compilador si la asignación es sobre un objeto ya tipado como `Resource` genérico en el momento de la llamada.
-**Spike 13 — `NarrativeSceneOutcome` extendido de nuevo:**
-- `combat_victory_scene_id: String` (vacío por defecto) — escena narrativa a abrir al GANAR el combate de este outcome, en lugar de volver a `EXPLORATION`. Va en el outcome y no en `CombatEncounterDefinition` porque el encuentro puede ser `null` y el dato se perdería en silencio. `_apply_outcome()` lo pasa a `start_combat()` y avisa (`push_warning`) si la escena no existe.
-- `take_item_id` / `take_item_quantity` / `take_item_target` — quitar un ítem (devolver un préstamo). `Equipment.unequip_item()` primero y luego `Inventory.remove_item()`; si la entidad no lo tiene (vendido, ya devuelto) no es un error. Solo una entidad (`"player"` por defecto).
-**Mejoras post-Spike 3, Grupo 2 — `NarrativeSceneOutcome` extendido con diálogo:**
-- `dialogue_id: String` (vacío por defecto) — cuando está relleno, la opción abre `DialoguePanel` como sub-overlay encima del panel narrativo (mismo patrón que Inventory/Party/PlayerMenu de Grupo 3: hijo directo de `NarrativeScenePanel`, nunca vía `SceneOrchestrator`), llamando directamente a `Dialogue.start_dialogue(dialogue_id)` sobre el autoload — sin transición de `GameState`, se queda en `NARRATIVE_SCENE` durante toda la conversación.
-- `next_scene_id` del mismo outcome cambia de significado cuando `dialogue_id` no está vacío: deja de aplicarse al instante y pasa a ser la escena a la que avanzar **cuando se cierre el diálogo** — `NarrativeSceneViewModel.resume_after_dialogue()`, llamado por `NarrativeScenePanel` solo si el sub-overlay que se cerró era Diálogo (nuevo flag interno `_sub_overlay_is_dialogue`, distinto de Inventory/Party/PlayerMenu, que nunca disparan el reenganche).
-- Hallazgo crítico: `SceneOrchestrator._on_dialogue_ended()` escuchaba `EventBus.dialogue_ended` (global) y forzaba `enter_exploration()` sin condición — habría destruido la escena narrativa en curso al cerrar un diálogo abierto como sub-overlay. Corregido con guard: `current_game_state == GameState.DIALOGUE`.
-- Tres comprobaciones de código previas al diseño (paso obligado del spec): `GameState.DIALOGUE` no tiene ninguna dependencia real más allá de lo genérico (`is_input_blocked()` lo trata igual que `NARRATIVE_SCENE`); `DialogueSystem.start_dialogue()` es una llamada directa al autoload sin ninguna lectura de `GameState`, lo que hace viable el sub-overlay; y no existía ningún mecanismo de "combate desde diálogo" en el proyecto — confirmado también por la transcripción real de "Los Telmori", cuyo contenido candidato (diálogos con el sheriff) es puramente expositivo, así que combate-desde-diálogo queda fuera de alcance por ausencia de caso real.
-- Gating de opciones narrativas por flag (`required_flags`/`blocked_flags` en `NarrativeSceneOption`, como sí tiene `DialogueOptionDefinition`) se evaluó y se descartó — el diseño de `resume_after_dialogue()` no lo necesita.
-- Validado en partida real contra `sheriff_briefing` de "Los Telmori": apertura del sub-overlay, navegación por las tres ramas de pregunta sin perder el hub, cierre sin disparo indebido de `enter_exploration()`, reenganche automático a `telmori_equipment_arrows`. Ver `docs/mejoras_grupo2_dialogo_narrativa_informe_cierre.md` para el detalle completo.
-**Esquema JSON real, confirmado en Grupo C contra ejemplos reales de Grupo B** (útil documentarlo aquí porque no coincidía con lo que se había inferido solo de la descripción de arriba): raíz `scene_id`/`image_path`/`text_key`/`options[]`; opción `option_id`/`text_key`/`skill_id`/`roll_modifier`/`challenge_level`/`required_successes`/`retry_policy`/`group_aggregate`. Sin `skill_id` resuelve por `outcome_default`; con `skill_id`, ramas **planas** en la propia opción — `outcome_failure`/`outcome_success`/`outcome_special`/`outcome_critical` (sin `outcome_fumble` explícito — cae a `outcome_failure`, fallback ya documentado arriba). Cada outcome lleva `next_scene_id`, `flag_to_set` (string único con prefijo `flag.`, solo activa un flag, nunca lo desactiva), `combat_enemy_ids` (array de strings — quiénes están presentes al *empezar* el combate) y `combat_enemy_definitions` (diccionario `entity_id → definition_id` de *todo* lo que hay que registrar, inicial o de refuerzo). `combat_encounter`, cuando aparece, es un **diccionario inline dentro del propio outcome** — nunca una ruta a un `.tres` — con las claves de `CombatEncounterDefinition` (`morale_threshold_pct`, `reinforcement_trigger`, `reinforcement_delay_rounds`, `reinforcement_enemy_ids`, `reinforcement_definition_id`, `surprise_favors`, `surprise_vulnerable_pct`, y desde mejoras post-Spike 3, Grupo 4, `background_path`). No hace falta crear ningún recurso `CombatEncounterDefinition` aparte para contenido disparado desde una escena narrativa.
- 
-**Restricción real de `reinforcement_definition_id` (Grupo C):** es un único string, no un diccionario por entidad — todo un refuerzo sale de la misma `CharacterDefinition`, no admite mezclar tipos de enemigo en la misma oleada (a diferencia del roster *inicial*, que sí admite tipos mixtos vía `combat_enemy_definitions` normal). Si un contenido necesita refuerzo de tipos mixtos, hay que elegir entre extender el recurso a un diccionario (cambio de motor, no hecho todavía) o simplificar el contenido a un refuerzo homogéneo (la opción que tomó Grupo C).
- 
-`_apply_outcome()` en el ViewModel resuelve todo esto en orden: flag → otorgar ítem → **quitar ítem (Spike 13)** → otorgar recurso → si hay `dialogue_id`, abrir el diálogo y retorno temprano (`grant_*` ya se aplicaron; `next_scene_id` queda pendiente hasta cerrar el diálogo) → si hay combate, registrar enemigos (`_register_combat_enemies()`, réplica deliberada — no compartida — de la misma lógica en `ExplorationController`) y avisar a `CombatLootSpawner` antes de `start_combat()`.
- 
-Cierre desacoplado: `NarrativeSceneViewModel` no llama a `GameLoop` directamente al terminar una rama — emite `EventBus.narrative_scene_closed(scene_id)`, y `SceneOrchestrator._on_narrative_scene_closed()` decide volver a `EXPLORATION`. Mismo patrón que `dialogue_ended`/`shop_closed`. Cuando el outcome dispara combate, no hay paso intermedio por `EXPLORATION`: `GameLoop.start_combat()` acepta `NARRATIVE_SCENE` como estado de origen directamente.
- 
-Ver `docs/spike_1_motor_narrativo_informe_cierre.md` para el detalle completo del motor base, incluidas las lecciones de GDScript (self-reference por `class_name`, colisión de `SceneState` con clase nativa).
- 
-### ItemCharacterBridge — Aplicación de modificadores
- 
-El target de un modificador sigue el formato `tipo.id`:
-- `resource.health` → afecta el valor **actual** del recurso (no el máximo)
-- `attribute.strength` → modifica el atributo **base** del personaje
-- `skill.exploration.lockpick` → modifica el valor de la habilidad (el id puede contener puntos)
-Operaciones soportadas: `add`, `mul`, `override`.
- 
-Los ítems de tipo `EQUIPMENT` delegan a `EquipmentManager.toggle_equipment()` (equipa si no está equipado, desequipa si lo está) — este es el camino para cuando el **jugador** usa un ítem desde la UI. Para equipar por código (setup inicial, NPCs, etc.), `Equipment.equip_item(entity_id, item_id)` es directo y no exige que el ítem esté en el inventario (aunque añadirlo también, vía `Inventory.add_item()`, mantiene la coherencia si se desequipa más tarde).
- 
-Los libros de aprendizaje (`learning_data` en `ItemDefinition`: `skill_id`, `source_level`, `source_type`, y desde Spike 10 `initial_value` opcional) tienen dos caminos según si la entidad ya tiene la skill registrada: si la tiene, crean una `LearningSession` y delegan a `SkillProgression` (tirada de mejora); si no, la **primera lectura la enseña** (`Skills.learn_skill()` + valor inicial, sin tirada de mejora en esa lectura). `_apply_learning()` devuelve `bool`: si el aprendizaje no se pudo aplicar (`invalid_session`, `skill_locked`, `no_progression`, prerrequisitos sin cumplir) el ítem **no se consume** (`item_use_failed`); una tirada de mejora fallida sí lo consume, y `challenge_too_low` también (comportamiento previo, no tocado). Pueden tener también modificadores de recurso adicionales.
- 
-### Design System y patrón MVVM en UI
- 
-Ver `athelia_ui_architecture.md` — única fuente para componentes del
-Design System (`UIPanel`, `UIButton`, `UISlot`, `UIResourceBar`,
-`UIRadialGauge`, `UICombatToken`, marco decorativo, etc.) y para el
-patrón MVVM completo (contrato de ViewModel/View, antipatrones,
-referencia de pantallas existentes). Se eliminó la copia que vivía aquí
-para no mantener dos versiones del mismo contenido.
+`AdventureStarter.apply(DEFAULT_ADVENTURE_ID)` se llama una sola vez desde `CharacterCreationViewModel.request_confirm_character()`, tras `_create_player_entity()`: lee `data/adventures/<id>.json` (`schema_version`, `companions`, `starting_gear` por entidad), une companions (`Party.join_party`) y da y equipa el kit (`Inventory.add_item` + `Equipment.equip_item`). **No es idempotente a propósito** (`add_item` suma).
  
 ---
  
-### Input en combate — Godot 4.7
+## Skills — dos accesores de valores
  
-En Godot 4.7, `_input` en nodos del árbol principal tiene prioridad sobre `_unhandled_input` en nodos hijo de escenas aditivas. Todo el input de combate usa `_unhandled_input` para evitar que los eventos sean consumidos antes de llegar al `PlayerCombatController`.
+- **`CharacterState.skill_values`** (`Characters.get_skill_value()`/`list_known_skills()`): se inicializa desde `CharacterDefinition.starting_skill_values`. Es lo que leen combate y tiradas narrativas. `Characters.get_skill_value()` devuelve 0 para una skill fuera del kit.
+- **`SkillSystem._entity_skills`** (`Skills.get_skill_instance()`/`register_entity_skills()`): registro separado de un solo uso (`if _entity_skills.has(entity_id): return`), usado para desbloqueo y progresión.
+Si una skill aparece en `list_known_skills()` pero no está en `register_entity_skills()`, el síntoma es un aviso «Skill not found for entity» al terminar combate. Jugador y companions deben pasar `definition.skills` explícitamente (nunca una lista propia ni el array vacío, que registra el catálogo entero).
  
-El InputMap de combate usa estos nombres de action:
+**Skills fuera del kit:** `Skills.learn_skill(entity_id, skill_id)` crea la instancia si falta y la desbloquea con `unlock_skill()` (se siguen comprobando `prerequisite_requirements`; si falla, retira la instancia). El valor inicial lo fija `ItemCharacterBridge`: clave opcional `initial_value` en `learning_data`, por defecto `base_success_rate`, solo si la entidad no tenía ya un valor > 0. Curtido (`skill.exploration.tanning`) es el primer caso real.
+ 
+## ItemCharacterBridge
+ 
+Target de un modificador: `tipo.id` (`resource.health` → valor **actual**, no el máximo; `attribute.strength` → atributo **base**; `skill.exploration.lockpick` → valor de skill, el id puede contener puntos). Operaciones: `add`, `mul`, `override`.
+ 
+- `EQUIPMENT` delega a `Equipment.toggle_equipment()` (camino del jugador desde la UI). Para equipar por código, `Equipment.equip_item(entity_id, item_id)` es directo y no exige el ítem en el inventario. El puente emite `item_use_success` también al equipar.
+- **Libros de aprendizaje** (`learning_data`: `skill_id`, `source_level`, `source_type`, `initial_value` opcional): si la entidad tiene la skill, crea una `LearningSession` y delega en `SkillProgression` (tirada de mejora); si no, la primera lectura la enseña (`learn_skill()` + valor inicial, sin tirada). `_apply_learning()` devuelve `bool`: si no se aplicó (`invalid_session`, `skill_locked`, `no_progression`, prerrequisitos) el ítem **no se consume** (`item_use_failed`); una tirada de mejora fallida sí lo consume, y `challenge_too_low` también.
+- `ItemDefinition.item_type` es un enum cerrado: `CONSUMABLE`/`EQUIPMENT`/`MISC` (el botín/trofeo sin mecánica es `MISC`).
+---
+ 
+## Motor narrativo (`core/narrative_scenes/` + `ui/narrative_scene/`)
+ 
+MVVM estándar (ver `athelia_ui_architecture.md` para la pantalla). Estados del ViewModel: `HIDDEN → SHOWING ↔ WAITING_ROLL → TRANSITIONING → HIDDEN` (`WAITING_ROLL` reservado, no se emite). Sin sistema runtime propio: el progreso de una escena vive en `NarrativeSceneViewModel`.
+ 
+**Contrato de datos** (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `NarrativeSceneOutcome`, cada uno un `Resource` en fichero propio). Una opción sin `skill_id` resuelve por `outcome_default`; con `skill_id` tira contra `Characters.get_skill_value(entity_id, skill_id) + roll_modifier` y el grado decide el outcome, con fallback fumble→failure, special→success, critical→success.
+ 
+**Esquema JSON real:**
+- Escena: `scene_id`, `image_path` (validado al cargar con `push_warning`), `text_key`, `options[]`.
+- Opción: `option_id`, `text_key`, `skill_id`, `roll_modifier`, `challenge_level` (0 = sin progresión; >0 engancha a `SkillProgression` con `SourceType.NARRATIVE`, solo en éxito), `required_successes`/`retry_policy` (`"immediate"`/`"blocked"`; una pifia siempre transiciona), `group_aggregate` (`""`/`"worst"`/`"best"`). El contador de racha vive en el ViewModel. La oposición se codifica en `roll_modifier`, sin tabla de resistencia. Ramas planas: `outcome_failure`/`outcome_success`/`outcome_special`/`outcome_critical` (sin `outcome_fumble`).
+- Outcome: `next_scene_id`, `flag_to_set` (un único flag, prefijo `flag.`; solo activa), `combat_enemy_ids` (presentes al inicio), `combat_enemy_definitions` (`entity_id → definition_id` de todo lo que hay que registrar, inicial o de refuerzo), `combat_encounter` (diccionario **inline** con las claves de `CombatEncounterDefinition`, nunca una ruta a `.tres`), `combat_victory_scene_id`, `dialogue_id`, `grant_item_*`, `take_item_*`, `grant_resource_*`.
+**Orden de `_apply_outcome()`:** flag → otorgar ítem → quitar ítem → otorgar recurso → si hay `dialogue_id`, abrir diálogo y **retorno temprano** (los `grant_*` ya se aplicaron) → si hay combate, registrar enemigos (`_register_combat_enemies()`) y avisar a `CombatLootSpawner` antes de `start_combat()` → `next_scene_id`. Todo `grant_*` deja una línea de log.
+ 
+- **`grant_item_*`**: `Inventory.add_item()`, `grant_item_target` por defecto `"player"`.
+- **`take_item_*`**: `Equipment.unequip_item()` y luego `Inventory.remove_item()`; si la entidad no lo tiene no es error; busca el ítem primero en `take_item_target` (`"player"` por defecto) y, si no lo tiene, en el resto de la party (`_take_item_from_party()`), desequipando y retirando donde lo encuentre (Spike 19b).
+- **`grant_resource_*`**: `Resources.add_resource()`; un recurso por outcome.
+- **`dialogue_id`**: abre `DialoguePanel` como sub-overlay llamando a `Dialogue.start_dialogue()`, sin transición de `GameState`. `next_scene_id` pasa a significar «escena a la que avanzar al cerrar el diálogo» (`resume_after_dialogue()`). El diálogo solo conversa: las entregas van en el outcome que lo abre, antes del diálogo.
+- **`combat_victory_scene_id`**: se pasa a `start_combat()`; al ganar se abre esa escena en vez de volver a `EXPLORATION`. Huir devuelve al pueblo.
+- **Registro de enemigos:** `NarrativeSceneViewModel` y `ExplorationController` pre-registran `Characters`/`Resources` para enemigos pero **nunca `Skills`**; `combat_production_scene.gd` registra Skills con guard idempotente para el roster inicial y los refuerzos.
+- **Retorno desde combate:** hoy se hace con `combat_victory_scene_id` (encadenado directo). El patrón antiguo (spawnear un `Interactable` tras `combat_ended`) está obsoleto.
+**Datos por aventura:** personajes e ítems propios en subcarpeta de la aventura (`data/characters/telmori/`, `data/items/telmori/`), salvo ítems de arma con ranura, que se agrupan por tipo (`data/items/weapons/<slot>/`). Localización en un CSV propio por aventura (`_telmori.csv`). Los diálogos llevan prefijo `dlg_` (un diálogo y una escena con el mismo nombre en carpetas distintas se pisan al copiar).
+ 
+---
+ 
+## Diálogo
+ 
+- `DialogueNodeDefinition.mood` (por nodo, por defecto `"neutral"`); `DialogueDefinition.portrait_folder` y `background_id` (opcionales, con respaldo: vacíos, el comportamiento es el anterior). Fondo: `res://data/dialogue/backgrounds/<portrait_folder>/<background_id>.png`, con respaldo al genérico de la aventura.
+- `EventBus.dialogue_node_shown` lleva 7 argumentos (`portrait_id`, `mood`, `portrait_folder`, `background_id`, …). GDScript descarta los de más si el callback acepta menos.
+- `DialogueOptionDefinition.triggers_save` (ver «Guardado»). Los eventos narrativos se disparan desde `narrative_events` de la opción, no desde el `trigger_type: DIALOGUE_END` del evento (no hay código que consuma `dialogue_ended` para eso).
+- `DialogueRegistry._load_option_from_dict()` asigna campo a campo: un campo nuevo en el JSON no se lee solo.
+---
+ 
+## Combate — entrada y arena
+ 
+Los nombres de acción del InputMap de combate (`_unhandled_input`, no `_input`, para no perder prioridad frente a nodos de escenas aditivas):
  
 | Action | Tecla | Skill |
-|--------|-------|-------|
+|---|---|---|
 | `combat_attack_1` | 1 | `skill.attack.light` |
 | `combat_attack_2` | 2 | `skill.attack.heavy` |
 | `combat_attack_3` | 3 | `skill.attack.stunning_blow` |
 | `combat_dodge` | Q | `skill.combat.dodge` |
 | `combat_defense` | E | `skill.combat.defend` |
-| `combat_scape` | R | `skill.combat.flee` |
+| `combat_scape` | R | `skill.combat.flee` (el nombre real es `scape`, no `escape`) |
 | `cycle_target` | Tab | — |
  
-### Input en exploración — Quickload (F9) y atajo de desarrollo (F2)
- 
-Mismo patrón de bug que en combate (`_input` bloqueado por prioridad en Godot 4.7): `player.gd` (script de una fase muy temprana del proyecto) tenía la lógica de `quicksave`/`quickload` en `_input()`, pero ese script ya no está en el árbol de ninguna escena activa — el nodo `Player` real usa `PlayerExploration` (`scenes/exploration/player_exploration.gd`). La lógica se movió a `ExplorationController._unhandled_input()`, que ya gestionaba el resto del input de exploración (`interact`, `open_inventory`, `open_party`, `open_player_menu`) correctamente.
- 
-**Mejoras post-Spike 3, Grupo 1 — F5 retirado por completo.** Guardar deja de ser una hotkey libre en `EXPLORATION`: la única vía es seleccionar una opción de diálogo marcada `triggers_save` en NPCs concretos, dentro de una escena narrativa (ver sección de Grupo 1 más abajo). F9 (quickload) sin restricción de estado de origen — comportamiento revisado en el Spike 7 (ver bug conocido más abajo): `ExplorationController._quickload()` ya no carga en caliente sobre la sesión activa; marca la intención en `SaveManager` (`request_pending_quickload()`, autoload, sobrevive a la recarga) y libera explícitamente el `ExplorationScene` viejo antes de `get_tree().reload_current_scene()`. `MainMenuViewModel._ready()` consume ese flag (`consume_pending_quickload()`) y dispara `request_load_game()` — el mismo camino que "Cargar Partida" desde el menú, sin ninguna rama de lógica nueva. Pese a este reenfoque, la funcionalidad queda NO OPERATIVA por un segundo bug sin resolver — ver más abajo.
- 
-**Nuevo en el mismo grupo — atajo de desarrollo (F2).** Tecla de debug, keycode crudo (sin InputMap) detrás de `OS.is_debug_build()` desde el primer commit — misma disciplina que evitó que F1 (Spike 1) se quedara viva en producción. Lee `user://debug_shortcut.json` en cada pulsación (no cacheado en `_ready()`), aplica `Narrative.set_flag()` por cada entrada de `"flags"` y `Characters.set_skill_value("player", skill_id, value)` por cada entrada de `"skills"`. Se comprueba **antes** del guard `is_input_blocked()`, deliberadamente — funciona en cualquier `GameState`, para poder forzar un tramo concreto durante una prueba sin depender de dónde esté la partida. Mecanismo aparte del guardado real: nunca toca `SaveManager`/`SaveData`, es mutación directa en memoria de la sesión ya arrancada.
- 
-`player.gd`/`player.tscn` (`scenes/player/`) no se usan en ninguna escena activa, pero **su limpieza queda aparcada**: `test/test_shop_ui.gd` sigue cargando `player.tscn` como andamiaje. No se tocan hasta una revisión general de la carpeta `test/`.
- 
-**Spike 7 — F9 (quickload) en sesión activa: cerrado sin arreglo, NO OPERATIVO.** El síntoma original de este párrafo (bloqueo total de input) no se reprodujo tal cual tras el pivote narrativo — resultó ser un bug distinto: F9 en `EXPLORATION` cargaba los datos del save pero no consumía `SaveManager.get_pending_narrative_scene_id()`, así que no llevaba al jugador al punto narrativo correcto (arreglado, ver más abajo). Ese arreglo destapó un segundo bug que sí quedó sin resolver: tras F9 en una sesión que acaba de pasar por combate, el panel narrativo correcto se abre con normalidad pero su botón de opción no responde a clics (ni hover, ni `_input()`, sin ningún rastro en Output) — solo ocurre viniendo de sesión activa, nunca desde "Cargar Partida" en el menú. Investigación extensa (GameState, árbol pausado, ratón capturado, `mouse_filter`, nodos residuales, `mouse_passthrough`, autoloads con `_input()`) descartó todo lo investigable sin dar con la causa. Hallazgo real y sólido de camino: `ExplorationScene` y sus overlays viven como hermanos de `current_scene` bajo `get_tree().root` (no como hijos) — `get_tree().reload_current_scene()` no los toca, así que una "recarga limpia" no lo era (el `ExplorationScene` viejo, con todo el estado de la sesión de combate, sobrevivía intacto). Corregido liberándolo explícitamente antes de recargar, pero el bug de fondo persistió incluso así. **Decisión: F9/quickload en sesión activa queda no operativo** (pendiente decidir si se retira la hotkey del todo); "Cargar Partida" desde el menú no está afectada. Ver `docs/spike_7_f9_quickload_exploration.md` para el detalle completo de la investigación.
- 
-**Spike 1 Motor Narrativo añadió F1** como tecla de debug temporal en `_unhandled_input()` para disparar `GameLoop.enter_narrative_scene("test_intro")` — retirada en Spike 3, Grupo A junto con `_debug_test_narrative_scene()` y las escenas de prueba asociadas.
- 
-- **Spike 12 — el atajo F2 lee `user://debug_shortcut.json`, NO la raíz del proyecto.** En Windows `user://` es `%APPDATA%\Godot\app_userdata\<config/name>\`; un `debug_shortcut.json` junto a `project.godot` da `Debug shortcut: file not found at user://debug_shortcut.json`. Ese warning prueba que la tecla SÍ llega (el keycode crudo `KEY_F2` no necesita alta en el InputMap) y solo falla el fichero. En el editor: Proyecto → Abrir carpeta de datos de usuario.
+- `PlayerCombatController` (grupo `"player_combat_controller"`) es el **único dueño del targeting** (auto-target en `_on_combat_started()`, ciclado con Tab) y del despacho de `player_action_requested` (`request_skill()`).
+- El menú del jugador son **8 slots** (3 ataque configurables + 3 defensivas fijas + 2 ítems); el `LoadoutState` del jugador debe asignarse desde la pantalla de Loadout, o los botones salen sin nombre.
+- `CombatArenaViewModel` compone a `CombatHudViewModel` y se conecta a `Resources.resource_changed` directamente. `EnemyAI`/`CompanionAI` son `Node` sin dependencia de nodo padre; los instancia `combat_production_scene.gd`. `EnemyCombatNode` ya no se usa en producción.
+- **Tiradas y daño:** `SPECIAL` aplica `special_multiplier` (×1.2) vs crítico (×2); en progresión cuenta como éxito sin tick diferenciado. No hay modificador multiplicativo de combate (decisión explícita: sin caso de uso real).
+- **Cuidado al extender enums:** un `match` sin rama `_:` y un array indexado por enum no avisan si el enum crece; hay que revisar todos sus consumidores.
+- `combat_resolver.gd` fue eliminado (código muerto).
 ---
  
-## Arquitectura archivada (sistemas superados)
+## Nota de convenciones
  
-Las arquitecturas de `exploration_tutorial`, del pueblo de "Los Telmori"
-pre-Spike 13 (`exploration_telmori_village`), y de los dos patrones de
-reconexión narrativa que dependían de `Interactable` físico, quedaron
-superadas por el motor de escenas interactivas (Spike 12) y su aplicación
-real al pueblo (Spike 13). Su descripción completa, por valor
-arqueológico, vive en `athelia_historial_spikes.md`.
- 
----
- 
-## Notas de convenciones
- 
-Ver `athelia_lecciones_tecnicas.md` — lista completa de convenciones y
-lecciones técnicas reutilizables, con su spike de origen.
- 
-## Estructura de carpetas
- 
-Ver `athelia_estructura_carpetas.md` — árbol completo de carpetas y
-ficheros del proyecto.
- 
-## Historial de spikes
- 
-Ver `athelia_historial_spikes.md` — resumen narrativo de cada spike
-(Spike 1 en adelante) y el changelog cronológico completo.
+Ver `athelia_lecciones_tecnicas.md`. Estructura de carpetas: `athelia_estructura_carpetas.md`. Historial de spikes: `athelia_historial_spikes.md`.

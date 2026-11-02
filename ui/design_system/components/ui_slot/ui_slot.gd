@@ -92,6 +92,14 @@ const DASH_GAP: float = 4.0
 ## arrastre para que quien reciba el drop sepa de dónde viene. Vacío = sin dueño.
 @export var owner_id: String = ""
 
+## Spike 19b: si true, rechaza drops cuyo owner_id coincida con el suyo (no se
+## puede soltar en la propia mochila). Apagado por defecto.
+@export var drop_exclude_owner: bool = false
+
+## Spike 19b: si true, durante un arrastre el slot resalta su borde cuando
+## aceptaría el drop. Apagado por defecto.
+@export var highlight_drop_targets: bool = false
+
 ## Color del borde en reposo (Color.TRANSPARENT = el del estado). Lo pasa la View.
 @export var border_color_override: Color = Color.TRANSPARENT:
 	set(value):
@@ -136,6 +144,7 @@ var _equipped_mark: bool = false
 var _hovered: bool = false
 var _overflow: bool = false
 var _pressed: bool = false
+var _drop_hint: bool = false
 
 static var _placeholder_texture: Texture2D = null
 static var _warned_missing_placeholder: bool = false
@@ -343,6 +352,11 @@ func _apply_state_style() -> void:
 		bg_color     = UITokens.COLOR_SLOT_HOVER
 		border_color = UITokens.COLOR_SLOT_HOVER_BORDER
 
+	# Spike 19b: destino válido de un arrastre en curso
+	if _drop_hint and not _selected:
+		border_color = UITokens.COLOR_ACCENT
+		border_width = UITokens.BORDER_WIDTH_FOCUS
+
 	# Padding 0: el margen interior lo da el nodo Content, y Overlay debe
 	# cubrir el slot entero para colocar cantidad, etiqueta y marca.
 	add_theme_stylebox_override("panel",
@@ -418,6 +432,19 @@ func _mouse_exited() -> void:
 	_apply_state_style()
 
 
+## Spike 19b: resalta los destinos válidos mientras dura un arrastre
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_BEGIN:
+		if highlight_drop_targets and is_visible_in_tree():
+			var data: Variant = get_viewport().gui_get_drag_data()
+			_drop_hint = data != null and _can_drop_data(Vector2.ZERO, data)
+			_apply_state_style()
+	elif what == NOTIFICATION_DRAG_END:
+		if _drop_hint:
+			_drop_hint = false
+			_apply_state_style()
+
+
 # ============================================================
 # DRAG & DROP
 # ============================================================
@@ -454,6 +481,8 @@ func _can_drop_data(_pos: Vector2, data: Variant) -> bool:
 	if not payload.has("item_id"):
 		return false
 	if not drop_source_filter.is_empty() and str(payload.get("source", "")) != drop_source_filter:
+		return false
+	if drop_exclude_owner and not owner_id.is_empty() and str(payload.get("owner_id", "")) == owner_id:
 		return false
 	return true
 

@@ -363,15 +363,7 @@ func _apply_outcome(outcome: NarrativeSceneOutcome) -> void:
 	# al pulsar la opción, antes del retorno temprano de dialogue_id. Se desequipa
 	# primero y luego se retira del inventario; si no lo tiene, no es un error.
 	if not outcome.take_item_id.is_empty():
-		Equipment.unequip_item(outcome.take_item_target, outcome.take_item_id)
-		if Inventory.has_item(outcome.take_item_target, outcome.take_item_id, 1):
-			var item_taken: bool = Inventory.remove_item(outcome.take_item_target, outcome.take_item_id, outcome.take_item_quantity)
-			if item_taken:
-				print("[NarrativeSceneViewModel] Item taken: %s x%d ← %s" % [outcome.take_item_id, outcome.take_item_quantity, outcome.take_item_target])
-			else:
-				push_warning("[NarrativeSceneViewModel] Inventory.remove_item() falló: %s x%d ← %s" % [outcome.take_item_id, outcome.take_item_quantity, outcome.take_item_target])
-		else:
-			print("[NarrativeSceneViewModel] take_item: %s no está en el inventario de %s — nada que quitar" % [outcome.take_item_id, outcome.take_item_target])
+		_take_item_from_party(outcome.take_item_target, outcome.take_item_id, outcome.take_item_quantity)
 
 	# Spike 3, Grupo D — otorgar recurso: mismo criterio que otorgar ítem.
 	if not outcome.grant_resource_id.is_empty():
@@ -453,3 +445,28 @@ func _close() -> void:
 	current_node = null
 	changed.emit("closed")
 	EventBus.narrative_scene_closed.emit(closing_scene_id)
+
+## Spike 19b (16c): quita un ítem al objetivo y, si no lo tiene, a quien lo tenga
+## en el grupo (la lanza prestada puede estar en la mochila o el equipo de un
+## compañero). Desequipa donde lo encuentre y deja una línea de log.
+func _take_item_from_party(target_entity: String, item_id: String, quantity: int) -> void:
+	var holder: String = ""
+	if Inventory.has_item(target_entity, item_id, 1):
+		holder = target_entity
+	else:
+		for member in Party.get_party_members():
+			var member_id: String = str(member)
+			if Inventory.has_item(member_id, item_id, 1):
+				holder = member_id
+				break
+
+	if holder.is_empty():
+		print("[NarrativeSceneViewModel] take_item: %s no está en el grupo — nada que quitar" % item_id)
+		return
+
+	Equipment.unequip_item(holder, item_id)
+	var item_taken: bool = Inventory.remove_item(holder, item_id, quantity)
+	if item_taken:
+		print("[NarrativeSceneViewModel] Item taken: %s x%d ← %s" % [item_id, quantity, holder])
+	else:
+		push_warning("[NarrativeSceneViewModel] Inventory.remove_item() falló: %s x%d ← %s" % [item_id, quantity, holder])

@@ -1,142 +1,171 @@
 # Athelia — Lecciones técnicas y convenciones
  
-Convenciones de nombrado/organización y lecciones de motor reutilizables,
-cada una con su spike de origen entre paréntesis. Para el relato completo
-de cada spike, ver `athelia_historial_spikes.md`.
+Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indica el spike de origen entre paréntesis (el relato completo está en `athelia_historial_spikes.md`).
+ 
+**Lo que ya está en otros ficheros no se repite aquí:** los antipatrones de UI (autorreferencia por `class_name`, `SceneState`, `closed` frente a `tree_exiting`, razón de `changed()` sin consumidor, panel sin tamaño fijo, `TextureRect` con `expand_mode`, contorno sobre imagen, `PanelContainer` que apila hijos, validar antes de mover, `owner_id` en el arrastre, etc.) están en `athelia_ui_architecture.md`.
  
 ---
  
-## Notas de convenciones
+## Las 15 que más evitan errores
  
-- Los ficheros `*_bak.gd` y `*_bak.tscn` son backups de versiones anteriores, no están en uso activo.
-- Los ficheros `.gd.uid` son metadatos de Godot, no contienen lógica.
-- Los `_definition.gd` son Resources estáticos (datos). Los `_state.gd` son Resources dinámicos (runtime). Los `_system.gd` son los sistemas lógicos (autoloads o managers).
-- La carpeta `test/` contiene tests unitarios y de integración, no se usa en producción.
-- La carpeta `debug/` contiene herramientas de debug no activas en builds de producción.
-- La localización cubre ES y EN con ficheros `.csv` compilados a `.translation`. Los `.csv` se registran en Project Settings → Localization → Translations; Godot genera los `.translation` automáticamente al recargar el proyecto.
-- Todas las cadenas visibles en UI deben tener su clave en los `.csv` de localización. Nunca hardcodear texto en `.tscn` ni en scripts.
-- Los `.tres` son Resources binarios de Godot; los `.json` son datos legibles para narrativa/diálogos/escenas narrativas.
-- **Main Scene del proyecto:** `res://ui/main_menu/main_menu_screen.tscn`
-- **Autoreferencia por `class_name`:** un script con `class_name X` nunca debe llamar `X.new()` dentro de sí mismo (p. ej. en un factory `from_dict()` estático) — GDScript no lo resuelve de forma fiable y provoca fallos de compilación en cascada que además rompen la resolución del tipo desde otros ficheros. Usar `new()` a secas.
-- **Nombres de enum reservados:** nunca nombrar un enum propio `SceneState` — colisiona con una clase nativa del motor.
-- **Datos específicos de una aventura (Spike 3, Grupo B):** personajes e ítems propios de una aventura concreta van en su propia subcarpeta por aventura (`data/characters/telmori/`, `data/items/telmori/`), no planos en la raíz de su categoría — salvo ítems de tipo arma con ranura, que se agrupan por tipo de arma por encima de la aventura (`data/items/weapons/<slot>/`). Skills se quedan sin carpeta de aventura al ser categorías generales. Mismo criterio para localización: un CSV propio por aventura (`_telmori.csv`) en vez de añadir al fichero general de la categoría.
-- **Kit fijo de skills, siempre desde la `CharacterDefinition`:** nunca duplicar la lista de skills iniciales de una entidad en el código que la registra (ViewModel, PartyManager...) — leer siempre `definition.skills` en el momento de registrar. Una copia paralela se desincroniza en cuanto se edita el `.tres` sin acordarse de la copia.
-- **Un listener de reconexión narrativa tras combate debe desconectarse al completar su arco (Spike 3, Grupo C):** `EventBus.combat_ended` es global — un listener que solo comprueba un flag permanente + "¿existe ya el nodo?" no protege contra combates futuros no relacionados una vez el nodo se retira. Desconectar el listener en el mismo punto donde se limpia el interactuable que gestiona.
-- **Limpiar un interactuable de reconexión se engancha a `EventBus.narrative_flag_set`, no a `narrative_scene_closed` (Spike 3, Grupo C):** una escena que encadena internamente a otra vía `next_scene_id` no cierra el panel ni emite `narrative_scene_closed` con su propio `scene_id` — el flag que la rama de éxito pone es la señal fiable, independiente de cómo encadene el panel por dentro.
-- **`reinforcement_definition_id` no admite tipos mixtos (Spike 3, Grupo C):** un refuerzo entero sale de una única `CharacterDefinition` — si el contenido necesita mezclar tipos de enemigo en la misma oleada, hay que elegir entre extender el recurso a un diccionario o simplificar el contenido a un refuerzo homogéneo.
-- **Un campo nuevo en una data class necesita declaración + `from_dict()` en el mismo cambio (Spike 3, Grupo D):** un patch que añade la asignación en `from_dict()` pero pierde la declaración de la variable (o viceversa) no falla en compilación — falla en runtime con "Invalid assignment of property or key" en cuanto se carga el primer JSON que use ese campo. Revisar ambas partes juntas al integrar un patch, no solo la que cambió visiblemente.
-- **Un listener de reconexión narrativa disparado por flag (sin combate de por medio) también necesita su propia limpieza (Spike 3, Grupo D):** el riesgo no es "contenido resucitado" (la lección de Grupo C) sino reentrada — un interactuable de recompensa sin retirar permite repetir la entrega de oro/ítems sin límite. Mismo mecanismo de solución (segundo listener de `narrative_flag_set` para el flag de cierre del arco), riesgo distinto.
-- **`SkillSystem`/`ItemRegistry` escanean `data/skills/`/`data/items/` recursivamente; `ResourceSystem` no** (Spike 3, Grupo D): antes de añadir un tipo de recurso nuevo (no una skill ni un ítem), comprobar `ResourceSystem._load_resource_definitions()` — su lista de IDs es hardcodeada (`["health", "stamina", "gold"]`), a diferencia de los otros dos catálogos.
-- **`ItemDefinition.item_type` es un enum cerrado, sin tipo "genérico decorativo" (Spike 3, Grupo D):** `CONSUMABLE`/`EQUIPMENT`/`MISC` únicamente. Un ítem de botín/trofeo sin mecánica (no se usa, no se equipa) es `MISC`, no `CONSUMABLE` con `usable = false`.
-- **Un overlay/subpantalla anidable siempre expone su propia señal `closed`, nunca depende de `tree_exiting` (mejoras post-Spike 3, Grupo 3):** ninguna pantalla del proyecto se auto-libera (`queue_free()`) en su propio camino de cierre — todas solo hacen `visible = false`. Quien la instancia como subpantalla/sub-overlay debe escuchar una señal `closed` explícita y hacer `queue_free()` él mismo; confiar en `tree_exiting` deja el contenedor esperando una señal que nunca llega, con el síntoma de una UI que se queda colgada sin volver atrás (indistinguible de un crash desde fuera, sin ninguna excepción real del motor).
-- **Un `_unhandled_input()` que dispara overlays fuera del propio `ExplorationController` necesita el mismo guard de `GameLoop.is_input_blocked()` (mejoras post-Spike 3, Grupo 3):** cualquier segundo punto de entrada de input (como `ExplorationHUD`) que llame directamente a `SceneOrchestrator` sin ese guard procesará el evento aunque el `GameState` no sea `EXPLORATION` — inofensivo si el propio método de destino ya bloquea la llamada, pero genera ruido y es una inconsistencia real frente al resto de handlers de input del proyecto.
-- **Una señal global de cierre puede forzar una transición de estado que destruya un contexto anidado activo (mejoras post-Spike 3, Grupo 2):** `SceneOrchestrator._on_dialogue_ended()` escuchaba `EventBus.dialogue_ended` de forma incondicional y forzaba `enter_exploration()` — si el diálogo se abre como sub-overlay desde otro contexto (aquí, `NARRATIVE_SCENE`), esa misma señal global habría destruido el contexto anidado. Cualquier señal de cierre "global" necesita guard explícito por el `GameState` de origen si algo puede abrir esa misma pantalla como sub-overlay desde otro sitio.
-- **No asumir que un catálogo de datos nuevo escanea subcarpetas recursivamente solo porque otros catálogos del proyecto lo hacen (mejoras post-Spike 3, Grupo 2):** `SkillSystem`/`ItemRegistry` recursan de verdad (Spike 3, Grupo D); `ResourceSystem` no (lista hardcodeada, también Grupo D); y `DialogueRegistry` tampoco lo hacía hasta este grupo — listaba `data/dialogue/` con `DirAccess`/`list_dir_begin()` sin bajar a subcarpetas, rompiendo en silencio la convención por-aventura al adoptarla por primera vez para diálogo. Comprobar el `_load_*_from_json()` real de cada registry, caso por caso, antes de asumirlo.
-- **No asumir que "la entidad ya está registrada" cubre Skills solo porque cubre Characters/Resources (Grupo 5):** `NarrativeSceneViewModel`/`ExplorationController` pre-registran Characters/Resources para enemigos de combate, pero nunca Skills — cualquier pieza nueva que asuma "ya está todo listo" antes de `start_combat()` debe comprobar los tres registros por separado, no dar por hecho que van juntos.
-- **Una escena de prueba nueva necesita un nombre de fichero (`.gd` Y `.tscn`) que no coincida con ninguno usado por una escena de producción real (Grupo 5):** sobrescribir por error el script o la estructura de nodos de una escena de producción real (`combat_test.tscn`, apuntada por `SceneOrchestrator.SCENE_COMBAT`) la deja rota hasta que se restaura desde control de versiones. Nombrar explícitamente distinto desde el principio (`combat_production_scene.gd`, no `combat_test_scene.gd`) evita el problema de raíz.
-- **Un nodo `Control` vacío sin `_draw()` no se ve, aunque su posición/anchors estén bien** (Grupo 5): tanto la primera vez que una sección de layout se quedó con el tamaño por defecto del editor (40×40, esquina superior-izquierda) como la línea divisoria entre columnas de la arena de combate (`Control` sin script) fallaron por el mismo motivo — un `Control` sin contenido ni `_draw()` propio simplemente no pinta nada, por bien colocado que esté.
-- **Reenviar la señal de un autoload a `EventBus` depende de cuántos consumidores reales tiene, no de cuál motivó el hallazgo (Spike 5):** `Find in Files` sobre `EventBus.resource_changed` reveló dos consumidores reales, no uno — reconectar solo el que se detectó primero (`combat_hub_viewmodel.gd`) habría dejado el segundo (`player_menu_viewmodel.gd`) sin arreglar. Con más de un consumidor real, el puente centralizado en el punto de emisión es la opción correcta; con uno solo, la reconexión directa (mismo patrón que `CombatArenaViewModel`) habría sido más simple. Confirmar el número de consumidores reales antes de elegir el mecanismo.
-- **Un campo nuevo en un data class no se lee solo por añadirlo al JSON de contenido, si el registry construye cada campo explícitamente (mejoras post-Spike 3, Grupo 1):** `DialogueRegistry._load_option_from_dict()` asigna `id`/`text_key`/`next_node_id`/etc. uno a uno, sin mapeo genérico de claves — añadir `triggers_save` al JSON sin tocar también el registry se habría ignorado en silencio, sin error ni warning. Comprobar siempre el registry/parser real de un dato, no asumir que "está en el JSON" basta.
-- **Una transición de `GameState` que nunca se había necesitado puede fallar en silencio (mejoras post-Spike 3, Grupo 1):** `enter_narrative_scene()` llamado desde `MENU` (camino nuevo, antes inexistente) caía en `_can_transition_state() == false` → `push_warning()`, no `push_error()` — fácil de perder en la consola, y sin ningún otro síntoma más que "no pasa nada" en el juego. Cualquier transición de `GameState` nueva (no solo las del código que se está escribiendo) debe verificarse contra `VALID_STATE_TRANSITIONS`, no darse por hecho porque el estado de destino ya existe.
-- **Instanciar una escena tarde puede desconectar listeners de continuación que dependen de que existan ANTES de un evento concreto (mejoras post-Spike 3, Grupo 1):** un `EventBus.combat_ended` (u otra señal cualquiera) emitido antes de que su listener se conecte se pierde sin rastro — no hay cola ni replay. Cualquier camino nuevo que permita llegar a un punto del juego (aquí, un combate) sin pasar por la instanciación habitual de una escena puede dejar huérfanos a listeners que esa escena registra en su propio `_ready()`.
-- **Corregir un orden de instanciación puede exponer una trampa de reentrada en código que llevaba tiempo sin tocarse (mejoras post-Spike 3, Grupo 1):** un guard de tipo `if current_game_state != X: transicionar_a(X)`, escrito pensando solo en "arrancar la escena sola", puede disparar una transición real e inesperada si esa misma escena se instancia ahora en un momento distinto al que el guard asumía — en este caso, en mitad de la apertura de otro estado (`NARRATIVE_SCENE`), cerrándolo justo después de abrirlo. La condición correcta era más estricta (`== MENU`, el único caso real que el guard necesitaba cubrir) que la que llevaba tiempo en el código (`!= EXPLORATION`).
-- **Un campo de nombre "para entidades sin necesidad de él" (Spike 8):** `CharacterState.character_name` solo se rellena para el jugador (Character Creation) o vía `load_save_state()` — su propio docstring ya avisaba de que queda vacío para "enemigos, companions con nombre fijo en su definición", pero nada en el proyecto implementaba de verdad ese fallback a `CharacterDefinition.name_key`. Un comentario que documenta el caso vacío no es lo mismo que código que lo resuelve — comprobar ambos por separado antes de asumir que un campo "vacío a propósito" tiene también su ruta de fallback cubierta.
-- **Redimensionar un `Control` cuyo contenido usa desplazamientos en píxeles fijos rompe su layout interno (Spike 8):** `UICombatToken` ancla sus hijos (`TokenVisual`, `HpValueLabel`...) con offsets absolutos calculados para un lienzo exacto de 96×144 — forzar un `.size` real menor vía `custom_minimum_size` descoloca ese contenido (iconos incluidos) en vez de reescalarlo. Arreglo: un `Control` envoltorio es lo que el `Container` redimensiona de verdad; el componente en sí se encoge solo visualmente con `.scale`, sin tocar su propio tamaño real. Ver antipatrón nuevo en `athelia_ui_architecture.md`.
-- **Dos caminos para construir el mismo evento divergen — uno gana, el otro se queda incompleto (Spike 8):** `combat_arena_panel.gd` construía su propio `action_data` para `player_action_requested` en vez de llamar a `PlayerCombatController.request_skill()`, el único sitio del proyecto que resuelve el target actual — la copia manual nunca incluía `"target"`. Cualquier punto de entrada nuevo a un despacho ya resuelto en otro sitio debe llamar a su API pública, nunca reconstruir el mismo estado por su cuenta.
-- **El orden de conexión entre dos nodos distintos a la misma señal no está garantizado (Spike 8):** el auto-target de `PlayerCombatController._on_combat_started()` (emitido en el mismo instante que `combat_started`) se perdía visualmente si se ejecutaba antes que `CombatArenaViewModel._on_combat_started()` — las fichas aún no existían para recibir la marca de "objetivo". Un consumidor que necesita el estado ya resuelto de otro nodo en el mismo instante de un evento compartido debe consultarlo directamente (`get_current_target()`), no fiarse de recibir también su señal derivada a tiempo.
-- **`get_tree().reload_current_scene()` no destruye nodos añadidos directamente a `get_tree().root` (Spike 7):** `SceneOrchestrator` instancia `ExplorationScene` y todos sus overlays (`NarrativeScenePanel`, `CombatHud`...) como hermanos de `current_scene` bajo `root`, no como hijos suyos — un `reload_current_scene()` solo recrea `current_scene` (`MainMenuScreen`). Sin liberar esos nodos explícitamente antes de recargar, el guard de "ya existe, no instanciar otro" de `_ensure_exploration_scene_instantiated()` reutiliza el `ExplorationScene` viejo tal cual, con todo el estado de la sesión anterior — una recarga que parece "limpia" no lo es. Este hallazgo se confirmó y corrigió, pero no fue la causa raíz completa del bug que lo motivó (ver Spike 7 — bug de F9 sin resolver, en la sección "Input en exploración" más arriba).
-- **Un bloque perdido al parchear un método grande puede fallar en silencio (Spike 10):** `grant_item_*` desapareció de `_apply_outcome()` sin ningún error — el resto de la cadena funcionaba y solo el inventario vacío lo delataba. Todo efecto de un outcome debe dejar una línea de log al aplicarse, y tras parchear `_apply_outcome()` conviene comprobar por log que cada tipo de entrega sigue apareciendo.
-- **Un `.csv` de localización nuevo necesita alta manual en Project Settings → Localization → Translations (Spike 10):** sin ella todas sus claves salen crudas aunque los datos y las claves sean correctos (`items_telmori.csv`). Y todo campo con comas debe ir entrecomillado, o la fila tiene más columnas de las declaradas.
-- **Un consumible con efecto condicional no debe emitir `item_use_success` incondicionalmente (Spike 10):** el consumo del ítem cuelga de esa señal. `_apply_consumable()` consumía el libro aunque `execute_learning_session()` hubiera devuelto `skill_locked`; ahora emite `item_use_failed` si el aprendizaje no se aplicó.
-- **Un sistema que solo mejora lo que ya existe no cubre "aprender lo nuevo" (Spike 10):** los libros previos solo subían skills ya poseídas, así que `register_entity_skills()` (solo el kit) nunca había fallado. Cualquier fuente que dé algo que la entidad no tiene necesita su propio camino de alta (`learn_skill()`), con persistencia incluida (`load_save_state()` debe poder recrear lo aprendido en runtime).
-- **Una señal de GDScript no admite parámetros opcionales, y un dato que viaja fuera de la señal se lee de estado ambiente — degradación silenciosa si falta (Spike 12):** `interaction_requested(type, target_id)` no lleva `enemy_definitions`; `ExplorationController` lo leía del `_current_interactable`. Sin nodo (un hotspot), el combate arrancaba igual pero con todos los enemigos como `enemy_base` — solo un `print`. Un punto de entrada nuevo debe pasar explícitamente todo lo que el camino antiguo obtenía por efecto lateral (`request_interaction()` lo recibe como parámetro).
-- **Una API pública necesita su propio guard, aunque el llamador ya lo tenga (Spike 12):** `request_interaction()` comprueba `is_input_blocked()` y el ViewModel exige además `GameState == EXPLORATION` — `is_input_blocked()` por sí solo deja pasar `PAUSE` y `MENU`.
-- **Una escena de exploración nueva hereda dependencias invisibles de la anterior (Spike 12):** `SaveSystem._collect_player_state()` exigía un nodo `Player` y abortaba el guardado entero; `ExplorationHUD` exige una jerarquía de hijos exacta (`$` en `@onready`). Antes de sustituir `SCENE_EXPLORATION`, buscar (`Select-String`) quién busca `Player`/grupo `"player"` y qué nodos hijos consumen los scripts compartidos.
-- **La documentación del proyecto puede describir el código de forma incorrecta (Spike 12):** decía que el `@export_enum` de `Interactable` incluía `narrative_scene` (no lo incluye) y que el nombre del nodo raíz de exploración debía ser `ExplorationScene` (el orquestador lo fuerza). Una Fase 0 con `Select-String` sobre el proyecto entero antes de diseñar sigue siendo el paso obligado.
-- **`user://` no es la carpeta del proyecto (Spike 12):** un fichero de configuración de desarrollo junto a `project.godot` no lo ve `FileAccess` (ver la nota de F2, más arriba).
-- **Dos ficheros con el mismo nombre en carpetas distintas se pisan al copiar (Spike 13):** el diálogo y la escena narrativa del briefing eran ambos `telmori_sheriff_briefing.json`; al dejar el diálogo en `narrative_scenes` se sobrescribió la escena y `NarrativeSceneDB` dio `scene_id vacío` (el cargador del registro lo descartó sin tumbar el resto). Los diálogos llevan prefijo `dlg_`.
-- **Abrir una escena narrativa con un id inexistente deja un panel vacío sin salida (Spike 13):** softlock justo tras ganar un combate, detectado probando un id mal escrito. Validar el id ANTES de abrir y degradar a `EXPLORATION` (hecho para la ruta de victoria; guarda general pendiente en `_handle_narrative_scene()`).
-- **Un dato que debe sobrevivir a una señal síncrona no se guarda en el recurso que se limpia (Spike 13):** la escena de victoria vive en `GameLoop._pending_victory_scene_id`, no en `CombatEncounterDefinition` (puede ser `null`, y `_current_encounter` se limpia en `end_combat()`); se consume durante `combat_ended` y se descarta justo después, para que no se fugue al combate siguiente.
-- **Un flag puesto al DISPARAR una acción no demuestra que se haya GANADO (Spike 13):** `telmori_ambush_triggered` y `telmori_lair_combat_won` se ponían al lanzar el combate; solo el `combat_ended "victory"` aparte lo disimulaba. Una puerta de "lo conseguí" necesita un flag puesto por una escena que solo se alcanza al conseguirlo.
-- **Un componente del Design System lee sus propiedades en `_ready()` (Spike 13):** `UIButton` aplica `variant`, `btn_size`, `min_square` e `icon_backdrop` en `_apply_style()`, así que se fijan ANTES de `add_child()`; un `custom_minimum_size` puesto antes se pisa en parte (la altura).
-- **`push_warning`/`push_error` solo aparecen en Depurador → Errores, no en la salida de texto (Spike 13):** dos mensajes de la huida llevaban ahí desde antes del spike y no se veían en los logs pegados. Para auditar "sin warnings" hay que mirar esa pestaña.
-- **Un guard `has_entity` que no recrea hace que una sesión nueva herede la entidad vieja (Spike 14):** `CharacterCreationViewModel` dice "ya registrado — no se recrea", y la curación a máximos va dentro del `else`. Con el jugador muerto aún registrado, la partida nueva arrancaba con HP 0 y los atributos y skills viejos. El guard protege del doble registro, no de la herencia entre sesiones: una sesión nueva exige dar de baja antes (`SessionReset`).
-- **La carga sobrescribe, no borra (Spike 14):** `SaveSystem._restore_state()` solo registra al jugador si falta y aplica `load_save_state()` encima, así que todo lo que no esté en el guardado (entidades de otra partida, buffs, flags) sobrevive a una carga. Para que cargar equivalga a un arranque en frío, el reinicio de sesión tiene que ocurrir antes.
-- **La lista de `get_save_state()` es la lista de control de un reinicio de sesión (Spike 14):** todo sistema que guarda estado es un sistema que hay que vaciar. Hay que añadir a mano los diccionarios de runtime que no se guardan (`CombatSystem._active_buffs`, que además nunca se limpia al terminar un combate).
-- **Tras `queue_free()` + `await process_frame`, comprobar el estado al reanudar (Spike 14):** el coordinador de `SceneOrchestrator` acepta `MENU` y `CHARACTER_CREATION`; si el estado es otro (p. ej. ya se está cargando una partida), no reinicia, porque borrar entidades de una partida recién cargada es peor que no reiniciar.
-- **Una baja idempotente necesita guard donde el sistema avisa (Spike 14):** `CharacterSystem.unregister_entity()` hace `push_warning` si la entidad no existe; los otros cuatro sistemas con registro por entidad hacen un `erase` silencioso. `EntityLifecycle` pone `has_entity()` delante solo donde hace falta.
-- **El Output imprime `State: A → B` después de los logs del handler (Spike 14):** `GameLoopSystem._transition_game_state()` emite `game_state_changed` antes de imprimir la línea. Al leer una traza, `Handling state: MENU` aparece antes que `State: DEFEAT → MENU`.
-- **Pasar por `MENU` no limpia al jugador (Spike 14):** lo que limpia es `SceneOrchestrator._handle_main_menu()` + `SessionReset`. Corrige la afirmación contraria que figuraba en `athelia_ui_architecture.md`.
-- **Los setters de un `@export` se ejecutan al cargar la escena, antes de `_ready()` (Spike 15):** un setter que toca nodos o estilo debe comprobar `is_node_ready()` y dejar el estado inicial a `_ready()`. Con esa comprobación, activar un ajuste en runtime (p. ej. `decorative_frame`) reaplica estilo y redibuja sin reiniciar.
-- **Un aviso dentro de `_draw()` se repite en cada redibujado (Spike 15):** el `push_warning` de `UIPanel` salía en cada `resized`. Se resuelve fuera de `_draw()` (`_refresh_frame()`) y una sola vez por proceso con `static var`.
-- **Los alias de constantes en GDScript apuntan siempre hacia atrás (Spike 15):** una constante puede definirse como otra ya declarada; el orden de declaración importa. Dos vocabularios con el mismo valor se fusionan con alias, no con dos valores.
-- **`stretch/mode = canvas_items` ablanda el texto (Spike 15):** se midió (ancho de borde 1,53 → 1,72/1,78 px, ≈ 15 %) además de verlo, y se descartó por nitidez. Antes de medir un experimento hay que verificar que la configuración se guardó (`Select-String` sobre `project.godot`): el primero se hizo sin guardarla.
-- **Un margen en píxeles atado a un hermano proporcional se rompe al cambiar de tamaño (Spike 15):** el `margin_left = 240` del texto del diálogo solo servía a 1152 de ancho (el retrato va por fracciones de pantalla y a 1680 el solape era de ≈ 98 px). Se calcula desde el borde derecho real del hermano y se recalcula en `resized`.
-- **`ScrollContainer` + `size_flags_vertical = 3` reparte el hueco a partes iguales (Spike 15):** si el contenido variable es la norma, el `ScrollContainer` por sí solo no basta: hay que reservar la altura natural con `custom_minimum_size`. El fallo (tercera opción cortada a 648) estaba desde el Spike 11 y no se vio hasta validar en ventana.
-- **Un contenedor con nodos recién liberados cuenta hijos en cola (Spike 15):** tras `queue_free()` el hijo sigue en el árbol hasta el fin del frame. Para contar filas se usa la lista propia de botones, y `_clear_options()` los saca antes con `remove_child()`.
-- **Sin foco inicial, el teclado no tiene a quién llegar (Spike 15):** un menú de opciones necesita un `grab_focus()` diferido; el estilo `focus` por defecto de un `Button` puede recortarse, y se sustituye por el estilo `hover` del propio botón (`add_theme_stylebox_override("focus", btn.get_theme_stylebox("hover"))`).
-- **Las cifras de una spec se comprueban contra el árbol de nodos real (Spike 15):** las alturas «216 / 252 px» y la fila `MENU_CONFIRM_YES` «rota» de la spec eran inexactas; la hipótesis «solo hay scroll en ventana de 648» era falsa. Una Fase 0 contrastada sigue siendo obligada.
-- **Los `.csv` de Godot resuelven claves duplicadas en silencio (gana la última) y los campos con comas exigen comillas (Spike 15):** un borrado masivo de duplicados se hace con simulación previa, copia `.bak` y comprobando que cada fila es idéntica a su primera copia (si difiere, quitarla cambia el texto visible). El orden de columnas varía: `menus.csv` es `id,es,en`; el resto, `id,en,es`.
-- **Un script de PowerShell 5.1 sin BOM corrompe los acentos literales (Spike 15):** se escriben con `[char]0xE9` o el script se mantiene en ASCII; los CSV se leen y escriben como UTF-8 conservando el BOM y los saltos de línea originales.
-- **Los textos de habilidades viven en `skills.csv` (Spike 15):** `SKILL_<ID>_NAME` y `SKILL_<ID>_DESC` por habilidad; los textos de pantalla (`SKILL_TREE_*`, `SKILL_SUBCATEGORY_*`, `SKILL_FILTER_*`) se quedan en `translations.csv`. Una habilidad nueva sin sus dos claves sale como `SKILL_X_NAME` en pantalla.
-### Spike 16 — Tienda (incluye la 16b)
-- Un `PanelContainer` apila todos sus hijos superpuestos: un nodo mal anidado no da error, se dibuja encima. Verificar el padre de cada nodo al montar escenas a mano.
-- Una raíz que `extends UIPanel` debe fijar `padding` antes de `super._ready()`.
-- Tipar un `@onready` con la clase del componente (`UIButton`) delata una instancia equivocada: falla en `@implicit_ready` con "Trying to assign value of type 'Button'…", no con un error de nodo.
-- Reconstruir listas: `remove_child()` antes de `queue_free()`.
-- Un `Label` con elipsis tiene anchura mínima 0: poner un suelo de anchura o expandir el contenedor.
-- `mouse_exited` llega al padre al entrar en un hijo: comprobar `get_global_rect()` antes de apagar el hover.
-- Mensajes con altura reservada: vaciar el texto en lugar de ocultar el `Label`.
-- Estado visual por fila con tokens y `disabled`, no con `modulate` del contenedor.
-- No comprobar métodos por nombre (`has_method("_update_display")`): método público explícito.
-- `push_warning` va a la pestaña *Errors* del depurador, no al Output.
-- El orden de las validaciones define el comportamiento: la regla que ya está en los datos (el tag `quest_loan`) se consulta antes de la comprobación genérica (`base_value <= 0`).
-- Un valor nuevo en un `String` de contrato (`trade_type = "loan"`) solo es seguro si se comprueba quién escucha la señal.
-- Parchear funciones largas de ficheros grandes: bloques buscar → sustituir, vigilando las comas al añadir claves a un diccionario.
-- Mover objetos entre entidades invalida las acciones narrativas que asumen el inventario del jugador: `take_item` falla en silencio.
-
-### Spike 17 — Inventario A (MVVM)
-- Un orquestador con un único `_current_overlay` debe escuchar `closed` de cada overlay que lo exponga y liberarlo; si no, la instancia oculta sigue contando como «abierta» y la siguiente pulsación de la tecla (toggle) la destruye en vez de abrir una nueva. Síntoma: hay que pulsar dos veces. El log lo delata: `Overlay shown` solo aparece en la segunda pulsación.
-- En pantallas anidadas, `ui_cancel` se consume con `set_input_as_handled()` en la propia pantalla: el input no manejado se propaga de hijo a padre, así que cierra solo la capa más profunda.
-- Una spec puede dar por hecho un comportamiento que nadie implementó (Esc en el inventario): comprobarlo con `Select-String 'ui_cancel'` antes de validar.
-- El puente de ítems emite `item_use_success` también al equipar. El mensaje de «equipado» sale del evento de equipo y el éxito del puente se ignora para ese ítem.
-- Un widget con ocultado automático lleva su propio `Timer` hijo (creado en `_ready()`): sin `await`, sin tocar la escena, y un mensaje nuevo reinicia la cuenta.
-- `Select-String` no distingue mayúsculas por defecto: `Items\.` casa con `bag_items.`. Para auditar el contrato MVVM usar `-CaseSensitive`.
-- Un snapshot de mochila no debe asumir que el equipo sale del inventario: `equip_item` no lo quita, así que un ítem equipado aparece también en la mochila.
-- Al reconstruir un ViewModel muerto, comprobar primero qué cubre frente a lo que hace la pantalla real (estado de espera, listas fijas de slots, funciones que no existen en producción): se descartó casi todo y se reescribió.
-
-### Spike 18 — Inventario B (rediseño con el Design System)
-- Un slot arrastrable emite el clic **al soltar** el botón dentro de él, no al pulsar; si no, cada arrastre dispara una selección.
-- Una subclase de `UIPanel` (`ItemDetailPanel`) debe llamar a `super._ready()`; sin eso el estilo no se aplica y el panel sale sin fondo.
-- Un panel proporcional sin tamaño máximo se ve vacío a pantalla completa (1680×1050): tope + centrado + fondo opaco con `mouse_filter = STOP`, para no ver ni pulsar lo que hay detrás. El rectángulo se recalcula en `size_changed` y al abrir.
-- Un `PanelContainer` apila a sus hijos: dentro de un `UIPanel` va un único contenedor de layout (el bloque de bonos y el de estadísticas lo cumplen).
-- Una etiqueta bajo cada slot de equipo no cabe en 648 de alto con seis slots: va dentro del slot.
-- Un popup posicionado por código se recoloca al abrir y en `size_changed`; aquí se centra sobre la parte baja de la columna de la mochila para no tapar HP/ST.
-- Una rejilla con columnas variables se calcula con el ancho real del `ScrollContainer` menos una reserva para la barra de scroll, y reutiliza un pool de slots en vez de crear y liberar en cada refresco.
-- Lo que no cabe en la capacidad no se descarta: se muestra con borde discontinuo de peligro (antes se perdía con un `push_warning`).
-- Los bonos del equipo suman solo los modificadores `add`, igual que la comparación del detalle: `mul` y `override` no se pueden sumar sin ambigüedad, así que si algún ítem los usa no se reflejan.
-- Las estadísticas mostradas son los valores **base**; para los efectivos hay que verificar `AttributeResolver`.
-- Un `.tscn` creado a mano sin UID: Godot lo regenera y avisa; es inofensivo.
-- Una prueba aislada de un componente (`ui_slot_drag_test`) con ítems de respaldo cuando no hay partida evita depender del estado del juego.
-- Un script de parche que sustituye texto debe comprobar que el ancla aparece exactamente una vez y no asumir la sangría: dos sustituciones fallaron en silencio por tabuladores de más y los ficheros se entregaron sin la llamada.
-
-### Spike 19 — Party
-- **`EquipmentManager` e `InventorySystem` son independientes por diseño** (nota 5 de `equipment_manager.gd`): quitar un ítem de la mochila no lo desequipa, y equipar no lo saca de ella. Quien mueve ítems entre entidades debe desequiparlos en el origen antes de transferir; si no, el origen conserva el ítem equipado y sus modificadores. Confirmado en partida con la lanza prestada, equipada en el jugador y en un compañero a la vez.
-- **Una línea que falta en el Output delata un bug:** la transferencia de un ítem equipado no mostraba `Unequipped … for 'player'` antes de `Transferido: …`. Al reproducir un fallo conviene comparar el Output con la secuencia que debería salir, no solo buscar errores.
-- **Validar todo antes de mover nada, y revertir lo hecho si un paso falla:** el `request_equip_drop` anterior transfería el ítem y después comprobaba que el slot lo admitía, así que un drop rechazado ya había cambiado de dueño al ítem. Desde el 19: validar slot y origen, desequipar, transferir con rollback, equipar (si falla, devolver el ítem y reequiparlo), y un único mensaje final.
-- **Una operación compuesta emite varios eventos intermedios:** se suprimen los mensajes durante la operación (`_suppress_feedback`) y sale uno solo al final. Además, un mismo mensaje repetido en el mismo frame (dos oyentes del mismo evento) se descarta.
-- **El payload de un arrastre debe llevar el dueño del slot de origen** (`owner_id`): deducirlo buscando el ítem en los inventarios toma siempre el del jugador cuando hay copias en varios. El componente del Design System solo transporta un id opaco; no accede a sistemas.
-- **Un componente compartido gana una señal nueva y mantiene la antigua:** `slot_item_dropped(slot, item_id, from_owner_id)` se emite justo después de `slot_drop_received`, y el inventario (owner vacío, sin oyentes de la nueva) no cambia.
-- **Un ViewModel nuevo no se instala antes que su View** si la View antigua usa su API (`bag_slots`, `strategy_names`…): el proyecto dejaría de compilar. Se entregan juntos, y lo que sí se puede validar antes (un `.csv`) se instala aparte.
-- **Una `class_name` nueva no se resuelve hasta que su fichero existe en el proyecto:** al parchear `inventory_viewmodel.gd` antes de copiar `bag_capacity.gd`, el error salió en la línea del consumidor (`Identifier "BagCapacity" not declared`), no en el fichero que faltaba. Se entregan los ficheros nuevos antes que los parches que los usan.
-- **Una clave `tr()` que se usa y no está en el `.csv` sale cruda en pantalla:** `PARTY_EQUIPPED_BADGE` se olvidó en la primera entrega. Al redactar una View conviene listar todas las claves `tr("…")` y compararlas con el `.csv` (`Select-String` de `tr\("PARTY_` frente a las filas de `party.csv`).
-- **Una View puede pintar sin `ItemInstance`:** `UISlot.set_definition(definition, quantity)` basta; el ViewModel entrega definición, cantidad, marca de equipado y de desbordamiento ya calculadas, y la View no necesita tocar `Inventory`.
-- **Una clase interna de la View (`ColumnView`) evita duplicar el pintado de dos columnas idénticas:** agrupa los nodos y el estado (pool de slots, firma del equipo) y el mismo código pinta jugador y compañero.
-- **Dos compañeros de prueba con la misma definición se llaman igual:** las pestañas decían «Mira» y «Mira» y la prueba parecía fallar (se esperaba el selector anterior con flechas). Para probar varios compañeros conviene un nombre distinto, y avisar de que el selector cambió.
-- **Un script de depuración temporal (autoload con teclas) permite probar casos que el juego no produce** (0 y 2 compañeros). Sus acciones destruyen estado (`leave_party()` da de baja a la entidad en todos los sistemas), así que no se guarda la partida con él activo y se restaura el guardado después. Se retira, con su autoload, antes de cerrar el spike.
-- **Dejar un dato de prueba de un spike anterior altera la siguiente validación:** el jugador salía con `Huecos 6/7`, un resto de la prueba de desbordamiento del Spike 18 (`inventory_slots` reducido). Devolverlo a su valor real (20) antes de validar los casos de altura ajustada.
-- **Cuando un spec da una hipótesis como causa, reproducir antes de arreglar:** la 16c (lanza prestada) se atribuía a que Party deja pasar un `quest_loan` a un compañero. Quedó confirmado que Party lo permite, pero no que sea la causa de la 16c: no se ha probado con el sheriff.
-- **`PartyManager.MAX_PARTY_SIZE` cuenta solo compañeros**, no al jugador: el máximo de 2 compañeros es una decisión de diseño, y las pantallas lo toleran sin recortar si algún día hay más.
-- **Un patch buscar → sustituir sobre documentación sigue el mismo criterio que sobre código:** el texto a buscar debe aparecer una sola vez y sin asumir sangría ni espacios finales; si no encaja, se ajusta contra la línea real.
-
+1. **Fase 0 antes de diseñar:** comprobar el código real con `Select-String` (con `-CaseSensitive` si hace falta); la documentación y las specs han descrito el código de forma incorrecta varias veces (S12, S15, S19).
+2. **Una transición de `GameState` nueva se verifica contra `VALID_STATE_TRANSITIONS`:** una inválida solo hace `push_warning` y no pasa nada visible (G1, S13).
+3. **`push_warning`/`push_error` salen en Depurador → Errores, no en el Output** (S13, S16).
+4. **Un campo nuevo en una data class = declaración + `from_dict()` + registry que lo lea, todo en el mismo cambio.** Si falta una parte no hay error de compilación, falla en runtime o se ignora en silencio (S3D, G1).
+5. **`Equipment` e `Inventory` son independientes:** quien mueve ítems entre entidades desequipa antes (S19).
+6. **La carga sobrescribe, no borra, y un guard `has_entity` que no recrea hereda la entidad vieja:** una sesión nueva exige `SessionReset` antes (S14).
+7. **Un flag puesto al DISPARAR una acción no demuestra que se haya GANADO:** las puertas de «lo conseguí» cuelgan de una escena que solo se alcanza al conseguirlo (S13).
+8. **Un bloque perdido al parchear un método grande falla en silencio:** todo efecto de un outcome deja una línea de log, y se comprueba por log tras parchear (S10).
+9. **Un `.csv` de localización nuevo necesita alta manual en Project Settings;** campos con comas entrecomillados; columnas `id,en,es` (excepto `menus.csv`: `id,es,en`) (S10, S15).
+10. **Una clave `tr()` usada y no presente en el CSV sale cruda:** al terminar una View, comparar sus `tr("…")` con las filas del CSV (S19).
+11. **Una `class_name` nueva no se resuelve hasta que su fichero existe:** el error sale en el consumidor, no en el fichero que falta. Los ficheros nuevos se entregan antes que los parches que los usan; si un script con `class_name` no compila, su nombre deja de resolverse en todo el proyecto («Identifier not declared» en decenas de ficheros) (G3A, S19).
+12. **Antes de sustituir una escena de exploración, buscar quién busca `Player`/grupo `"player"` y qué hijos exige cada script compartido** (S12).
+13. **Un comentario que documenta el caso vacío no es código que lo resuelva:** comprobar por separado que el fallback existe (S8).
+14. **Dos caminos para construir el mismo evento divergen:** el segundo llama a la API pública del dueño del estado (S8).
+15. **Una operación que cambia de dueño un dato valida todo antes y revierte si falla** (S19).
 ---
+ 
+## GDScript y Godot
+ 
+- **Enum anidado en otra clase** (`GameLoopSystem.GameState`): no usarlo como anotación de tipo de variable (falla con «Could not find type»); trabajar con `int` (G3A).
+- **`match` sin rama `_:` y array indexado por enum no avisan si el enum crece:** revisar todos los consumidores al extender un enum (S2).
+- **Una señal no admite parámetros opcionales,** y un dato que viaja fuera de la señal se lee de estado ambiente con degradación silenciosa si falta. Un punto de entrada nuevo debe pasar explícitamente todo lo que el camino antiguo obtenía por efecto lateral (S12).
+- **Una señal con más argumentos en el emisor que en el callback:** GDScript descarta los de más si el callback acepta menos (S11).
+- **El orden de conexión de dos nodos a la misma señal no está garantizado;** quien necesita el estado ya resuelto lo consulta directamente (S8).
+- **Los setters de `@export` corren al cargar la escena, antes de `_ready()`:** protegerlos con `is_node_ready()` y dejar el estado inicial a `_ready()` (S15).
+- **Un aviso dentro de `_draw()` se repite en cada redibujado:** resolver fuera de `_draw()` y una vez por proceso con `static var` (S15).
+- **Los alias de constantes apuntan siempre hacia atrás** (el orden de declaración importa) (S15).
+- **Nombres de variable que sombrean propiedades de la clase base** (`scale`, `size`, `position`): error con warnings-as-errors (S12).
+- **`reload_current_scene()` no destruye nodos añadidos a `get_tree().root`:** `ExplorationScene` y los overlays viven como hermanos de `current_scene`; hay que liberarlos explícitamente (S7).
+- **Sin `static` en funciones de autoload** (son instancias).
+- **Un `Control` vacío sin `_draw()` no pinta nada,** por bien colocado que esté (G5).
+- **Tras `queue_free()` + `await process_frame`, comprobar el estado al reanudar** (S14).
+- **Tras `queue_free()` el hijo sigue en el árbol hasta el fin del frame:** para contar filas se usa la lista propia, y se hace `remove_child()` antes (S15, S16).
+- **`user://` no es la carpeta del proyecto:** en Windows es `%APPDATA%\Godot\app_userdata\<proyecto>\` (S12).
+---
+ 
+## Datos, registries y localización
+ 
+- **No asumir que un catálogo escanea subcarpetas:** `SkillSystem`/`ItemRegistry` recursan; `ResourceSystem` no (lista hardcodeada `health`/`stamina`/`gold`); `DialogueRegistry` solo desde el Grupo 2; `InteractiveSceneDB` no. Comprobar el `_load_*` real (G3D, G2, S12).
+- **Un registry que construye campo a campo ignora en silencio un campo nuevo del JSON** (`DialogueRegistry._load_option_from_dict()`) (G1).
+- **Dos ficheros con el mismo nombre en carpetas distintas se pisan al copiar** (diálogo y escena narrativa del briefing); los diálogos llevan prefijo `dlg_` (S13).
+- **`ItemDefinition.item_type` es enum cerrado** (`CONSUMABLE`/`EQUIPMENT`/`MISC`): el botín sin mecánica es `MISC` (G3D).
+- **Los `.csv` de Godot resuelven claves duplicadas en silencio (gana la última).** Un borrado masivo de duplicados se hace con simulación previa, copia `.bak` y comprobando que cada fila es idéntica a su primera copia (si difiere, cambia el texto visible) (S15).
+- **Textos de habilidades en `skills.csv`** (`SKILL_<ID>_NAME`/`_DESC`); una habilidad sin sus dos claves sale como `SKILL_X_NAME` (S15).
+- **Datos específicos de una aventura** en su propia subcarpeta (`data/characters/telmori/`, `data/items/telmori/`), salvo ítems de arma con ranura (por tipo). Localización en un CSV propio por aventura (G3B).
+- **Un fichero de iconos genéricos copia el arte;** nunca apunta a la carpeta de una aventura (G4).
+- **El kit de skills de una entidad se lee siempre de su `CharacterDefinition`;** una copia paralela se desincroniza al editar el `.tres` (G3B).
+- **`reinforcement_definition_id` no admite tipos mixtos:** un refuerzo sale de una única `CharacterDefinition` (G3C).
+- **`Inventory.add_item` devuelve `true` aunque pierda datos** (sobrescribe un no apilable ya presente, recorta al `max_stack`, descarta `custom_state`): quien transfiere pre-valida y comprueba la cantidad resultante (S19b).
+- **La documentación decía «máximo 2 compañeros» y el código tiene `MAX_PARTY_SIZE = 3`:** una decisión de diseño que vive solo en un documento no es una regla (S19b).
+- **Un id de ítem no tiene por qué coincidir con el nombre de su `.tres`:** `Items.get_item()` avisa y devuelve `null` (S19b).
+---
+ 
+## Estado, flujo y señales
+ 
+- **Un overlay/sub-pantalla anidable no depende de `tree_exiting`:** ver `athelia_ui_architecture.md`. Complemento: un orquestador con `_current_overlay` único debe conectar `closed` de cada overlay, o hay que pulsar la tecla dos veces (S17).
+- **Un `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()`** (G3).
+- **Una señal global de cierre puede destruir un contexto anidado:** `SceneOrchestrator._on_dialogue_ended()` se gateó a `GameState.DIALOGUE` (G2).
+- **Instanciar una escena tarde puede dejar huérfanos a listeners que dependen de existir ANTES de un evento:** una señal emitida sin oyente se pierde, sin cola ni replay. Factorizar `_ensure_exploration_scene_instantiated()` (G1).
+- **Corregir un orden de instanciación puede exponer una trampa de reentrada:** un guard `if estado != X: transicionar_a(X)` escrito para «arrancar la escena sola» puede disparar una transición real en mitad de otra apertura; la condición correcta era `== MENU` (G1).
+- **Un dato que debe sobrevivir a una señal síncrona no se guarda en el recurso que se limpia:** `_pending_victory_scene_id` en `GameLoop`, se consume durante `combat_ended` y se descarta justo después (S13).
+- **Una escena narrativa con id inexistente abre un panel vacío sin salida:** validar el id antes de abrir y degradar a `EXPLORATION` (hecho en la ruta de victoria; guarda general pendiente) (S13).
+- **Los mensajes `State: A → B` se imprimen después de los logs del handler:** `Handling state: MENU` aparece antes que `State: DEFEAT → MENU` (S14).
+- **Reenviar una señal de un autoload a `EventBus` depende de cuántos consumidores reales tiene:** con uno basta reconectar; con varios, puente centralizado en el punto de emisión (S5).
+- **Una API pública necesita su propio guard aunque el llamador ya lo tenga:** `request_interaction()` comprueba `is_input_blocked()` y el ViewModel exige además `GameState == EXPLORATION` (`is_input_blocked()` deja pasar `PAUSE` y `MENU`) (S12).
+- **El orden de las validaciones define el comportamiento:** la regla que ya está en los datos (`quest_loan`) se consulta antes de la comprobación genérica (`base_value <= 0`) (S16).
+- **Un valor nuevo en un `String` de contrato** (`trade_type = "loan"`) solo es seguro si se comprueba quién escucha la señal (S16).
+---
+ 
+## Sesión, guardado y entidades
+ 
+- **Un guard `has_entity` que no recrea hace que una sesión nueva herede la entidad vieja** (jugador muerto con HP 0 y stats viejos): el guard protege del doble registro, no de la herencia entre sesiones (S14).
+- **La carga sobrescribe, no borra:** todo lo que no está en el guardado sobrevive a una carga; el reinicio debe ocurrir antes (S14).
+- **La lista de `get_save_state()` es la lista de control de un reinicio:** todo sistema que guarda estado hay que vaciarlo; añadir a mano los diccionarios runtime que no se guardan (`CombatSystem._active_buffs`) (S14).
+- **Una baja idempotente necesita guard donde el sistema avisa:** `Characters.unregister_entity()` hace `push_warning` si no existe; los otros cuatro hacen `erase` silencioso (S14).
+- **Pasar por `MENU` no limpia al jugador:** lo hace `SceneOrchestrator._handle_main_menu()` + `SessionReset` (S14).
+- **Una skill aprendida en runtime se pierde al cargar si `load_save_state()` no puede recrearla** (S10).
+- **Un sistema que solo mejora lo que ya existe no cubre «aprender lo nuevo»:** necesita su propio camino de alta (`learn_skill()`) con persistencia (S10).
+- **Un consumible con efecto condicional no emite `item_use_success` incondicionalmente:** el consumo cuelga de esa señal (S10).
+- **Mover objetos entre entidades invalida las acciones narrativas que asumen el inventario del jugador:** `take_item` falla en silencio (S16).
+- **Un `CharacterState.character_name` vacío para toda entidad no-jugador** requiere fallback explícito a `tr(CharacterDefinition.name_key)` (S8).
+- **`PartyManager.MAX_PARTY_SIZE` cuenta solo compañeros** (no al jugador): el máximo de 2 es decisión de diseño (S19).
+---
+ 
+## Combate y narrativa
+ 
+- **Un listener de `combat_ended` sin desconectar resucita contenido:** cualquier combate posterior reactiva un guard que solo comprueba flag + «¿existe el nodo?». Desconectar al completar el arco (G3C). *(Con el ciclo actual de `combat_victory_scene_id` este patrón ya no se usa; la lección vale para cualquier listener global.)*
+- **Un listener filtrado por `flag_name` no necesita desconectarse,** pero un interactuable de recompensa sin retirar permite repetir oro/ítems sin límite: siempre un segundo listener del flag de cierre del arco (G3D).
+- **Limpiar un interactuable de reconexión se engancha a `narrative_flag_set`, no a `narrative_scene_closed`:** una escena que encadena a otra por `next_scene_id` no cierra el panel ni emite el cierre con su `scene_id` (G3C).
+- **`NarrativeSceneViewModel` y `ExplorationController` pre-registran `Characters`/`Resources` para enemigos, nunca `Skills`:** no asumir que «la entidad ya está registrada» cubre los tres registros (G5).
+- **Una escena de prueba nueva usa nombres de `.gd` y `.tscn` distintos a los de producción** (`combat_production_scene.gd`, no `combat_test_scene.gd`) (G5).
+- **Un `Skill not found for entity` al terminar combate** significa que `register_entity_skills()` recibió una lista distinta a `list_known_skills()` (S3B).
+- **Una cadena multi-escena cortada antes de tiempo se delata por el `scene_id` de `narrative_scene_closed` en el log** (G3D).
+- **Dos sistemas narrativos distintos son fáciles de confundir:** `narrative_event_id` dispara `NarrativeSystem.apply_event()`, no `enter_narrative_scene()` (G3B).
+- **Un modificador multiplicativo de combate y un mini-acertijo de objeto sobre objeto se descartaron explícitamente** por falta de un segundo caso real (G3C, G3D).
+---
+ 
+## UI y Design System (solo lo no cubierto en ui_architecture)
+ 
+- **Un componente del DS lee sus propiedades en `_ready()`:** fijar `variant`, `btn_size`, `min_square`, `icon_backdrop` antes de `add_child()`; un `custom_minimum_size` previo se pisa en parte (S13).
+- **Una raíz que `extends UIPanel` fija `padding` antes de `super._ready()` y siempre llama a `super._ready()`** (S16, S18).
+- **Tipar un `@onready` con la clase del componente delata una instancia equivocada:** falla en `@implicit_ready` con «Trying to assign value of type 'Button'…» (S16).
+- **Un `Label` con elipsis tiene anchura mínima 0:** poner un suelo de anchura o expandir el contenedor (S16).
+- **Estado visual por fila con tokens y `disabled`, no con `modulate` del contenedor** (S16).
+- **No comprobar métodos por nombre** (`has_method("_update_display")`): método público explícito (S16).
+- **Mensajes con altura reservada:** vaciar el texto en lugar de ocultar el `Label` (S16).
+- **`mouse_exited` llega al padre al entrar en un hijo:** comprobar `get_global_rect()` antes de apagar el hover (S16).
+- **`ScrollContainer` + `size_flags_vertical = 3` reparte el hueco a partes iguales:** reservar la altura natural con `custom_minimum_size` (S15).
+- **Un margen en píxeles atado a un hermano proporcional se rompe al cambiar de tamaño:** calcular desde el borde real del hermano y recalcular en `resized` (S15).
+- **Sin foco inicial, el teclado no tiene a quién llegar:** `grab_focus()` diferido; el estilo `focus` por defecto puede recortarse, usar el `hover` del propio botón (S15).
+- **`stretch/mode = canvas_items` ablanda el texto (≈15 %):** descartado. Verificar que la configuración se guardó (`Select-String` sobre `project.godot`) antes de medir un experimento (S15).
+- **Un icono claro sobre fondo claro no destaca por sí solo:** disco oscuro o interior más oscuro en el arte (S13).
+- **Un panel proporcional sin tamaño máximo se ve vacío a pantalla completa:** tope + centrado + fondo opaco con `mouse_filter = STOP` (S18).
+- **Una etiqueta bajo cada slot de equipo no cabe en 648 de alto con seis slots:** va dentro del slot (S18).
+- **Una rejilla con columnas variables usa el ancho real del `ScrollContainer` menos una reserva para la barra de scroll** y un pool de slots (S18).
+- **Lo que no cabe en la capacidad se muestra con borde de desbordamiento, no se descarta** (S18).
+- **Los bonos de equipo suman solo `add`;** `mul` y `override` no se pueden sumar sin ambigüedad. Las estadísticas mostradas son valores **base** (S18).
+- **Un `.tscn` creado a mano sin UID:** Godot lo regenera y avisa; es inofensivo (S18).
+- **Una clase interna de la View (`ColumnView`) evita duplicar el pintado de dos columnas idénticas** (S19).
+- **Una View puede pintar sin `ItemInstance`:** `UISlot.set_definition(definition, quantity)` basta (S19).
+- **Un widget con ocultado automático lleva su propio `Timer` hijo:** un mensaje nuevo reinicia la cuenta (S17).
+- **`ui_cancel` se consume con `set_input_as_handled()` en la propia pantalla;** el input no manejado se propaga de hijo a padre, y en anidado cierra la capa más profunda (S17).
+- **El puente de ítems emite `item_use_success` también al equipar:** el mensaje de «equipado» sale del evento de equipo (S17).
+- **Un snapshot de mochila no asume que el equipo sale del inventario:** un ítem equipado aparece también en la mochila (S17).
+- **Un ViewModel nuevo no se instala antes que su View** si la View antigua usa su API (el proyecto dejaría de compilar): se entregan juntos; lo que se puede validar antes (un `.csv`) se instala aparte (S19).
+- **Al reconstruir un ViewModel muerto, comprobar qué cubre frente a lo que hace la pantalla real** (S17).
+- **Dos compañeros de prueba con la misma definición se llaman igual:** para probar pestañas, nombres distintos (S19).
+- **Un componente compartido gana una señal nueva y mantiene la antigua** (`slot_item_dropped` tras `slot_drop_received`) (S19).
+- **Un control con anclas opuestas distintas ignora `size`** y avisa en cada cambio: se mueve `offset_right` (o `offset_bottom`); la animación también apunta a la propiedad `offset_*`, no a `size:x` (S19b).
+- **Un componente sin consumidores previos esconde defectos en su `.tscn`** (raíz `visible = false`, relleno de 40 px fijos, ancho calculado antes del layout): al adoptarlo se revisa la escena además del script (S19b).
+- **`tr()` no existe en funciones estáticas:** un helper que traduce es una instancia `RefCounted` (S19b).
+- **Extraer un cálculo compartido entre dos ViewModels obliga a mover sus clases de datos a un fichero propio:** si siguen siendo internas de uno, el helper y el ViewModel se referencian en círculo (S19b).
+- **Un recurso que se regenera (estamina) emite sin parar:** va con razón propia agrupada por frame, no repinta la pantalla entera (S19b).
+- **Resaltar los destinos de un arrastre** se hace desde `NOTIFICATION_DRAG_BEGIN/END` con `gui_get_drag_data()`, y es opt-in: un slot que acepta cualquier cosa resaltaría siempre (S19b).
+- **Un `Label` ignora el ratón:** para un tooltip, `mouse_filter = STOP` (S19b).
+---
+ 
+## Proceso y herramientas
+ 
+- **Cuando una spec da una hipótesis como causa, reproducir antes de arreglar** (16c) (S19). Las cifras de una spec se comprueban contra el árbol de nodos real (S15).
+- **Una línea que falta en el Output delata un bug:** comparar el Output con la secuencia esperada, no solo buscar errores (S19).
+- **Los parches «buscar → sustituir» comprueban que el ancla aparece exactamente una vez y no asumen la sangría;** en funciones largas, vigilar las comas al añadir claves a un diccionario. Mismo criterio para parchear documentación (S18, S19, S16).
+- **Un script de PowerShell 5.1 sin BOM corrompe los acentos literales:** escribirlos con `[char]0xE9` o mantener el script en ASCII; los CSV se leen y escriben como UTF-8 conservando BOM y saltos de línea (S15).
+- **`Select-String` no distingue mayúsculas por defecto:** `Items\.` casa con `bag_items.`; para auditar el contrato MVVM usar `-CaseSensitive` (S17).
+- **Una prueba aislada de un componente con ítems de respaldo** evita depender del estado del juego (`ui_slot_drag_test`) (S18).
+- **Un script de depuración temporal (autoload con teclas) permite probar casos que el juego no produce** (0 y 2 compañeros), pero sus acciones destruyen estado: no se guarda con él activo, se restaura el guardado después y se retira (con su autoload) antes de cerrar el spike (S19).
+- **Un dato de prueba de un spike anterior altera la siguiente validación** (`inventory_slots` reducido, `Huecos 6/7`): devolverlo a su valor real (S19).
+- **Un spec puede dar por hecho un comportamiento que nadie implementó** (Esc en el inventario): comprobar con `Select-String 'ui_cancel'` antes de validar (S17).
+- **Una prueba con un id mal escrito se hace a propósito** para validar el fallback (S13).
+- **Un script de reinicio con simulación previa y copia `.bak`** antes de cualquier borrado masivo (S15).
+- **Las teclas F5-F8 son atajos del editor** (F8 detiene la ejecución, F5 la lanza): las herramientas de depuración usan otras (Insert, Inicio) (S19b).
+- **Una hipótesis de la spec se prueba con un caso que de verdad la ejerza:** la primera prueba de la 16c tenía la lanza en el jugador y funcionaba; el fallo solo aparece con ella en un compañero (S19b).
+- **Seis parches en un mismo fichero se entregan como fichero completo:** un parche mal colocado da un error de compilación en un sitio que no es el del cambio (S19b).
+- **Una herramienta de depuración que mete el juego en estados imposibles** (lanza prestada en un compañero tras bloquearlo en la interfaz) es la única forma de probar una corrección de compatibilidad con partidas antiguas (S19b).
+---
+ 
+## Convenciones de ficheros
+ 
+- `*_bak.gd`/`*_bak.tscn` son backups; `.gd.uid` es metadato de Godot. `_definition.gd` = Resource estático; `_state.gd` = Resource runtime; `_system.gd` = sistema lógico (autoload o manager). `test/` y `debug/` no se usan en producción.
+- Main Scene del proyecto: `res://ui/main_menu/main_menu_screen.tscn`.
+- La localización cubre ES y EN: CSV compilados a `.translation`.

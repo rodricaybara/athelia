@@ -4,12 +4,14 @@
 [ext_resource type="PackedScene" uid="uid://bkjn07uwfc3l0" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="2_panel"]
 [ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="3_button"]
 [ext_resource type="PackedScene" path="res://ui/inventory/feedback_popup.tscn" id="4_popup"]
+[ext_resource type="PackedScene" uid="uid://bs8afk483jga6" path="res://ui/design_system/components/ui_resource_bar/ui_resource_bar.tscn" id="5_bar"]
+[ext_resource type="PackedScene" path="res://ui/inventory/item_detail_panel.tscn" id="6_detail"]
 
-[node name="PartyUi" type="CanvasLayer" unique_id=669414830]
+[node name="PartyUi" type="CanvasLayer" unique_id=1287271810]
 layer = 10
 script = ExtResource("1_ui")
 
-[node name="Backdrop" type="ColorRect" parent="." unique_id=132704617]
+[node name="Backdrop" type="ColorRect" parent="." unique_id=407747994]
 unique_name_in_owner = true
 anchors_preset = 15
 anchor_right = 1.0
@@ -18,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05, 0.04, 0.04, 1)
 
-[node name="Frame" parent="." unique_id=1957611996 instance=ExtResource("2_panel")]
+[node name="Frame" parent="." unique_id=810848281 instance=ExtResource("2_panel")]
 unique_name_in_owner = true
 anchors_preset = 8
 anchor_left = 0.5
@@ -35,151 +37,212 @@ variant = 2
 padding = 16
 decorative_frame = true
 
-[node name="Root" type="VBoxContainer" parent="Frame" unique_id=1167536015]
+[node name="Root" type="VBoxContainer" parent="Frame" unique_id=1709107891]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Header" type="HBoxContainer" parent="Frame/Root" unique_id=226710786]
+[node name="Header" type="HBoxContainer" parent="Frame/Root" unique_id=1442281642]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="TitleLabel" type="Label" parent="Frame/Root/Header" unique_id=148011595]
+[node name="TitleLabel" type="Label" parent="Frame/Root/Header" unique_id=436260606]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Spacer" type="Control" parent="Frame/Root/Header" unique_id=1830500554]
+[node name="Spacer" type="Control" parent="Frame/Root/Header" unique_id=1646160437]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="CloseButton" parent="Frame/Root/Header" unique_id=71122366 instance=ExtResource("3_button")]
+[node name="CloseButton" parent="Frame/Root/Header" unique_id=899725482 instance=ExtResource("3_button")]
 unique_name_in_owner = true
 layout_mode = 2
 text = "X"
 variant = 3
 min_square = 32
 
-[node name="Content" type="HBoxContainer" parent="Frame/Root" unique_id=427695159]
+[node name="Content" type="HBoxContainer" parent="Frame/Root" unique_id=608730284]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="PlayerColumn" type="VBoxContainer" parent="Frame/Root/Content" unique_id=1680773704]
+[node name="PlayerColumn" type="VBoxContainer" parent="Frame/Root/Content" unique_id=1519115616]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="PlayerHeader" type="HBoxContainer" parent="Frame/Root/Content/PlayerColumn" unique_id=435353112]
+[node name="PlayerHeader" type="HBoxContainer" parent="Frame/Root/Content/PlayerColumn" unique_id=1338585934]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="PlayerNameLabel" type="Label" parent="Frame/Root/Content/PlayerColumn/PlayerHeader" unique_id=863137464]
+[node name="PlayerNameLabel" type="Label" parent="Frame/Root/Content/PlayerColumn/PlayerHeader" unique_id=2013777290]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 1
 vertical_alignment = 1
 
-[node name="PlayerSpacer" type="Control" parent="Frame/Root/Content/PlayerColumn/PlayerHeader" unique_id=1068997627]
+[node name="PlayerBars" type="VBoxContainer" parent="Frame/Root/Content/PlayerColumn/PlayerHeader" unique_id=2087621275]
 layout_mode = 2
 size_flags_horizontal = 3
-mouse_filter = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 4
 
-[node name="PlayerSlotsLabel" type="Label" parent="Frame/Root/Content/PlayerColumn/PlayerHeader" unique_id=805210919]
+[node name="PlayerHealthBar" parent="Frame/Root/Content/PlayerColumn/PlayerHeader/PlayerBars" unique_id=862215638 instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+show_value = true
+show_max = true
+
+[node name="PlayerStaminaBar" parent="Frame/Root/Content/PlayerColumn/PlayerHeader/PlayerBars" unique_id=869591731 instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+show_value = true
+show_max = true
+resource_type = "stamina"
+
+[node name="PlayerSlotsLabel" type="Label" parent="Frame/Root/Content/PlayerColumn/PlayerHeader" unique_id=1129895507]
 unique_name_in_owner = true
 layout_mode = 2
 vertical_alignment = 1
 
-[node name="PlayerBody" type="HBoxContainer" parent="Frame/Root/Content/PlayerColumn" unique_id=1314392133]
+[node name="PlayerBody" type="HBoxContainer" parent="Frame/Root/Content/PlayerColumn" unique_id=864526448]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="PlayerEquipList" type="VBoxContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody" unique_id=1454639663]
+[node name="PlayerEquipList" type="VBoxContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody" unique_id=1501641033]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PlayerBagScroll" type="ScrollContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody" unique_id=1824603609]
+[node name="PlayerBagColumn" type="VBoxContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody" unique_id=1581793800]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="PlayerBagScroll" type="ScrollContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody/PlayerBagColumn" unique_id=800885049]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="PlayerBagGrid" type="GridContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody/PlayerBagScroll" unique_id=1893769171]
+[node name="PlayerBagGrid" type="GridContainer" parent="Frame/Root/Content/PlayerColumn/PlayerBody/PlayerBagColumn/PlayerBagScroll" unique_id=1375643944]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 5
 
-[node name="Separator" type="VSeparator" parent="Frame/Root/Content" unique_id=1284005177]
+[node name="PlayerDetail" parent="Frame/Root/Content/PlayerColumn/PlayerBody/PlayerBagColumn" unique_id=276204301 instance=ExtResource("6_detail")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Separator" type="VSeparator" parent="Frame/Root/Content" unique_id=502312]
 layout_mode = 2
 
-[node name="CompanionColumn" type="VBoxContainer" parent="Frame/Root/Content" unique_id=1108131257]
+[node name="CompanionColumn" type="VBoxContainer" parent="Frame/Root/Content" unique_id=557449499]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="CompanionTabs" type="HFlowContainer" parent="Frame/Root/Content/CompanionColumn" unique_id=245028469]
+[node name="CompanionTabs" type="HFlowContainer" parent="Frame/Root/Content/CompanionColumn" unique_id=1380086760]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
 
-[node name="CompanionHeader" type="HBoxContainer" parent="Frame/Root/Content/CompanionColumn" unique_id=2034540366]
+[node name="CompanionHeader" type="HBoxContainer" parent="Frame/Root/Content/CompanionColumn" unique_id=1315901262]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="CompanionNameLabel" type="Label" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=561632490]
+[node name="CompanionNameLabel" type="Label" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=730776005]
 unique_name_in_owner = true
 layout_mode = 2
 vertical_alignment = 1
 
-[node name="StrategyOption" type="OptionButton" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=2028775568]
+[node name="StrategyOption" type="OptionButton" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=1482280514]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 
-[node name="CompanionSpacer" type="Control" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=1826212470]
+[node name="CompanionBars" type="VBoxContainer" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=1242250489]
 layout_mode = 2
 size_flags_horizontal = 3
-mouse_filter = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 4
 
-[node name="CompanionSlotsLabel" type="Label" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=139483935]
+[node name="CompanionHealthBar" parent="Frame/Root/Content/CompanionColumn/CompanionHeader/CompanionBars" unique_id=2137924366 instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+show_value = true
+show_max = true
+
+[node name="CompanionStaminaBar" parent="Frame/Root/Content/CompanionColumn/CompanionHeader/CompanionBars" unique_id=2123767396 instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+show_value = true
+show_max = true
+resource_type = "stamina"
+
+[node name="CompanionSlotsLabel" type="Label" parent="Frame/Root/Content/CompanionColumn/CompanionHeader" unique_id=1489620460]
 unique_name_in_owner = true
 layout_mode = 2
 vertical_alignment = 1
 
-[node name="CompanionBody" type="HBoxContainer" parent="Frame/Root/Content/CompanionColumn" unique_id=209966228]
+[node name="CompanionBody" type="HBoxContainer" parent="Frame/Root/Content/CompanionColumn" unique_id=195076867]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="CompanionEquipList" type="VBoxContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody" unique_id=210108941]
+[node name="CompanionEquipList" type="VBoxContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody" unique_id=833957747]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="CompanionBagScroll" type="ScrollContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody" unique_id=1709571471]
+[node name="CompanionBagColumn" type="VBoxContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody" unique_id=464882613]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="CompanionBagScroll" type="ScrollContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody/CompanionBagColumn" unique_id=1333897995]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="CompanionBagGrid" type="GridContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody/CompanionBagScroll" unique_id=1327378054]
+[node name="CompanionBagGrid" type="GridContainer" parent="Frame/Root/Content/CompanionColumn/CompanionBody/CompanionBagColumn/CompanionBagScroll" unique_id=1531159626]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 5
 
-[node name="NoCompanionsLabel" type="Label" parent="Frame/Root/Content/CompanionColumn" unique_id=1673519593]
+[node name="CompanionDetail" parent="Frame/Root/Content/CompanionColumn/CompanionBody/CompanionBagColumn" unique_id=2018503877 instance=ExtResource("6_detail")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NoCompanionsLabel" type="Label" parent="Frame/Root/Content/CompanionColumn" unique_id=1446102324]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -188,7 +251,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="FeedbackPopup" parent="." unique_id=114215346 instance=ExtResource("4_popup")]
+[node name="FeedbackPopup" parent="." unique_id=246641627 instance=ExtResource("4_popup")]
 unique_name_in_owner = true
 anchors_preset = -1
 anchor_left = 0.5

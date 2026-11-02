@@ -1,17 +1,18 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-10-26 (cierre del Spike 19a)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-02 (cierre del Spike 19b, que incluye la 16c)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
 cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
 código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15,
-16 (partes A y B), 17, 18 y 19a están cerrados y validados en partida real** (informes en
+16 (A y B), 16c, 17, 18, 19a y 19b están cerrados y validados en partida real** (informes en
 `docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md`,
 `docs/spike_16_tienda.md`, `docs/spike_17_inventario_mvvm.md` y
-`docs/spike_18_inventario_rediseno.md` y `docs/spike_19_party.md`); el resto está sin
-implementar. La **16c** (devolución del préstamo) y el **19b** (lo que quedó fuera de Party)
-quedan abiertos, sin planificar. Los contextos PlayerMenu y
+`docs/spike_18_inventario_rediseno.md`, `docs/spike_19_party.md` y
+`docs/spike_19b_party.md`); el resto está sin implementar. **La 16c (devolución del préstamo)
+se resolvió dentro del 19b.** El estado vivo del hito está ahora en `estado_actual.md` del
+proyecto; este fichero queda como plan de referencia. Los contextos PlayerMenu y
 narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 
 ---
@@ -22,12 +23,12 @@ narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 |---|---|---|---|
 | 14 | Reinicio de sesión y teardown (motor) — **cerrado** | Medio | — |
 | 15 | Cimientos del Design System — **cerrado** | Medio | — |
-| 16 | Tienda (piloto de adopción del DS) — **cerrado (A y B)**; 16c pendiente | Bajo | 15 |
-| 16c | Devolución del préstamo `quest_loan` al sheriff (sin planificar) | Bajo-medio | 16 |
+| 16 | Tienda (piloto de adopción del DS) — **cerrado (A y B)**; la 16c se cerró en el 19b | Bajo | 15 |
+| 16c | Devolución del préstamo `quest_loan` al sheriff — **cerrado en el 19b** | Bajo-medio | 16 |
 | 17 | Inventario A: contrato MVVM, sin cambio visual — **cerrado** (17a; contextos validados en el 18) | Alto | 15 |
 | 18 | Inventario B: rediseño con `UISlot` — **cerrado** | Medio | 17 |
-| 19 | Party — **19a cerrado**; 19b pendiente | Medio-alto | 18 |
-| 19b | Party: mochila a mochila, detalle con comparación, estado del compañero, regla de objetos de préstamo — **spec preparada, se hace antes del 20** | Medio | 19a |
+| 19 | Party — **19a y 19b cerrados** | Medio-alto | 18 |
+| 19b | Party: mochila a mochila, detalle con comparación, estado del compañero, regla de préstamo y 16c — **cerrado** (19b-1 y 19b-2) | Medio | 19a |
 | 20 | Loadout | Medio | 18 |
 | 21 | Árbol de habilidades | Medio-alto | 15 |
 | 22 | Menú del jugador | Medio | 18, 20, 21 |
@@ -37,7 +38,7 @@ narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 - **14 y 15 están cerrados:** perder un combate lleva al menú principal con la
   sesión reiniciada, y el Design System está listo (tokens fusionados, `UIPanel`
   corregido, diálogo con rejilla de opciones). **El 16 también:** la tienda ya usa el
-  DS y el préstamo de la lanza funciona (la devolución, 16c, sigue abierta). **El 17
+  DS y el préstamo de la lanza funciona (la devolución, 16c, se cerró en el 19b). **El 17
   también (17a):** el inventario cumple el contrato MVVM. **El 18 también:** el inventario
   usa `UIPanel`, `UIButton`, `UISlot` y tokens, con categorías, capacidad/peso,
   comparación y bonos del equipo. **El 19a también:** Party usa el DS y `UISlot`, con
@@ -392,17 +393,19 @@ equivocado en venta; `ShopUI` sin `layer`; rutas reales `core/economy/`.
 lanza equipada no vendible, derrota → partida nueva, compra/venta normales tras el
 parche), tooltips `NO_BUDGET`/`NO_SLOTS`, tienda vacía y el camino `LOAN_ITEM`.
 
-### Spike 16c — Devolución del préstamo (sin planificar)
+### Spike 16c — Devolución del préstamo — CERRADO en el 19b
 
 **Problema (confirmado en partida):** `take_item` del sheriff
 (`narrative_scene_viewmodel.gd:365-374`) solo actúa sobre `take_item_target`
 (`"player"`). Si la lanza está en el inventario de un compañero (se interpreta, sin
 confirmar, que con Mira), imprime "nada que quitar" y la aventura termina sin devolverla.
 
-**Fase 0 prevista:** quién tiene la lanza; si debe buscarse en toda la party o en la
-entidad que la tomó; si `take_item` admite un destino «cualquiera de la party» sin
-hardcodear lógica; qué ocurre si la lanza está equipada. Se abrirá aparte, con su propia
-Fase 0; no bloquea el 17.
+**Resolución (19b, decisión R8):** hipótesis **confirmada en partida** con la lanza equipada
+en Mira. `take_item` de `narrative_scene_viewmodel.gd` delega ahora en
+`_take_item_from_party()`: busca en toda la party, desequipa si hace falta y retira el
+objeto (`Unequipped … for 'companion_mira'` y `Item taken: enchanted_spear x1 ← companion_mira`;
+con la lanza en el jugador, `← player`). Además Party bloquea pasar un `quest_loan` del
+jugador a un compañero (el camino inverso se permite).
 
 ### Spike 17 — Inventario A: contrato MVVM — CERRADO EN CÓDIGO (17a)
 
@@ -513,11 +516,31 @@ transferencias con ítem que ambos tienen y origen del arrastre con copia en amb
 (Output); Mira con mochila llena (15) junto al jugador a 20 huecos a 1152×648; retirada del
 script y autoload de depuración `DebugPartyTool`.
 
-**19b (pendiente; spec en `spike_19b_party_spec.md` y `prompt_spike_19b.md`; decidido hacerlo antes del 20, el orden es libre porque el 20 solo depende del 18):** transferencia mochila a mochila (`request_equip_drop`
-sustituyendo el equipado por la entrega a la mochila y `UISlot.accept_drops` con filtro por
-`owner_id` distinto); `ItemDetailPanel` con comparación (≈280 px libres a pantalla completa, ≈47
-px a 1152×648: franja, popup o selección); estado del compañero (HP, estamina, atributos con
-`UIResourceBar`); regla de objetos `quest_loan`/misión (relacionada con la 16c).
+**19b CERRADO (2026-11-01)** — informe `docs/spike_19b_party.md`; spec `spike_19b_party_spec.md`.
+Partido en 19b-1 (bloques A y D, 16c y limpieza) y 19b-2 (bloques B y C). Decisiones: gesto de
+arrastre entre mochilas (1 unidad, Mayús para la pila entera); mochila destino llena bloquea
+con mensaje si ocupa pila nueva; el **clic selecciona** y usar/equipar/desequipar van en los
+botones del detalle (cambio de comportamiento del 19a, aprobado); comparación contra el equipo
+del dueño; HP y estamina con `UIResourceBar.set_values()` y atributos base en tooltip; regla de
+préstamo solo por tag `quest_loan` (jugador→compañero bloqueado, el inverso permitido, y
+bloqueo también al equipar con clic); cálculo de detalle y comparación extraído a helper
+compartido (`ItemDetailBuilder` + `ItemDetailData`); pre-validación en el ViewModel sin tocar
+el core. Razón nueva de `changed`: `resources`. Retirado `DebugPartyTool`.
+
+**Hallazgos que corrigieron la spec:** `Inventory.add_item` **pierde datos sin avisar** y
+devuelve `true` (sobrescribe un ítem no apilable ya existente; recorta al tope de pila; no
+conserva `custom_state`), de modo que el rollback de `_transfer_item` nunca se dispara; Party lo
+evita con pre-validación. `PartyManager.MAX_PARTY_SIZE = 3` (no 2). `UIResourceBar` no era
+usable tal cual (arreglada de forma aditiva; `bind()` rompe MVVM, las Views usan
+`set_values()`). `UISlot` no filtraba por dueño (`drop_exclude_owner`).
+
+**Pendientes del 19b:** `Inventory.add_item` (motor, sin tocar); decidir el máximo de
+compañeros (3 en el core frente a 2 de diseño; a 1152×648 con 2 compañeros el margen vertical
+es ≈2 px); `InventorySystem.load_save_state()` desconecta/reconecta `item_use_success`; el
+cajetín de Party no muestra «Categoría» a pantalla completa; el modificador sale repetido en
+detalle y comparación a pantalla completa (igual que el inventario); barra de scroll mínima en
+la mochila del jugador con selección a 1152×648. **Sin validar:** Party con 2 compañeros **y**
+un ítem seleccionado a 1152×648, y un tercer compañero.
 
 ### Spike 20 — Loadout
 
@@ -530,6 +553,8 @@ siguen sin traducir tras el Spike 15.
 
 **Validación:** asignar skill y consumible, limpiar slot, slot incompatible,
 cierre; dos contextos (subpantalla de PlayerMenu y `open_loadout()`).
+
+**Spec y prompt:** `spike_20_loadout_spec.md`, `prompt_spike_20.md` (preparados tras 19b). Decisiones abiertas L1-L7: forma del slot, mecanismo de asignación, detalle, vaciar slot, selector de personaje, reglas nuevas, lista de disponibles. El ViewModel ya valida bien; el trabajo es de View y de mover el estado de selección al ViewModel.
 
 ### Spike 21 — Árbol de habilidades
 
@@ -677,7 +702,7 @@ de 20 ítems, arrastre a slot de equipo— quedó validado en el Spike 18.)_
   en datos; comentarios «UISlot.setup()» obsoletos en `combat_arena_test_scene.gd` y
   `combat_production_scene.gd`; `InventoryUI` sin selector de compañero (la mochila de Mira ya
   se ve en Party); el mensaje «Equipado en Jugador: …» usa un nombre genérico del jugador;
-  el cursor de prohibido al soltar mochila a mochila no da feedback (→ 19b).
+  el cursor de prohibido al soltar mochila a mochila no da feedback (resuelto en el 19b).
 - **La tecla `I` dentro de PlayerMenu cierra el menú entero** y **`I` con Party abierta la
   cierra** (pila del orquestador de slot único). → 22.
 - Cerrar con la tecla (toggle del orquestador) libera la instancia sin pasar por

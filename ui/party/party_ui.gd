@@ -1,11 +1,13 @@
 extends CanvasLayer
 class_name PartyUI
 
-## PartyUI — View pasiva de la pantalla de Party (Spike 19a)
+## PartyUI — View pasiva de la pantalla de Party (Spike 19a, ampliada en el 19b-1 y 19b-2)
 ##
 ## Layout L3: Header | [Columna jugador | Columna compañero]. En cada columna,
-## el equipo va en una columna vertical de slots fijos de 64 px a la izquierda
-## de la mochila (pool de UISlot según la capacidad del personaje).
+## el equipo va en una columna vertical de slots fijos de 64 px a la izquierda;
+## a su derecha, la mochila (pool de UISlot según la capacidad) y, debajo, el
+## detalle del ítem seleccionado (ItemDetailPanel). La cabecera de cada columna
+## lleva el nombre, las barras de HP y estamina (UIResourceBar) y el contador de huecos.
 ## El marco ocupa FRAME_FRACTION de la pantalla hasta FRAME_MAX_SIZE, centrado,
 ## con un fondo opaco detrás (mismo patrón que el inventario).
 ##
@@ -18,11 +20,19 @@ class_name PartyUI
 ## `closed` sale junto a visible = false. PartyUI NUNCA se autolibera: quien la
 ## instancia (SceneOrchestrator, NarrativeScenePanel) hace queue_free().
 ##
+## Clic en un slot de la mochila: SELECCIONA (19b-2). Usar, equipar y desequipar
+## van por los botones del detalle. Clic en un slot de equipo ocupado: desequipa.
+##
 ## Drag & drop (los slots son pasivos):
-##   - Mochila: UISlot arrastrable, no acepta drops. El payload lleva owner_id.
+##   - Mochila: UISlot arrastrable. Acepta drops de la OTRA mochila
+##     (drop_exclude_owner) y resalta los destinos durante el arrastre
+##     (highlight_drop_targets). Con Mayús al soltar pasa la pila entera.
 ##   - Equipo: UISlot no arrastrable; acepta solo source == "inventory". Al recibir
 ##     un drop, la View pasa al ViewModel destino (owner_id del slot) y origen
 ##     (from_owner_id del payload).
+##
+## Detalle: con el marco por debajo de COMPACT_FRAME_HEIGHT px de alto (1152×648)
+## el panel va en modo compacto; por encima, completo con alto mínimo FULL_DETAIL_HEIGHT.
 ##
 ## Esc y open_party cierran la pantalla (se consumen aquí).
 
@@ -42,15 +52,23 @@ const POPUP_MARGIN: float = 8.0
 const SCROLLBAR_RESERVE: int = 12
 ## Los slots de equipo solo aceptan lo que sale de una mochila
 const DROP_FILTER: String = "inventory"
+## Marcos más bajos que esto usan el detalle compacto
+const COMPACT_FRAME_HEIGHT: float = 700.0
+## Alto mínimo del detalle completo (el compacto usa su altura natural)
+const FULL_DETAIL_HEIGHT: float = 340.0
 
 
 ## Nodos y estado de pintado de una columna (jugador o compañero)
 class ColumnView:
+	var entity_id: String = ""
 	var name_label: Label = null
 	var slots_label: Label = null
+	var health_bar: UIResourceBar = null
+	var stamina_bar: UIResourceBar = null
 	var equip_list: VBoxContainer = null
 	var bag_scroll: ScrollContainer = null
 	var bag_grid: GridContainer = null
+	var detail: ItemDetailPanel = null
 	var equip_slots: Dictionary = {}          ## slot_id → UISlot
 	var equip_signature: String = ""
 	var bag_pool: Array[UISlot] = []
@@ -68,9 +86,12 @@ class ColumnView:
 # ---- Columna del jugador ----
 @onready var player_name_label: Label = %PlayerNameLabel
 @onready var player_slots_label: Label = %PlayerSlotsLabel
+@onready var player_health_bar: UIResourceBar = %PlayerHealthBar
+@onready var player_stamina_bar: UIResourceBar = %PlayerStaminaBar
 @onready var player_equip_list: VBoxContainer = %PlayerEquipList
 @onready var player_bag_scroll: ScrollContainer = %PlayerBagScroll
 @onready var player_bag_grid: GridContainer = %PlayerBagGrid
+@onready var player_detail: ItemDetailPanel = %PlayerDetail
 
 # ---- Columna del compañero ----
 @onready var companion_tabs: HFlowContainer = %CompanionTabs
@@ -78,10 +99,13 @@ class ColumnView:
 @onready var companion_name_label: Label = %CompanionNameLabel
 @onready var strategy_option: OptionButton = %StrategyOption
 @onready var companion_slots_label: Label = %CompanionSlotsLabel
+@onready var companion_health_bar: UIResourceBar = %CompanionHealthBar
+@onready var companion_stamina_bar: UIResourceBar = %CompanionStaminaBar
 @onready var companion_body: HBoxContainer = %CompanionBody
 @onready var companion_equip_list: VBoxContainer = %CompanionEquipList
 @onready var companion_bag_scroll: ScrollContainer = %CompanionBagScroll
 @onready var companion_bag_grid: GridContainer = %CompanionBagGrid
+@onready var companion_detail: ItemDetailPanel = %CompanionDetail
 @onready var no_companions_label: Label = %NoCompanionsLabel
 
 var _vm: PartyViewModel = null
@@ -106,16 +130,28 @@ func _ready() -> void:
 	_player_view = ColumnView.new()
 	_player_view.name_label = player_name_label
 	_player_view.slots_label = player_slots_label
+	_player_view.health_bar = player_health_bar
+	_player_view.stamina_bar = player_stamina_bar
 	_player_view.equip_list = player_equip_list
 	_player_view.bag_scroll = player_bag_scroll
 	_player_view.bag_grid = player_bag_grid
+	_player_view.detail = player_detail
 
 	_companion_view = ColumnView.new()
 	_companion_view.name_label = companion_name_label
 	_companion_view.slots_label = companion_slots_label
+	_companion_view.health_bar = companion_health_bar
+	_companion_view.stamina_bar = companion_stamina_bar
 	_companion_view.equip_list = companion_equip_list
 	_companion_view.bag_scroll = companion_bag_scroll
 	_companion_view.bag_grid = companion_bag_grid
+	_companion_view.detail = companion_detail
+
+	for view in [_player_view, _companion_view]:
+		var column_view: ColumnView = view
+		column_view.detail.use_pressed.connect(_on_detail_use.bind(column_view))
+		column_view.detail.equip_pressed.connect(_on_detail_equip.bind(column_view))
+		column_view.detail.unequip_pressed.connect(_on_detail_unequip.bind(column_view))
 
 	close_button.pressed.connect(close)
 	strategy_option.item_selected.connect(_on_strategy_selected)
@@ -143,6 +179,8 @@ func _setup_static_text() -> void:
 	for label in [player_name_label, companion_name_label]:
 		label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_LG)
 		label.add_theme_color_override("font_color", UITokens.COLOR_ACCENT_SOFT)
+		# Un Label ignora el ratón por defecto: sin esto no hay tooltip de atributos
+		label.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	for label in [player_slots_label, companion_slots_label]:
 		label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_MD)
@@ -222,8 +260,12 @@ func _on_vm_changed(reason: String) -> void:
 			_render_column(_player_view, _vm.player_column)
 		"companion_column":
 			_render_column(_companion_view, _vm.companion_column)
+			_update_tab_tooltips()
 		"companion_changed":
 			_render_companion_section()
+		"resources":
+			_render_resources(_player_view, _vm.player_column)
+			_render_resources(_companion_view, _vm.companion_column)
 		"feedback":
 			_render_feedback()
 		"closed":
@@ -260,6 +302,7 @@ func _render_companion_section() -> void:
 
 	_render_strategy()
 	_render_column(_companion_view, _vm.companion_column)
+	_update_tab_tooltips()
 
 
 func _render_tabs() -> void:
@@ -288,6 +331,13 @@ func _render_tabs() -> void:
 		tab_button.set_variant(UIButton.Variant.PRIMARY if i == _vm.companion_index else UIButton.Variant.SECONDARY)
 
 
+## Con 2 o más compañeros el nombre no se ve: el tooltip de atributos va en la pestaña activa
+func _update_tab_tooltips() -> void:
+	for i in range(_tab_buttons.size()):
+		var tab_button: UIButton = _tab_buttons[i]
+		tab_button.tooltip_text = _vm.companion_column.attributes_text if i == _vm.companion_index else ""
+
+
 func _render_strategy() -> void:
 	var parts: PackedStringArray = []
 	for option in _vm.strategies:
@@ -307,12 +357,33 @@ func _render_strategy() -> void:
 
 
 func _render_column(view: ColumnView, data: PartyViewModel.ColumnData) -> void:
+	view.entity_id = data.entity_id
 	view.name_label.text = data.display_name
+	view.name_label.tooltip_text = data.attributes_text
 	view.slots_label.text = tr("PARTY_SLOTS_COUNTER") % [data.used_slots, data.capacity]
 	var over: bool = data.used_slots > data.capacity
 	view.slots_label.add_theme_color_override("font_color", UITokens.COLOR_DANGER_SOFT if over else UITokens.COLOR_TEXT)
+	_render_resources(view, data)
 	_render_equipment(view, data)
 	_render_bag(view, data)
+	_render_detail(view, data)
+
+
+## HP y estamina: valores que da el ViewModel (la barra no accede a ningún sistema)
+func _render_resources(view: ColumnView, data: PartyViewModel.ColumnData) -> void:
+	if not data.has_entity:
+		return
+	view.health_bar.set_values(data.health_current, data.health_max)
+	view.stamina_bar.set_values(data.stamina_current, data.stamina_max)
+
+
+func _render_detail(view: ColumnView, data: PartyViewModel.ColumnData) -> void:
+	if data.detail == null:
+		view.detail.visible = false
+		view.detail.clear()
+		return
+	view.detail.visible = true
+	view.detail.show_detail(data.detail)
 
 
 func _render_equipment(view: ColumnView, data: PartyViewModel.ColumnData) -> void:
@@ -346,9 +417,14 @@ func _render_equipment(view: ColumnView, data: PartyViewModel.ColumnData) -> voi
 		equip_slot.slot_label_text = entry.slot_name
 		if entry.definition != null:
 			equip_slot.set_definition(entry.definition)
-			equip_slot.tooltip_text = tr(entry.definition.name_key)
+			equip_slot.border_color_override = UITokens.COLOR_INFO if entry.is_loan else Color.TRANSPARENT
+			var equip_tooltip: String = tr(entry.definition.name_key)
+			if entry.is_loan:
+				equip_tooltip += "\n" + tr("PARTY_TOOLTIP_LOAN")
+			equip_slot.tooltip_text = equip_tooltip
 		else:
 			equip_slot.clear()
+			equip_slot.border_color_override = Color.TRANSPARENT
 			equip_slot.tooltip_text = ""
 
 
@@ -365,29 +441,39 @@ func _render_bag(view: ColumnView, data: PartyViewModel.ColumnData) -> void:
 		if i >= count:
 			slot.visible = false
 			slot.clear()
+			slot.border_color_override = Color.TRANSPARENT
 			continue
 		slot.visible = true
 		slot.owner_id = data.entity_id
 		slot.tooltip_text = ""
 		if i < entries.size():
-			_fill_bag_slot(slot, entries[i])
+			_fill_bag_slot(slot, entries[i], data.selected_item_id)
 		else:
 			slot.clear()
+			slot.border_color_override = Color.TRANSPARENT
 
 
 func _create_bag_slot(view: ColumnView) -> UISlot:
 	var slot: UISlot = SLOT_SCENE.instantiate()
-	slot.accept_drops = false
+	# Mochila a mochila (19b-1): acepta lo que sale de OTRA mochila y resalta
+	# los destinos mientras se arrastra
+	slot.accept_drops = true
+	slot.drop_source_filter = DROP_FILTER
+	slot.drop_exclude_owner = true
+	slot.highlight_drop_targets = true
 	slot.equipped_mark_text = tr("PARTY_EQUIPPED_BADGE")
 	view.bag_grid.add_child(slot)
 	slot.slot_clicked.connect(_on_bag_slot_clicked)
+	slot.slot_item_dropped.connect(_on_bag_item_dropped)
 	return slot
 
 
-func _fill_bag_slot(slot: UISlot, entry: PartyViewModel.BagEntry) -> void:
+func _fill_bag_slot(slot: UISlot, entry: PartyViewModel.BagEntry, selected_item_id: String) -> void:
 	slot.set_definition(entry.definition, entry.quantity)
 	slot.set_equipped_mark(entry.is_equipped)
 	slot.set_overflow(entry.is_overflow)
+	slot.border_color_override = UITokens.COLOR_INFO if entry.is_loan else Color.TRANSPARENT
+	slot.set_selected(not selected_item_id.is_empty() and entry.definition.id == selected_item_id)
 
 	var item_name: String = tr(entry.definition.name_key)
 	var tooltip: String = item_name
@@ -395,6 +481,10 @@ func _fill_bag_slot(slot: UISlot, entry: PartyViewModel.BagEntry) -> void:
 		tooltip = tr("PARTY_TOOLTIP_QUANTITY") % [item_name, entry.quantity]
 	if entry.is_equipped:
 		tooltip += "\n" + tr("PARTY_TOOLTIP_EQUIPPED")
+	if entry.is_loan:
+		tooltip += "\n" + tr("PARTY_TOOLTIP_LOAN")
+	if entry.quantity > 1:
+		tooltip += "\n" + tr("PARTY_TOOLTIP_DRAG_HINT")
 	slot.tooltip_text = tooltip
 
 
@@ -422,6 +512,18 @@ func _update_frame_rect() -> void:
 	frame.offset_right = target.x / 2.0
 	frame.offset_top = -target.y / 2.0
 	frame.offset_bottom = target.y / 2.0
+	_apply_detail_mode(target.y)
+
+
+## Detalle compacto en marcos bajos (1152×648), completo con alto mínimo en los altos
+func _apply_detail_mode(frame_height: float) -> void:
+	if _player_view == null or _companion_view == null:
+		return
+	var compact: bool = frame_height < COMPACT_FRAME_HEIGHT
+	var views: Array[ColumnView] = [_player_view, _companion_view]
+	for view in views:
+		view.detail.set_compact(compact)
+		view.detail.custom_minimum_size.y = 0.0 if compact else FULL_DETAIL_HEIGHT
 
 
 ## El aviso va centrado, pegado al borde inferior del marco
@@ -471,10 +573,11 @@ func _on_strategy_selected(index: int) -> void:
 	_vm.request_set_strategy(strategy_option.get_item_id(index))
 
 
+## Clic en un slot de la mochila: selecciona (la acción va en los botones del detalle)
 func _on_bag_slot_clicked(slot: UISlot) -> void:
 	if slot.is_empty():
 		return
-	_vm.request_slot_action(slot.get_item_id(), slot.owner_id)
+	_vm.request_select(slot.get_item_id(), slot.owner_id)
 
 
 func _on_equip_slot_clicked(slot: UISlot) -> void:
@@ -485,3 +588,22 @@ func _on_equip_slot_clicked(slot: UISlot) -> void:
 
 func _on_equip_item_dropped(slot: UISlot, item_id: String, from_owner_id: String) -> void:
 	_vm.request_equip_drop(slot.equipment_slot_id, item_id, slot.owner_id, from_owner_id)
+
+
+## Mochila a mochila: el destino es el dueño del slot donde se suelta; con
+## Mayús pasa la pila entera, sin Mayús una unidad
+func _on_bag_item_dropped(slot: UISlot, item_id: String, from_owner_id: String) -> void:
+	_vm.request_transfer(item_id, from_owner_id, slot.owner_id, Input.is_key_pressed(KEY_SHIFT))
+
+
+# Botones del detalle: `view` llega enlazado (bind) y dice de qué columna es
+func _on_detail_use(item_id: String, view: ColumnView) -> void:
+	_vm.request_use(item_id, view.entity_id)
+
+
+func _on_detail_equip(item_id: String, view: ColumnView) -> void:
+	_vm.request_equip(item_id, view.entity_id)
+
+
+func _on_detail_unequip(item_id: String, view: ColumnView) -> void:
+	_vm.request_unequip_item(item_id, view.entity_id)
