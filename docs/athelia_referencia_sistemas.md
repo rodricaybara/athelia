@@ -228,7 +228,7 @@ Los nombres de acción del InputMap de combate (`_unhandled_input`, no `_input`,
 | `cycle_target` | Tab | — |
  
 - `PlayerCombatController` (grupo `"player_combat_controller"`) es el **único dueño del targeting** (auto-target en `_on_combat_started()`, ciclado con Tab) y del despacho de `player_action_requested` (`request_skill()`).
-- El menú del jugador son **8 slots** (3 ataque configurables + 3 defensivas fijas + 2 ítems); el `LoadoutState` del jugador debe asignarse desde la pantalla de Loadout, o los botones salen sin nombre.
+- El menú del jugador son **8 slots** (3 ataque + esquiva + defensa + huida + 2 consumibles); el `LoadoutState` del jugador debe asignarse desde la pantalla de Loadout (esquiva y defensa se asignan allí; **huida es fija** y no se asigna), o los botones salen sin nombre. Con el loadout actual el HUD muestra vacíos los slots de defensa y huida: `skill.combat.defend`/`flee` no tienen `.tres` y el controlador resuelve `combat_defense`/`combat_scape` por id hardcodeado (pendiente de replantear con el combate).
 - `CombatArenaViewModel` compone a `CombatHudViewModel` y se conecta a `Resources.resource_changed` directamente. `EnemyAI`/`CompanionAI` son `Node` sin dependencia de nodo padre; los instancia `combat_production_scene.gd`. `EnemyCombatNode` ya no se usa en producción.
 - **Tiradas y daño:** `SPECIAL` aplica `special_multiplier` (×1.2) vs crítico (×2); en progresión cuenta como éxito sin tick diferenciado. No hay modificador multiplicativo de combate (decisión explícita: sin caso de uso real).
 - **Cuidado al extender enums:** un `match` sin rama `_:` y un array indexado por enum no avisan si el enum crece; hay que revisar todos sus consumidores.

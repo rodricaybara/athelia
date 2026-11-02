@@ -1,0 +1,42 @@
+id,en,es
+LOADOUT_TITLE,Combat setup,Preparación de combate
+LOADOUT_GROUP_ATTACK,Attack,Ataque
+LOADOUT_GROUP_DEFENSE,Defense,Defensa
+LOADOUT_GROUP_CONSUMABLES,Consumables,Consumibles
+LOADOUT_SLOT_ATTACK_1,Attack 1,Ataque 1
+LOADOUT_SLOT_ATTACK_2,Attack 2,Ataque 2
+LOADOUT_SLOT_ATTACK_3,Attack 3,Ataque 3
+LOADOUT_SLOT_DODGE,Dodge,Esquiva
+LOADOUT_SLOT_DEFENSE,Defense,Defensa
+LOADOUT_SLOT_ESCAPE,Escape,Huida
+LOADOUT_SLOT_CONSUMABLE_1,Consumable 1,Consumible 1
+LOADOUT_SLOT_CONSUMABLE_2,Consumable 2,Consumible 2
+LOADOUT_SLOT_EMPTY,Empty,Vacío
+LOADOUT_FIXED_ACTION,Combat action,Acción de combate
+LOADOUT_ESCAPE_DESC,A combat action. It can't be assigned from this screen.,Acción de combate. No se asigna desde esta pantalla.
+LOADOUT_TAG_ATTACK,Attack,Ataque
+LOADOUT_TAG_DODGE,Dodge,Esquiva
+LOADOUT_TAG_DEFENSIVE,Defense,Defensa
+LOADOUT_TAG_ESCAPE,Escape,Huida
+LOADOUT_AVAILABLE,Available,Disponibles
+LOADOUT_SKILLS_AVAILABLE,Available skills,Habilidades disponibles
+LOADOUT_CONSUMABLES_AVAILABLE,Available consumables,Consumibles disponibles
+LOADOUT_SELECT_SLOT_FIRST,Pick a slot to see what you can assign to it.,Elige un slot para ver qué puedes asignarle.
+LOADOUT_LIST_NO_SKILLS,You have no compatible skills for this slot.,No tienes habilidades compatibles con este slot.
+LOADOUT_LIST_NO_CONSUMABLES,You have no consumables available.,No tienes consumibles disponibles.
+LOADOUT_ASSIGNED_HERE,assigned here,asignada aquí
+LOADOUT_DETAIL_HINT,Hover over a skill or pick a slot.,Pasa el ratón por una habilidad o elige un slot.
+LOADOUT_DETAIL_SLOT_EMPTY,Empty slot.,Slot vacío.
+LOADOUT_DETAIL_COST,Cost: %s,Coste: %s
+LOADOUT_DETAIL_REQUIRES,Requires: %s,Requiere: %s
+LOADOUT_DETAIL_FITS,Fits: %s,Sirve para: %s
+LOADOUT_DETAIL_QUANTITY,In inventory: %d,En el inventario: %d
+LOADOUT_CLEAR,Clear slot,Vaciar slot
+LOADOUT_ERROR_INVALID_SLOT,That slot is not valid.,Ese slot no es válido.
+LOADOUT_ERROR_SKILL_NOT_LEARNED,You haven't learned that skill.,No has aprendido esa habilidad.
+LOADOUT_ERROR_SKILL_NOT_FOUND,That skill doesn't exist.,Esa habilidad no existe.
+LOADOUT_ERROR_WRONG_TAG,That skill doesn't fit this slot.,Esa habilidad no encaja en este slot.
+LOADOUT_ERROR_ITEM_NOT_FOUND,That item doesn't exist.,Ese objeto no existe.
+LOADOUT_ERROR_NOT_CONSUMABLE,Only consumables fit here.,Aquí solo caben consumibles.
+LOADOUT_ERROR_ITEM_NOT_IN_INVENTORY,You don't have that item.,No tienes ese objeto.
+LOADOUT_ERROR_DUPLICATE,That is already in another slot.,Eso ya está en otro slot.

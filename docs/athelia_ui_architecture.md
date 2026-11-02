@@ -307,6 +307,12 @@ slot.owner_id = column.entity_id
  
 El componente del DS no interpreta `owner_id` ni accede a sistemas: lo transporta.
  
+### ❌ Estado de selección en la View (y acciones destructivas escondidas)
+
+La vista antigua del Loadout guardaba `_selected_slot_id`, lo limpiaba tras una asignación rechazada **sin repintar** (la pantalla seguía mostrando la selección vieja) y vaciaba un slot con un segundo clic sobre él, sin aviso. Correcto: `selected_slot_id` es estado público del ViewModel, solo cambia con `request_select_slot()` y se anuncia con `changed("selection")`; un error no limpia la selección; vaciar es un botón explícito («Vaciar slot»), y un clic en el slot seleccionado solo deselecciona.
+
+Si el clic nace en un nodo que el repintado va a destruir (tarjetas de la lista), el repintado se **difiere** (`call_deferred`): liberar el nodo desde su propia señal de clic corrompe el procesado del evento.
+
 ### ❌ Flag implícito de estado
  
 ```gdscript
@@ -388,7 +394,7 @@ Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectáng
 |---|---|---|
 | `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation, Diálogo, Narrativa, sub-paneles del menú, cabeceras y filas de la tienda |
 | `POPUP` | `COLOR_PANEL_ALT`, borde de foco, padding 8 | ninguno |
-| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party |
+| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party, Loadout |
  
 ### `UIPanel` — marco decorativo (opt-in)
  
@@ -405,7 +411,7 @@ Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectáng
 - `decorative_frame` y `corner_texture` tienen setter y reaplican estilo y redibujan en runtime. Los setters de `@export` corren **antes de `_ready()`**: protegerlos con `is_node_ready()`.
 - Para activarlo: inspector de la instancia, grupo «Marco decorativo (Spike 9)», marcar `Decorative Frame` y **guardar la escena**. Sin cambios de script. Si «no cambia nada», un `print` en `_ready()` distingue «el script no carga» de «el flag no está activo en esa instancia».
 - Tokens: `COLOR_FRAME_OUTER/FILLET/INNER`, `FRAME_OUTER/FILLET/INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING`, `FRAME_CORNER_TEXTURE_PATH`. Arte en `ui/design_system/assets/frames/`.
-- Activado en: panel narrativo, diálogo, tienda, inventario y Party.
+- Activado en: panel narrativo, diálogo, tienda, inventario, Party y Loadout.
 ### `UIButton` — modo solo icono (opt-in)
  
 | Opción | Efecto |
@@ -491,6 +497,7 @@ Reglas comunes:
 - `ui_cancel`: la pantalla lo consume con `set_input_as_handled()` y cierra; el input no manejado se propaga de hijo a padre, así que en anidado cierra solo la capa más profunda. Una pantalla con `closed` nunca se libera a sí misma.
 - Limitación conocida del orquestador (→ Spike 22): con Party abierta, `I` la cierra en vez de abrir el inventario; `I` dentro de PlayerMenu cierra el menú entero. `PlayerMenu` no abre Party (solo Loadout, Inventory y SkillTree).
 - Party en narrativa: cerrar solo vuelve a mostrar el panel; no avanza nodo ni racha.
+- Loadout: solo como subpantalla de PlayerMenu (`_open_subscreen()`, `closed` conectada, la libera PlayerMenu). `SceneOrchestrator.open_loadout()` existe pero no tiene llamadores ni acción de input (código muerto).
 ---
  
 ## Referencia de pantallas existentes
@@ -508,7 +515,7 @@ Reglas comunes:
 | NarrativeScene | `narrative_scene_viewmodel.gd` / `narrative_scene_panel.gd` | Fondo `SceneImage` a pantalla completa (`IGNORE_SIZE` + `KEEP_ASPECT_COVERED`) y `UIPanel` con marco en el tercio inferior (`grow_vertical = BEGIN`). Opciones con tirada opcional (`SkillRoller`, 5 grados), tiradas acumulativas (`"streak_progress"`), progresión narrativa y agregación de grupo. Razones además: `open_inventory`/`open_party`/`open_player_menu`. Sub-overlays (Inventory, Party, PlayerMenu, Diálogo) gestionados por el propio panel (`_open_sub_overlay`/`_close_sub_overlay`, nunca vía `SceneOrchestrator`, cuyo `_current_overlay` apunta al panel narrativo); solo el de Diálogo reengancha (`_sub_overlay_is_dialogue` → `resume_after_dialogue()`). `_apply_outcome()` resuelve en orden: flag → otorgar ítem → quitar ítem → otorgar recurso → `dialogue_id` (retorno temprano) → combate (registra enemigos antes de `start_combat`) → `next_scene_id`. Cierre desacoplado por `EventBus.narrative_scene_closed`. |
 | CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` como `action_menu`) / `combat_arena_panel.gd` | Pantalla de combate de producción (`OVERLAY_COMBAT_HUD`). Fichas dinámicas (`combat_tokens`), log narrado (`log_entries`, 4 categorías con fuente de señal propia) y menú de 8 acciones. Se conecta a `Resources.resource_changed` directamente. Fondo por encuentro (`background_path`, razón `"background"`). Nombres resueltos con fallback a `tr(CharacterDefinition.name_key)`. Columna enemiga con envoltorio + `.scale` (ver antipatrón). Acciones delegadas en `PlayerCombatController.request_skill()`. |
 | InteractiveScene | `interactive_scene_viewmodel.gd` / `interactive_scene_view.gd` | Vista **permanente** del mapa de puntos de interés. Ver siguiente sección. |
-| Loadout | `loadout_viewmodel.gd` / `loadout_screen.gd` | Pendiente de rediseño (Spike 20): rutas `$Root/...`, botones por código, selección en dos pasos sin pista visual. |
+| Loadout | `loadout_viewmodel.gd` / `loadout_screen.gd` (+ `loadout_card.gd`, `LoadoutCard`) | `Backdrop` + `Frame` (`UIPanel` OVERLAY con marco, tope 1400×820). Izquierda: slots agrupados en Ataque / Defensa / Consumibles (habilidades como `LoadoutCard` de dos líneas, etiqueta del slot + tecla arriba y nombre debajo; consumibles como `UISlot` de 64 px con la tecla en la etiqueta). Derecha: lista de candidatos del slot seleccionado (compatibles por tag, no asignados en otro slot; «asignada aquí» si ya está en este), cajetín de detalle (costes, requisito o «sirve para», cantidad; «Vaciar slot» solo si muestra el contenido del slot seleccionado) y línea de feedback fija (token `COLOR_DANGER_SOFT`, `Timer` de 2,5 s). El slot `escape` es fijo (`FIXED_SLOTS`): tarjeta «Acción de combate», no seleccionable. Clic para seleccionar y clic para asignar (arrastre previsto). Estado en el ViewModel (`selected_slot_id`, `groups`, `slots`, `candidates`); entrega **claves** de localización y la View traduce. Razones: `opened/selection/slots/error/closed`. Teclas leídas de `CombatHudViewModel.SLOT_KEYBIND_LABEL`. Esc cierra (`ui_cancel`), `closed` sin auto-liberarse. Textos `LOADOUT_*` (`loadout.csv`, 41 claves). |
 | SkillTree | `skill_tree_viewmodel.gd` / `skill_tree_screen.gd` | Pendiente de rediseño (Spike 21): UI construida por código, fondos y bordes emulados a mano. |
  
 ### Pantallas sin ViewModel

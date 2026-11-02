@@ -89,7 +89,7 @@ Reutiliza el sub-overlay del Grupo 2 para `telmori_sheriff_reward_intro` y `telm
  
 ---
  
-## Spikes 11-19
+## Spikes 11-20
  
 ### Spike 11 — Rediseño de la ventana de diálogo
 `DialoguePanel` pasa de `PanelContainer` plano a `UIPanel` con marco (cierra el pendiente del Spike 9). **Un único retrato** del NPC (se descarta definitivamente el layout de dos retratos), hermano del panel para sobresalir por el marco (layout C de la maqueta), y fondo de ambiente propio (`BackgroundImage` + velo, mismo patrón que la arena de combate; imagen pre-difuminada en la generación). Datos: `DialogueNodeDefinition.mood` (por nodo, no por diálogo), `DialogueDefinition.portrait_folder` y `background_id`, todos opcionales y con respaldo; retrato resuelto por cascada `<portrait_id>_<mood>.png` → `<portrait_id>.png` → ninguno, con `push_warning` en cada salto. `EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos sin romper oyentes. Antipatrón nuevo: un `PanelContainer` no se encoge por debajo de sus hijos, así que un número variable de opciones va en `ScrollContainer`. Deuda anotada: tests de `dialogue_node_shown` sin adaptar a 7 argumentos. Informe: `docs/spike_11_ventana_dialogo.md`.
@@ -122,6 +122,9 @@ La pantalla de producción (`inventory_ui.gd`) accedía a ~30 líneas de sistema
  
 ### Spike 19 — Party (19b)
 Cierra lo que el 19a dejó fuera. **Transferencia mochila a mochila** por arrastre (1 unidad o la pila con Mayús) con resaltado de destinos (`UISlot.drop_exclude_owner` y `highlight_drop_targets`, apagados por defecto), **cajetín de detalle** por columna con comparación (el clic en la mochila pasa a seleccionar), **barras de HP y estamina** (`UIResourceBar`, primer consumidor real, por `set_values()`) y **regla de préstamo** (`quest_loan` no pasa a un compañero). La Fase 0 destapó que `Inventory.add_item` pierde datos sin avisar (no apilable ya presente, tope de pila, `custom_state`; reproducido con sondas) y que la hipótesis de la 16c era cierta (`take_item` solo miraba al jugador): `take_item` busca ahora en toda la party. El cálculo del detalle se extrajo a `ItemDetailBuilder` (compartido con el inventario) y `UIResourceBar` se corrigió (el `.tscn` nacía invisible y con relleno de 40 px). Hallazgo de configuración: `MAX_PARTY_SIZE` es 3, no 2. Partido en 19b-1 y 19b-2. Informe: `docs/spike_19b_party.md`.
+
+### Spike 20 — Loadout
+Rediseño de la pantalla con el Design System: `UIPanel` OVERLAY con marco, `UIButton`, `UISlot` (consumibles), un componente propio `LoadoutCard` (habilidades como tarjetas), nombres únicos `%`, solo tokens y 41 claves `LOADOUT_*` (`loadout.csv`). **El estado de selección pasa al ViewModel** (la vista antigua lo limpiaba sin repintar tras una asignación rechazada) y la lista muestra solo lo compatible con el slot y no asignado en otro (sin duplicados, ni en habilidades ni en consumibles); vaciar un slot es un botón explícito (antes, un segundo clic lo vaciaba sin aviso). Decisión O1: el slot `escape` es **fijo** (tarjeta «Acción de combate», no asignable) a la espera de replantear el combate. La Fase 0 corrigió la spec: `open_loadout()` no tiene llamadores (código muerto, contexto no validable en partida), Esc no estaba implementado y el código tenía 7 claves de error, no 6. Hallazgos de datos: `skill.combat.defend`/`flee` sin `.tres` (ids hardcodeados en el controlador de combate), `fireball` no asignable a ningún slot, el HUD muestra vacíos los slots de Defensa y Huida. Sin cambios en el core. Validado a 1152×648 y 1680×1050 en el contexto de PlayerMenu. Informe: `docs/spike_20_loadout.md`.
 
 ---
 

@@ -196,6 +196,7 @@ athelia/
 │   ├── shops.csv                    # SHOP_*
 │   ├── inventory.csv                # INVENTORY_* (58 claves)
 │   ├── party.csv                    # PARTY_* (34 claves)
+│   ├── loadout.csv                  # LOADOUT_* (41 claves)
 │   ├── items.csv
 │   ├── items_telmori.csv
 │   ├── world_objects.csv
@@ -262,7 +263,10 @@ athelia/
     │   ├── item_detail_data.gd            # ItemDetailData (+ ModLine, CompareLine)
     │   ├── item_detail_builder.gd         # ItemDetailBuilder: modificadores, comparación y formato por entidad
     │   └── feedback_popup.gd / .tscn
-    ├── loadout/                     # viewmodel + screen + tscn  (pendiente de rediseño: Spike 20)
+    ├── loadout/
+    │   ├── loadout_viewmodel.gd         # selección y candidatos; FIXED_SLOTS = ["escape"]
+    │   ├── loadout_screen.gd / .tscn    # View (UIPanel OVERLAY con marco)
+    │   └── loadout_card.gd              # LoadoutCard (class_name): tarjeta de slot/candidato, STACKED o INLINE
     ├── loading_screen/              # loading_screen.gd / .tscn  (sin conectar al orquestador)
     ├── main_menu/                   # viewmodel + screen + tscn  (Main Scene del proyecto)
     ├── narrative_scene/             # viewmodel, panel (.gd/.tscn)

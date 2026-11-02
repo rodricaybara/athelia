@@ -1,96 +1,53 @@
 class_name LoadoutScreen
 extends CanvasLayer
 
-## LoadoutScreen — View
+## LoadoutScreen — View (Spike 20: Design System, selección con pista visual)
 ##
 ## Responsabilidades:
-##   - Renderizar los slots del loadout y las listas de skills/consumibles disponibles
-##   - Traducir clicks del jugador en llamadas al ViewModel
+##   - Pintar los slots agrupados, la lista de candidatos y el cajetín
+##   - Traducir clics en intenciones del ViewModel
 ##   - NADA más
 ##
-## Nunca accede a Skills, Inventory, CharacterState ni sistemas core.
-## Todo pasa por LoadoutViewModel.
+## Nunca accede a Skills, Inventory, Characters, Items ni LoadoutState.
+## Todo pasa por LoadoutViewModel, que entrega claves; la View traduce.
 ##
-## Estructura esperada del .tscn:
-##
-## CanvasLayer                          ← este script
-## └── Panel (PanelContainer)
-##     └── MarginContainer
-##         └── VBox (VBoxContainer)
-##             ├── Header (HBoxContainer)
-##             │   ├── TitleLabel (Label)
-##             │   └── CloseButton (Button)
-##             ├── ContentHBox (HBoxContainer)
-##             │   ├── SlotsPanel (PanelContainer)   ← columna izquierda
-##             │   │   └── MarginContainer
-##             │   │       └── SlotsVBox (VBoxContainer)
-##             │   │           ├── AttackSection (VBoxContainer)
-##             │   │           │   ├── AttackLabel (Label)
-##             │   │           │   └── AttackSlotsHBox (HBoxContainer)
-##             │   │           ├── DefenseSection (VBoxContainer)
-##             │   │           │   ├── DefenseLabel (Label)
-##             │   │           │   └── DefenseSlotsHBox (HBoxContainer)
-##             │   │           └── ConsumableSection (VBoxContainer)
-##             │   │               ├── ConsumableLabel (Label)
-##             │   │               └── ConsumableSlotsHBox (HBoxContainer)
-##             │   └── AvailablePanel (PanelContainer) ← columna derecha
-##             │       └── MarginContainer
-##             │           └── AvailableVBox (VBoxContainer)
-##             │               ├── AvailableLabel (Label)
-##             │               └── AvailableScrollContainer (ScrollContainer)
-##             │                   └── AvailableList (VBoxContainer)
-##             └── FeedbackLabel (Label)
+## Contratos públicos (intactos): open(character_id) y señal `closed`.
+## LoadoutScreen NUNCA se autolibera: quien la instancia (PlayerMenuScreen,
+## SceneOrchestrator) hace queue_free() al recibir `closed`.
 
 
-# ============================================
-# SEÑALES
-# ============================================
-
-## Grupo 3 (mejoras post-Spike 3) — emitida en _on_vm_changed("closed"),
-## junto a visible = false. LoadoutScreen NUNCA se autolibera (no hace
-## queue_free() sobre sí mismo en ningún camino de cierre) — quien lo
-## instancia como subpantalla (PlayerMenuScreen) es responsable de hacer
-## queue_free() al recibir esta señal. Mismo patrón que
-## InventoryUI.closed / PlayerMenuScreen.closed. Bug confirmado en
-## playtest real: sin esta señal, PlayerMenuScreen._open_subscreen()
-## caía a tree_exiting, que nunca se disparaba, y el flujo se quedaba
-## colgado sin volver a la pantalla anterior.
 signal closed
 
 
-# ============================================
-# NODOS
-# ============================================
+const UI_SLOT_SCENE: PackedScene = preload("res://ui/design_system/components/ui_slot/ui_slot.tscn")
 
-@onready var title_label:            Label          = $Root/Panel/MarginContainer/VBox/Header/TitleLabel
-@onready var close_button:           Button         = $Root/Panel/MarginContainer/VBox/Header/CloseButton
-@onready var attack_slots_hbox:      HBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/AttackSection/AttackSlotsHBox
-@onready var defense_slots_hbox:     HBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/DefenseSection/DefenseSlotsHBox
-@onready var consumable_slots_hbox:  HBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/SlotsPanel/MarginContainer/SlotsVBox/ConsumableSection/ConsumableSlotsHBox
-@onready var available_list:         VBoxContainer  = $Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableScrollContainer/AvailableList
-@onready var available_label:        Label          = $Root/Panel/MarginContainer/VBox/ContentHBox/AvailablePanel/MarginContainer/AvailableVBox/AvailableLabel
-@onready var feedback_label:         Label          = $Root/Panel/MarginContainer/VBox/FeedbackLabel
+const FRAME_FRACTION: float = 0.9
+const FRAME_MAX_SIZE: Vector2 = Vector2(1400, 820)
+const FEEDBACK_DURATION: float = 2.5
+const SKILL_COLUMNS: int = 3
 
 
-# ============================================
-# CONSTANTES VISUALES
-# ============================================
+@onready var backdrop: ColorRect = %Backdrop
+@onready var frame: Control = %Frame
+@onready var title_label: Label = %TitleLabel
+@onready var close_button: Button = %CloseButton
+@onready var slots_box: VBoxContainer = %SlotsBox
+@onready var list_header: Label = %ListHeader
+@onready var list_message: Label = %ListMessage
+@onready var list_box: VBoxContainer = %ListBox
+@onready var detail_name: Label = %DetailName
+@onready var detail_meta: Label = %DetailMeta
+@onready var detail_desc: Label = %DetailDesc
+@onready var clear_button: Button = %ClearButton
+@onready var feedback_label: Label = %FeedbackLabel
+@onready var feedback_timer: Timer = %FeedbackTimer
 
-const COLOR_SLOT_FILLED  := Color(0.3, 0.9, 0.3, 1.0)
-const COLOR_SLOT_EMPTY   := Color(0.6, 0.6, 0.6, 1.0)
-const COLOR_ERROR        := Color(0.9, 0.2, 0.2, 1.0)
-const FEEDBACK_DURATION  := 2.5
-
-## Slot seleccionado actualmente para asignar. "" si ninguno.
-var _selected_slot_id: String = ""
-var _feedback_timer: SceneTreeTimer = null
-
-
-# ============================================
-# ESTADO INTERNO
-# ============================================
 
 var _vm: LoadoutViewModel = null
+
+## Entrada bajo el ratón (solo vista: no es estado del ViewModel).
+var _hover_entry: LoadoutViewModel.EntryData = null
+var _render_pending: bool = false
 
 
 # ============================================
@@ -99,19 +56,34 @@ var _vm: LoadoutViewModel = null
 
 func _ready() -> void:
 	visible = false
+	backdrop.color = UITokens.BG_VOID
+	_style_static_labels()
 
 	_vm = LoadoutViewModel.new()
 	_vm.name = "ViewModel"
 	add_child(_vm)
-
 	_vm.changed.connect(_on_vm_changed)
-	close_button.pressed.connect(func(): _vm.request_close())
+
+	close_button.pressed.connect(func() -> void: _vm.request_close())
+	clear_button.pressed.connect(_on_clear_pressed)
+	feedback_timer.timeout.connect(_hide_feedback)
+
+	get_viewport().size_changed.connect(_update_frame_rect)
+	_update_frame_rect()
 
 	print("[LoadoutScreen] Ready")
 
 
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event.is_action_pressed("ui_cancel"):
+		_vm.request_close()
+		get_viewport().set_input_as_handled()
+
+
 # ============================================
-# API PÚBLICA — llamada desde SceneOrchestrator
+# API PÚBLICA
 # ============================================
 
 func open(character_id: String) -> void:
@@ -125,16 +97,39 @@ func open(character_id: String) -> void:
 func _on_vm_changed(reason: String) -> void:
 	match reason:
 		"opened":
+			_hover_entry = null
+			title_label.text = tr("LOADOUT_TITLE")
+			_hide_feedback()
 			_render_all()
-		"slots":
-			call_deferred("_render_slots")
+			_update_frame_rect()
+			visible = true
+		"selection", "slots":
+			# Diferido: el clic que lo provocó viene de una ficha que vamos
+			# a destruir al repintar.
+			_schedule_render()
 		"error":
-			_show_feedback(tr(_vm.error_message), true)
+			_show_feedback(tr(_vm.error_message))
 		"closed":
+			_hover_entry = null
 			visible = false
 			closed.emit()
 		_:
 			push_warning("[LoadoutScreen] Razón desconocida: %s" % reason)
+
+
+func _schedule_render() -> void:
+	if _render_pending:
+		return
+	_render_pending = true
+	call_deferred("_flush_render")
+
+
+func _flush_render() -> void:
+	_render_pending = false
+	if not visible:
+		return
+	_hover_entry = null
+	_render_all()
 
 
 # ============================================
@@ -142,178 +137,259 @@ func _on_vm_changed(reason: String) -> void:
 # ============================================
 
 func _render_all() -> void:
-	title_label.text = tr("LOADOUT_TITLE")
 	_render_slots()
-	_render_available_list()
-	feedback_label.visible = false
-	visible = true
+	_render_list()
+	_render_detail()
 
 
 func _render_slots() -> void:
-	_clear_container(attack_slots_hbox)
-	_clear_container(defense_slots_hbox)
-	_clear_container(consumable_slots_hbox)
+	_clear_container(slots_box)
 
-	for slot_id in LoadoutState.SKILL_SLOTS:
-		var data: LoadoutViewModel.SlotData = _vm.slots.get(slot_id)
-		if data == null:
-			continue
-		var btn := _create_slot_button(data)
-		_get_container_for_slot(slot_id).add_child(btn)
+	for group: LoadoutViewModel.GroupData in _vm.groups:
+		var header := Label.new()
+		header.text = tr(group.title_key)
+		_style_label(header, UITokens.FONT_SIZE_SM, UITokens.COLOR_ACCENT)
+		slots_box.add_child(header)
 
-	for slot_id in LoadoutState.CONSUMABLE_SLOTS:
-		var data: LoadoutViewModel.SlotData = _vm.slots.get(slot_id)
-		if data == null:
-			continue
-		var btn := _create_slot_button(data)
-		consumable_slots_hbox.add_child(btn)
-
-
-func _render_available_list() -> void:
-	_clear_container(available_list)
-
-	# Skills disponibles
-	if not _vm.available_skills.is_empty():
-		var section_label := Label.new()
-		section_label.text = tr("LOADOUT_SKILLS_AVAILABLE")
-		available_list.add_child(section_label)
-
-		for skill_data in _vm.available_skills:
-			var btn := _create_available_skill_button(skill_data)
-			available_list.add_child(btn)
-
-	# Consumibles disponibles
-	if not _vm.available_consumables.is_empty():
-		var section_label := Label.new()
-		section_label.text = tr("LOADOUT_CONSUMABLES_AVAILABLE")
-		available_list.add_child(section_label)
-
-		for consumable_data in _vm.available_consumables:
-			var btn := _create_available_consumable_button(consumable_data)
-			available_list.add_child(btn)
+		if group.slot_type == "consumable":
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", UITokens.SPACE_SM)
+			slots_box.add_child(row)
+			for slot_id in group.slot_ids:
+				var data: LoadoutViewModel.SlotData = _vm.slots.get(slot_id)
+				if data != null:
+					_add_consumable_slot(row, data)
+		else:
+			var grid := GridContainer.new()
+			grid.columns = SKILL_COLUMNS
+			grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_theme_constant_override("h_separation", UITokens.SPACE_SM)
+			grid.add_theme_constant_override("v_separation", UITokens.SPACE_SM)
+			slots_box.add_child(grid)
+			for slot_id in group.slot_ids:
+				var data: LoadoutViewModel.SlotData = _vm.slots.get(slot_id)
+				if data != null:
+					grid.add_child(_make_skill_card(data))
 
 
-# ============================================
-# CONSTRUCCIÓN DE BOTONES
-# ============================================
+func _make_skill_card(data: LoadoutViewModel.SlotData) -> LoadoutCard:
+	var card := LoadoutCard.new(LoadoutCard.Layout.STACKED)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.data = data
 
-func _create_slot_button(data: LoadoutViewModel.SlotData) -> Button:
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(80, 60)
+	var title: String = tr("LOADOUT_SLOT_EMPTY")
+	if data.is_fixed or not data.is_empty:
+		title = tr(data.name_key)
 
-	if data.is_empty:
-		btn.text = tr("LOADOUT_SLOT_EMPTY")
-		btn.modulate = COLOR_SLOT_EMPTY
-	else:
-		btn.text = tr(data.display_name)
-		btn.modulate = COLOR_SLOT_FILLED
-
-	# Tooltip con el tag requerido
-	if data.slot_type == "skill" and data.required_tag != "":
-		btn.tooltip_text = tr("LOADOUT_REQUIRES_TAG") + ": " + data.required_tag
-
-	# Seleccionar este slot para asignar
-	var sid := data.slot_id
-	btn.pressed.connect(func(): _on_slot_pressed(sid))
-
-	# Resaltar si está seleccionado
-	if _selected_slot_id == data.slot_id:
-		btn.modulate = Color(1.0, 0.85, 0.0)
-
-	return btn
+	card.setup(tr(data.label_key), title, data.keybind_label)
+	card.set_empty(data.is_empty or data.is_fixed)
+	card.set_selected(data.is_selected)
+	card.interactive = not data.is_fixed
+	card.pressed.connect(_on_slot_card_pressed)
+	card.hover_changed.connect(_on_card_hover)
+	return card
 
 
-func _create_available_skill_button(data: LoadoutViewModel.SkillSlotData) -> Button:
-	var btn := Button.new()
+func _add_consumable_slot(parent: Control, data: LoadoutViewModel.SlotData) -> void:
+	var slot := UI_SLOT_SCENE.instantiate() as UISlot
+	slot.draggable = false
+	slot.accept_drops = false
+	slot.slot_label_text = data.keybind_label
+	parent.add_child(slot)
 
-	var label := tr(data.display_name)
-	if data.stamina_cost > 0:
-		label += "  [ST:%d]" % data.stamina_cost
-	btn.text = label
-	btn.tooltip_text = ", ".join(data.tags)
+	# set_definition necesita el nodo ya en el árbol (@onready de UISlot).
+	if data.definition != null:
+		slot.set_definition(data.definition, data.quantity)
+	slot.set_selected(data.is_selected)
 
-	var skill_id := data.skill_id
-	btn.pressed.connect(func(): _on_available_skill_pressed(skill_id))
-
-	return btn
-
-
-func _create_available_consumable_button(data: LoadoutViewModel.ConsumableSlotData) -> Button:
-	var btn := Button.new()
-	btn.text = "%s (x%d)" % [tr(data.display_name), data.quantity]
-
-	var item_id := data.item_id
-	btn.pressed.connect(func(): _on_available_consumable_pressed(item_id))
-
-	return btn
+	slot.slot_clicked.connect(_on_consumable_slot_clicked.bind(data.slot_id))
+	slot.mouse_entered.connect(_set_hover.bind(data))
+	slot.mouse_exited.connect(_set_hover.bind(null))
 
 
-# ============================================
-# INPUT — LÓGICA DE SELECCIÓN EN DOS PASOS
-#
-# Paso 1: jugador pulsa un slot → queda seleccionado (_selected_slot_id)
-# Paso 2: jugador pulsa un ítem de la lista → se asigna al slot seleccionado
-# ============================================
+func _render_list() -> void:
+	list_header.text = tr(_vm.list_header_key)
+	list_message.visible = _vm.list_message_key != ""
+	if list_message.visible:
+		list_message.text = tr(_vm.list_message_key)
 
-func _on_slot_pressed(slot_id: String) -> void:
-	if _selected_slot_id == slot_id:
-		# Segundo click sobre el mismo slot → deseleccionar o limpiar
-		_selected_slot_id = ""
-		_vm.request_clear_slot(slot_id)
-	else:
-		_selected_slot_id = slot_id
-		# Diferir el rerenderizado — el botón que emitió pressed sigue bloqueado
-		call_deferred("_render_slots")
+	_clear_container(list_box)
+	for cand: LoadoutViewModel.CandidateData in _vm.candidates:
+		var card := LoadoutCard.new(LoadoutCard.Layout.INLINE)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.data = cand
+		card.setup("", tr(cand.name_key), _candidate_trail(cand))
+		card.set_marked(cand.is_assigned_here)
+		card.interactive = not cand.is_assigned_here
+		card.pressed.connect(_on_candidate_pressed)
+		card.hover_changed.connect(_on_card_hover)
+		list_box.add_child(card)
 
 
-func _on_available_skill_pressed(skill_id: String) -> void:
-	if _selected_slot_id == "":
-		_show_feedback(tr("LOADOUT_SELECT_SLOT_FIRST"), false)
+func _candidate_trail(cand: LoadoutViewModel.CandidateData) -> String:
+	if cand.is_assigned_here:
+		return tr("LOADOUT_ASSIGNED_HERE")
+	if cand.slot_type == "consumable":
+		return "x%d" % cand.quantity
+	return _cost_text(cand)
+
+
+## Cajetín: la entrada bajo el ratón o, si no hay, el contenido del slot
+## elegido. «Vaciar» solo aparece cuando lo mostrado es ese contenido.
+func _render_detail() -> void:
+	var selected: LoadoutViewModel.SlotData = _vm.get_selected_slot()
+	var entry: LoadoutViewModel.EntryData = _hover_entry
+	if entry == null and selected != null and not selected.is_empty:
+		entry = selected
+
+	clear_button.text = tr("LOADOUT_CLEAR")
+	clear_button.visible = selected != null and not selected.is_empty and entry == selected
+
+	if entry == null:
+		detail_name.text = ""
+		detail_meta.text = ""
+		detail_desc.text = tr("LOADOUT_DETAIL_HINT")
 		return
 
-	_vm.request_assign_skill(_selected_slot_id, skill_id)
-	_selected_slot_id = ""
+	var slot_entry := entry as LoadoutViewModel.SlotData
+	if slot_entry != null and (slot_entry.is_empty or slot_entry.is_fixed):
+		detail_name.text = tr(slot_entry.label_key)
+	else:
+		detail_name.text = tr(entry.name_key)
+
+	var lines: PackedStringArray = []
+	if not entry.costs.is_empty():
+		lines.append(tr("LOADOUT_DETAIL_COST") % _cost_text(entry))
+	if not entry.tag_keys.is_empty():
+		var tag_names: PackedStringArray = []
+		for key in entry.tag_keys:
+			tag_names.append(tr(key))
+		var line_key: String = "LOADOUT_DETAIL_FITS" if entry.tag_mode == "fits" else "LOADOUT_DETAIL_REQUIRES"
+		lines.append(tr(line_key) % ", ".join(tag_names))
+	if entry.slot_type == "consumable" and entry.id != "":
+		lines.append(tr("LOADOUT_DETAIL_QUANTITY") % entry.quantity)
+	detail_meta.text = "\n".join(lines)
+
+	if slot_entry != null and slot_entry.is_empty and not slot_entry.is_fixed:
+		detail_desc.text = tr("LOADOUT_DETAIL_SLOT_EMPTY")
+	else:
+		detail_desc.text = _translate_or_empty(entry.description_key)
 
 
-func _on_available_consumable_pressed(item_id: String) -> void:
-	if _selected_slot_id == "":
-		_show_feedback(tr("LOADOUT_SELECT_SLOT_FIRST"), false)
+# ============================================
+# INPUT → INTENCIONES
+# ============================================
+
+func _on_slot_card_pressed(card: LoadoutCard) -> void:
+	var data := card.data as LoadoutViewModel.SlotData
+	if data != null:
+		_vm.request_select_slot(data.slot_id)
+
+
+func _on_consumable_slot_clicked(_slot: UISlot, slot_id: String) -> void:
+	_vm.request_select_slot(slot_id)
+
+
+func _on_candidate_pressed(card: LoadoutCard) -> void:
+	var cand := card.data as LoadoutViewModel.CandidateData
+	if cand == null:
 		return
+	if cand.slot_type == "skill":
+		_vm.request_assign_skill(_vm.selected_slot_id, cand.id)
+	else:
+		_vm.request_assign_consumable(_vm.selected_slot_id, cand.id)
 
-	_vm.request_assign_consumable(_selected_slot_id, item_id)
-	_selected_slot_id = ""
+
+func _on_clear_pressed() -> void:
+	_vm.request_clear_slot(_vm.selected_slot_id)
+
+
+func _on_card_hover(card: LoadoutCard, inside: bool) -> void:
+	if inside:
+		_set_hover(card.data as LoadoutViewModel.EntryData)
+	else:
+		_set_hover(null)
+
+
+func _set_hover(entry: LoadoutViewModel.EntryData) -> void:
+	if _hover_entry == entry:
+		return
+	_hover_entry = entry
+	_render_detail()
+
+
+# ============================================
+# TEXTO
+# ============================================
+
+func _cost_text(entry: LoadoutViewModel.EntryData) -> String:
+	var parts: PackedStringArray = []
+	for cost: LoadoutViewModel.CostData in entry.costs:
+		parts.append("%s %d" % [_resource_name(cost.resource_id), cost.amount])
+	return ", ".join(parts)
+
+
+## Nombre localizado del recurso; si no hay clave RESOURCE_*_NAME, el id.
+func _resource_name(resource_id: String) -> String:
+	var key: String = "RESOURCE_%s_NAME" % resource_id.to_upper()
+	var text: String = tr(key)
+	return resource_id.capitalize() if text == key else text
+
+
+func _translate_or_empty(key: String) -> String:
+	if key == "":
+		return ""
+	var text: String = tr(key)
+	return "" if text == key else text
+
+
+# ============================================
+# FEEDBACK
+# ============================================
+
+func _show_feedback(message: String) -> void:
+	feedback_label.text = message
+	feedback_label.add_theme_color_override("font_color", UITokens.COLOR_DANGER_SOFT)
+	feedback_timer.start(FEEDBACK_DURATION)
+
+
+func _hide_feedback() -> void:
+	feedback_label.text = ""
 
 
 # ============================================
 # UTILIDADES
 # ============================================
 
-func _get_container_for_slot(slot_id: String) -> HBoxContainer:
-	match slot_id:
-		"attack_1", "attack_2", "attack_3":
-			return attack_slots_hbox
-		"dodge", "defense", "escape":
-			return defense_slots_hbox
-	return defense_slots_hbox
+func _style_static_labels() -> void:
+	_style_label(title_label, UITokens.FONT_SIZE_TITLE, UITokens.TEXT_PRIMARY)
+	_style_label(list_header, UITokens.FONT_SIZE_SM, UITokens.COLOR_ACCENT)
+	_style_label(list_message, UITokens.FONT_SIZE_MD, UITokens.TEXT_MUTED)
+	_style_label(detail_name, UITokens.FONT_SIZE_LG, UITokens.TEXT_PRIMARY)
+	_style_label(detail_meta, UITokens.FONT_SIZE_SM, UITokens.TEXT_SECONDARY)
+	_style_label(detail_desc, UITokens.FONT_SIZE_MD, UITokens.TEXT_PRIMARY)
+	_style_label(feedback_label, UITokens.FONT_SIZE_MD, UITokens.COLOR_DANGER_SOFT)
+
+
+func _style_label(label: Label, font_size: int, color: Color) -> void:
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
 
 
 func _clear_container(container: Node) -> void:
 	for child in container.get_children():
-		child.free()
+		container.remove_child(child)
+		child.queue_free()
 
 
-func _show_feedback(message: String, is_error: bool) -> void:
-	feedback_label.text = message
-	feedback_label.modulate = COLOR_ERROR if is_error else Color.WHITE
-	feedback_label.visible = true
-
-	if _feedback_timer and is_instance_valid(_feedback_timer):
-		_feedback_timer.timeout.disconnect(_hide_feedback)
-
-	_feedback_timer = get_tree().create_timer(FEEDBACK_DURATION)
-	_feedback_timer.timeout.connect(_hide_feedback)
-
-
-func _hide_feedback() -> void:
-	if feedback_label:
-		feedback_label.visible = false
+## Marco centrado: FRAME_FRACTION de la pantalla, con tope FRAME_MAX_SIZE
+## (mismo criterio que Inventario y Party).
+func _update_frame_rect() -> void:
+	var screen: Vector2 = get_viewport().get_visible_rect().size
+	var target := Vector2(
+		minf(screen.x * FRAME_FRACTION, FRAME_MAX_SIZE.x),
+		minf(screen.y * FRAME_FRACTION, FRAME_MAX_SIZE.y))
+	frame.offset_left = -target.x / 2.0
+	frame.offset_right = target.x / 2.0
+	frame.offset_top = -target.y / 2.0
+	frame.offset_bottom = target.y / 2.0

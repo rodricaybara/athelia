@@ -143,6 +143,12 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Un recurso que se regenera (estamina) emite sin parar:** va con razón propia agrupada por frame, no repinta la pantalla entera (S19b).
 - **Resaltar los destinos de un arrastre** se hace desde `NOTIFICATION_DRAG_BEGIN/END` con `gui_get_drag_data()`, y es opt-in: un slot que acepta cualquier cosa resaltaría siempre (S19b).
 - **Un `Label` ignora el ratón:** para un tooltip, `mouse_filter = STOP` (S19b).
+- **El estado de selección vive en el ViewModel y un error de asignación no lo limpia:** si lo hace la View, cambia el estado sin repintar y la pantalla miente (S20).
+- **Una acción destructiva no se esconde en un segundo clic:** botón explícito; el clic sobre lo ya seleccionado solo deselecciona (S20).
+- **Filtrar los candidatos por compatibilidad en vez de listar todo y rechazar** vuelve inalcanzables los errores de asignación; se conservan como salvaguarda del ViewModel, y no se pueden validar desde la interfaz (S20).
+- **Un clic que nace en un nodo que el repintado destruye** exige repintado diferido (`call_deferred`) (S20).
+- **Una View que muestra costes de recursos traduce `RESOURCE_<ID>_NAME` con fallback a `id.capitalize()`:** un recurso sin clave (`focus`) no sale crudo, pero conviene darla de alta (S20).
+- **Dos líneas (etiqueta + nombre) caben donde una sola línea con todo no:** para tarjetas anchas con dos datos, apilarlos (S20).
 ---
  
 ## Proceso y herramientas
@@ -155,7 +161,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Una prueba aislada de un componente con ítems de respaldo** evita depender del estado del juego (`ui_slot_drag_test`) (S18).
 - **Un script de depuración temporal (autoload con teclas) permite probar casos que el juego no produce** (0 y 2 compañeros), pero sus acciones destruyen estado: no se guarda con él activo, se restaura el guardado después y se retira (con su autoload) antes de cerrar el spike (S19).
 - **Un dato de prueba de un spike anterior altera la siguiente validación** (`inventory_slots` reducido, `Huecos 6/7`): devolverlo a su valor real (S19).
-- **Un spec puede dar por hecho un comportamiento que nadie implementó** (Esc en el inventario): comprobar con `Select-String 'ui_cancel'` antes de validar (S17).
+- **Un spec puede dar por hecho un comportamiento que nadie implementó** (Esc en el inventario): comprobar con `Select-String 'ui_cancel'` antes de validar (S17, S20: Esc en el Loadout).
+- **Un contexto de apertura sin llamadores ni acción de input no se puede validar en partida:** se verifica por inspección y se registra como código muerto (`open_loadout()`) (S20).
+- **Un conteo de claves o de campos en una spec se comprueba contra el código** (6 `LOADOUT_ERROR_*` en la spec, 7 en el código) (S20).
 - **Una prueba con un id mal escrito se hace a propósito** para validar el fallback (S13).
 - **Un script de reinicio con simulación previa y copia `.bak`** antes de cualquier borrado masivo (S15).
 - **Las teclas F5-F8 son atajos del editor** (F8 detiene la ejecución, F5 la lanza): las herramientas de depuración usan otras (Insert, Inicio) (S19b).
