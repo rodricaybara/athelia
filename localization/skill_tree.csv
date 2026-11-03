@@ -1,0 +1,38 @@
+id,en,es
+SKILL_TREE_TITLE,Skill tree,Árbol de habilidades
+SKILL_TREE_PLAYER_LABEL,Player,Jugador
+SKILL_TREE_COMPANION_UNKNOWN,Companion,Compañero
+SKILL_TREE_MODE_PARTY,Compare,Comparar
+SKILL_TREE_MODE_INDIVIDUAL,Individual,Individual
+SKILL_TREE_SELECT_HINT,Select a skill,Selecciona una habilidad
+SKILL_TREE_NO_SKILLS,No skills in this category,Sin habilidades en esta categoría
+SKILL_TREE_NO_PREREQS,None,Ninguno
+SKILL_TREE_TIER_HEADER,Level %d,Nivel %d
+SKILL_TREE_STATE_LOCKED,Locked,Bloqueada
+SKILL_TREE_STATE_UNLOCKED,Unlocked,Desbloqueada
+SKILL_TREE_BTN_TRAIN,Train,Entrenar
+SKILL_TREE_SECTION_REQS,Requirements,Requisitos
+SKILL_TREE_SECTION_EFFECTS,Effects,Efectos
+SKILL_TREE_SECTION_COMBAT_USE,Combat use,Uso en combate
+SKILL_TREE_SECTION_EXPLORATION_USE,Exploration use,Uso en exploración
+SKILL_TREE_EXPLORATION_NOTE,Effect depends on the interacted object.,El efecto depende del objeto con el que se interactúa.
+SKILL_TREE_META_COST,Cost,Coste
+SKILL_TREE_EFFECT_DURATION,Duration: %s s,Duración: %s s
+SKILL_TREE_EFFECT_OTHER,Effect,Efecto
+SKILL_TREE_PREREQ_FORMAT,%s ≥ %d %% (you have %d %%),%s ≥ %d %% (tienes %d %%)
+SKILL_TREE_REQUIRES_TOOLTIP,Requires: %s,Requiere: %s
+SKILL_TREE_REASON_PREREQS,Pending requirements,Requisitos pendientes
+SKILL_TREE_REASON_PREREQS_HINT,Reach the listed requirements to unlock it.,Alcanza los requisitos indicados para desbloquearla.
+SKILL_TREE_REASON_TEACHER,Someone has to teach you,Necesitas que alguien te la enseñe
+SKILL_TREE_REASON_TEACHER_HINT,"You meet the requirements, but it still has to be unlocked.","Cumples los requisitos, pero hay que desbloquearla."
+SKILL_TREE_REASON_NO_PROGRESSION,Can't be trained,No se puede entrenar
+SKILL_TREE_REASON_NO_PROGRESSION_HINT,This skill has no progression.,Esta habilidad no tiene progresión.
+SKILL_TREE_TRAIN_IMPROVED,Improved: %d %% → %d %%,Mejoró: %d %% → %d %%
+SKILL_TREE_TRAIN_NOT_IMPROVED,No improvement this time.,No mejoró esta vez.
+SKILL_TREE_ERROR_NO_SKILL_SELECTED,No skill selected,Ninguna habilidad seleccionada
+SKILL_TREE_ERROR_SKILL_LOCKED,Skill is locked,La habilidad está bloqueada
+SKILL_TREE_ERROR_NO_PROGRESSION,Skill has no progression,La habilidad no tiene progresión
+SKILL_TREE_ERROR_CHALLENGE_TOO_LOW,Already mastered — find a better trainer,Ya dominada — busca un entrenador mejor
+SKILL_TREE_ERROR_UNKNOWN,Unknown error,Error desconocido
+SKILL_BUFF_EVASION,Evasion,Evasión
+SKILL_BUFF_GUARANTEED_HIT,Guaranteed hit,Golpe garantizado

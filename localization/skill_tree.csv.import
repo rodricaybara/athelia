@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c5scae88e7sl7"
+
+[deps]
+
+files=["res://localization/skill_tree.en.translation", "res://localization/skill_tree.es.translation"]
+
+source_file="res://localization/skill_tree.csv"
+dest_files=["res://localization/skill_tree.en.translation", "res://localization/skill_tree.es.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

@@ -468,6 +468,9 @@ func open_skill_tree(entity_id: String = "player") -> void:
 	if _current_overlay and _current_overlay.has_method("open"):
 		_current_overlay.open(entity_id)
 
+	if _current_overlay and _current_overlay.has_signal("closed"):
+		_current_overlay.closed.connect(_on_overlay_closed.bind(_current_overlay))
+
 	print("[SceneOrchestrator] SkillTree overlay shown for entity: %s" % entity_id)
 
 ## Cierra el árbol de habilidades si está abierto.

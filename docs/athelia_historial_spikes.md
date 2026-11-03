@@ -89,7 +89,7 @@ Reutiliza el sub-overlay del Grupo 2 para `telmori_sheriff_reward_intro` y `telm
  
 ---
  
-## Spikes 11-20
+## Spikes 11-21
  
 ### Spike 11 — Rediseño de la ventana de diálogo
 `DialoguePanel` pasa de `PanelContainer` plano a `UIPanel` con marco (cierra el pendiente del Spike 9). **Un único retrato** del NPC (se descarta definitivamente el layout de dos retratos), hermano del panel para sobresalir por el marco (layout C de la maqueta), y fondo de ambiente propio (`BackgroundImage` + velo, mismo patrón que la arena de combate; imagen pre-difuminada en la generación). Datos: `DialogueNodeDefinition.mood` (por nodo, no por diálogo), `DialogueDefinition.portrait_folder` y `background_id`, todos opcionales y con respaldo; retrato resuelto por cascada `<portrait_id>_<mood>.png` → `<portrait_id>.png` → ninguno, con `push_warning` en cada salto. `EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos sin romper oyentes. Antipatrón nuevo: un `PanelContainer` no se encoge por debajo de sus hijos, así que un número variable de opciones va en `ScrollContainer`. Deuda anotada: tests de `dialogue_node_shown` sin adaptar a 7 argumentos. Informe: `docs/spike_11_ventana_dialogo.md`.
@@ -125,6 +125,9 @@ Cierra lo que el 19a dejó fuera. **Transferencia mochila a mochila** por arrast
 
 ### Spike 20 — Loadout
 Rediseño de la pantalla con el Design System: `UIPanel` OVERLAY con marco, `UIButton`, `UISlot` (consumibles), un componente propio `LoadoutCard` (habilidades como tarjetas), nombres únicos `%`, solo tokens y 41 claves `LOADOUT_*` (`loadout.csv`). **El estado de selección pasa al ViewModel** (la vista antigua lo limpiaba sin repintar tras una asignación rechazada) y la lista muestra solo lo compatible con el slot y no asignado en otro (sin duplicados, ni en habilidades ni en consumibles); vaciar un slot es un botón explícito (antes, un segundo clic lo vaciaba sin aviso). Decisión O1: el slot `escape` es **fijo** (tarjeta «Acción de combate», no asignable) a la espera de replantear el combate. La Fase 0 corrigió la spec: `open_loadout()` no tiene llamadores (código muerto, contexto no validable en partida), Esc no estaba implementado y el código tenía 7 claves de error, no 6. Hallazgos de datos: `skill.combat.defend`/`flee` sin `.tres` (ids hardcodeados en el controlador de combate), `fireball` no asignable a ningún slot, el HUD muestra vacíos los slots de Defensa y Huida. Sin cambios en el core. Validado a 1152×648 y 1680×1050 en el contexto de PlayerMenu. Informe: `docs/spike_20_loadout.md`.
+
+### Spike 21 — Árbol de habilidades
+Rediseño de `SkillTreeScreen`/`SkillTreeViewModel` con el Design System sin tocar reglas ni core: `UIPanel` OVERLAY con marco, `UIButton`, componente propio `SkillCard`, nodos `%`, solo tokens y 37 claves `SKILL_TREE_*` (`skill_tree.csv`). Maqueta de 3 layouts y simulación con 20 habilidades; elegido lista por niveles + detalle a la derecha con pie fijo (motivo de «no entrenable» y botón Entrenar). «Mejorable» tiene una única definición en el ViewModel; el entrenamiento informa del resultado real de `execute_learning_session` (mejoró / no mejoró / error) y la selección actualiza las fichas en sitio para no perder el scroll. 21b añade el modo Comparar (habilidades × party, datos tipados en el ViewModel). Bugs: doble pulsación de H (el orquestador no conectaba `closed` en `open_skill_tree()`, único cambio fuera de `ui/skill_tree/`), compañero con su id, efectos mal formateados, éxito falso al fallar la tirada, porcentaje de ficha colapsado, «Coste: 0», botón deshabilitado ilegible. Sin confirmar: unidad de `duration` de buffs. El árbol visual con relaciones queda como spike aparte. Informe: `docs/spike_21_arbol_habilidades.md`.
 
 ---
 

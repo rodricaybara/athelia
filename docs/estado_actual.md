@@ -1,6 +1,6 @@
 # Athelia — Estado actual (hito de rediseño de interfaces)
  
-*Actualizado: 2026-11-02, tras el cierre del Spike 20.*
+*Actualizado: 2026-11-03, tras el cierre del Spike 21.*
 Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`.
  
 ## Spikes del hito
@@ -16,7 +16,8 @@ Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_archit
 | 19a | Party | cerrado | 18 |
 | 19b | Party: mochila a mochila, detalle, estado del compañero, regla de préstamo | cerrado | 19a |
 | 20 | Loadout | cerrado | 18 |
-| 21 | Árbol de habilidades | pendiente | 15 |
+| 21 | Árbol de habilidades (21a pantalla, 21b comparación) | cerrado | 15 |
+| 21c | Árbol visual con relaciones (selector Lista/Árbol) | propuesto; numeración por decidir (el 22 es el Menú del jugador) | 21 |
 | 22 | Menú del jugador | pendiente | 18, 20, 21 |
 | 23 | Pantalla de inicio | pendiente | 15 |
 | 24 | Game Over: rediseño visual | pendiente | 14, 15, 23 |
@@ -25,7 +26,7 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
  
 ## Alcance de lo pendiente
  
-**21 — Árbol de habilidades.** ~810 líneas de View que construye la UI por código; decidir en la Fase 0 si se parte en dos. Sustituir `_apply_panel_styles()`, `_add_bg_rect()` y `_add_border_rect()` por `UIPanel`. Los tokens `BG_*`/`TEXT_*` ya son alias de `COLOR_*`, así que la migración es mínima. Absorbe: pestaña `companion_mira` muestra el id en vez del nombre, un `T1` suelto sin localizar, claves `SKILL_META_COST_`, `SKILL_NOT_FOUND`, `SKILL_NOT_LEARNED`, `SKILL_SLOTS`, `SKILL_A`, `SKILL_B`, `SKILL_CATEGORY` sin definición, revisión de los textos de `skills.csv` y `SKILL_ATTACK_LIGHT_DESC` («atack», espacios). Validar: entrenar skill, filtros, comparación con companions, cierre; dos contextos (PlayerMenu y `open_skill_tree()`).
+**21c — Árbol visual (propuesto).** Nodos y líneas de prerrequisitos con un selector «Lista/Árbol» en la cabecera, sobre el `SkillTreeViewModel` del 21 (ya entrega niveles, requisitos y estado). Decidir en la Fase 0 la disposición (por nivel/subcategoría) y qué hace el scroll/zoom.
  
 **22 — Menú del jugador.** Es el hub: integra Loadout, Inventory y SkillTree ya rediseñados; `closed` y `_open_subscreen()` son correctos y se conservan. Incluye el problema del orquestador de slot único: `I` dentro de PlayerMenu cierra el menú entero, e `I` con Party abierta la cierra; y la doble pulsación de `P` tras cerrar el menú del jugador (`open_player_menu()` no conecta `_on_overlay_closed`). Validar: anidado de tres niveles, HP/EN en vivo.
  
@@ -64,6 +65,9 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - `telmori_lair_loot_obsidian.json.json` pendiente de renombrar (carga igual).
 - Claves `INVENTORY_BAG_HEADER`/`INVENTORY_STATS_HEADER` sin uso; `INVENTORY_STAT_FOCUS` oculta.
 - Descripciones de estrategia inexistentes en datos; `PARTY_*`: el mensaje «Equipado en Jugador» usa nombre genérico.
+- Spike 21: unidad de `duration` de los buffs sin confirmar (se muestra «s»; si son turnos, cambiar `SKILL_TREE_EFFECT_DURATION`); «Evasión 100» sin unidad; `SKILL_ATTACK_LIGHT_DESC` («atack», espacios); subcategoría de la esquiva `EXPLORATION` (la documentación dice `MELEE`); `NONE`/`ENEMY` tratados al revés de la documentación; entrenamiento `PRACTICE` ilimitado y gratuito (decisión de diseño).
+- `UIButton` `PRIMARY` deshabilitado es ilegible (el árbol lo evita pasando a `SECONDARY`); arreglarlo en el componente afecta a todas las pantallas.
+- `SceneOrchestrator.close_skill_tree()` sin llamadores.
 **Limpieza (barrido final)**
 - Candidatos a borrar: `exploration_tutorial`, `exploration_test`, `exploration_telmori_village` (+ líneas comentadas de `SCENE_EXPLORATION`), `player.gd`/`player.tscn` (bloqueado por `test/test_shop_ui.gd`), `combat_test.tscn`/`combat_hud.tscn` si se deja de usar.
 - `Interactable` vestigial; su camino físico nunca se validó y ya no se va a validar.
@@ -82,4 +86,5 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Spike 19b: Party con 2 compañeros y un ítem seleccionado a 1152×648 (margen vertical ≈2 px); un tercer compañero.
 - Spike 14: combate lanzado desde narrativa; rescate y muerte permanente de un companion (sin camino jugable).
 - Spike 10: camino de fallo del libro (`item_use_failed`) y guardado/carga con Curtido aprendido.
+- Spike 21: detalle de Ataque Pesado, refresco ante una mejora externa con la pantalla abierta, contexto PlayerMenu → SkillTree, 1680×1050 de la versión final, lista larga (>15 habilidades).
 - Spike 20: el contexto `open_loadout()` (sin llamadores) y los errores de asignación (`LOADOUT_ERROR_*`), que la interfaz no puede provocar porque la lista ya filtra; asignación con un compañero en la party (el Loadout es solo del jugador).

@@ -189,7 +189,7 @@ athelia/
 ├── docs/                            # informes de cierre y referencias (ver nota abajo)
 │
 ├── localization/                    # CSV → .translation (ES/EN)
-│   ├── translations.csv             # textos generales (+ SKILL_TREE_*, SKILL_SUBCATEGORY_*, SKILL_FILTER_*)
+│   ├── translations.csv             # textos generales (+ SKILL_SUBCATEGORY_*, SKILL_FILTER_*, SKILL_EFFECT_*)
 │   ├── dialogues.csv
 │   ├── dialogues_scenes_telmori.csv
 │   ├── skills.csv                   # SKILL_<ID>_NAME / _DESC de todas las habilidades
@@ -197,6 +197,7 @@ athelia/
 │   ├── inventory.csv                # INVENTORY_* (58 claves)
 │   ├── party.csv                    # PARTY_* (34 claves)
 │   ├── loadout.csv                  # LOADOUT_* (41 claves)
+│   ├── skill_tree.csv               # SKILL_TREE_* (37 claves, incl. SKILL_BUFF_*)
 │   ├── items.csv
 │   ├── items_telmori.csv
 │   ├── world_objects.csv
@@ -278,7 +279,10 @@ athelia/
     │   ├── shop_viewmodel.gd
     │   ├── shop_ui.gd / .tscn
     │   └── shop_item_slot.gd / .tscn  # fila de lista (extends UIPanel)
-    ├── skill_tree/                  # viewmodel + screen + tscn  (pendiente de rediseño: Spike 21)
+    ├── skill_tree/
+    │   ├── skill_tree_viewmodel.gd      # estado, TierGroup/SkillData, TrainResult, ComparisonRow
+    │   ├── skill_tree_screen.gd / .tscn # View (UIPanel OVERLAY con marco)
+    │   └── skill_card.gd                # SkillCard (class_name): ficha de habilidad con barra fina
     ├── world_objects/               # panel vestigial
     │
     └── design_system/

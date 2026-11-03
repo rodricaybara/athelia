@@ -394,7 +394,7 @@ Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectáng
 |---|---|---|
 | `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation, Diálogo, Narrativa, sub-paneles del menú, cabeceras y filas de la tienda |
 | `POPUP` | `COLOR_PANEL_ALT`, borde de foco, padding 8 | ninguno |
-| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party, Loadout |
+| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party, Loadout, Árbol de habilidades |
  
 ### `UIPanel` — marco decorativo (opt-in)
  
@@ -411,7 +411,7 @@ Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectáng
 - `decorative_frame` y `corner_texture` tienen setter y reaplican estilo y redibujan en runtime. Los setters de `@export` corren **antes de `_ready()`**: protegerlos con `is_node_ready()`.
 - Para activarlo: inspector de la instancia, grupo «Marco decorativo (Spike 9)», marcar `Decorative Frame` y **guardar la escena**. Sin cambios de script. Si «no cambia nada», un `print` en `_ready()` distingue «el script no carga» de «el flag no está activo en esa instancia».
 - Tokens: `COLOR_FRAME_OUTER/FILLET/INNER`, `FRAME_OUTER/FILLET/INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING`, `FRAME_CORNER_TEXTURE_PATH`. Arte en `ui/design_system/assets/frames/`.
-- Activado en: panel narrativo, diálogo, tienda, inventario, Party y Loadout.
+- Activado en: panel narrativo, diálogo, tienda, inventario, Party, Loadout y árbol de habilidades.
 ### `UIButton` — modo solo icono (opt-in)
  
 | Opción | Efecto |
@@ -439,6 +439,7 @@ Patrón reutilizable: `[icono opcional] [nombre] [xN] [precio] [botón]`.
 - La View llama a `set_values(current, max)` con lo que le da el ViewModel. `bind()` se conecta a `Resources` por sí misma: accede al juego y no se usa desde una View MVVM.
 - El relleno va anclado a izquierda y alto, y su ancho se ajusta con `offset_right` (un control con anclas opuestas distintas ignora `size`). Se recalcula al cambiar de tamaño la barra; el primer valor se pinta sin animar y cada refresco cancela el tween anterior.
 - Alto `RESOURCE_BAR_HEIGHT` (14 px); dos barras con 4 px de separación caben en una cabecera de 36 px. Para el recurso que se regenera (estamina) el ViewModel emite una razón propia (`resources`) agrupada por frame, no repinta la pantalla entera.
+- Barra fina (21): `UIResourceBar` fija `custom_minimum_size.y = 14` en su `_ready()`; una barra de 6 px se rebaja **después** de ese `_ready` (en el `_ready()` del padre, o con `bar.ready.connect(…, CONNECT_ONE_SHOT)` si la barra entra al árbol más tarde). Con `resource_type = "custom"` se asignan `custom_fill_color`/`custom_bg_color` antes de añadirla al árbol.
 
 ### `UISlot` y overlay a pantalla completa
  
@@ -497,6 +498,7 @@ Reglas comunes:
 - `ui_cancel`: la pantalla lo consume con `set_input_as_handled()` y cierra; el input no manejado se propaga de hijo a padre, así que en anidado cierra solo la capa más profunda. Una pantalla con `closed` nunca se libera a sí misma.
 - Limitación conocida del orquestador (→ Spike 22): con Party abierta, `I` la cierra en vez de abrir el inventario; `I` dentro de PlayerMenu cierra el menú entero. `PlayerMenu` no abre Party (solo Loadout, Inventory y SkillTree).
 - Party en narrativa: cerrar solo vuelve a mostrar el panel; no avanza nodo ni racha.
+- SkillTree: overlay en exploración (tecla `H`, `SceneOrchestrator.open_skill_tree()`, `closed` conectada por el orquestador) y subpantalla de PlayerMenu (`_open_subscreen()`).
 - Loadout: solo como subpantalla de PlayerMenu (`_open_subscreen()`, `closed` conectada, la libera PlayerMenu). `SceneOrchestrator.open_loadout()` existe pero no tiene llamadores ni acción de input (código muerto).
 ---
  
@@ -516,7 +518,7 @@ Reglas comunes:
 | CombatArena | `combat_arena_viewmodel.gd` (+ `combat_hub_viewmodel.gd` como `action_menu`) / `combat_arena_panel.gd` | Pantalla de combate de producción (`OVERLAY_COMBAT_HUD`). Fichas dinámicas (`combat_tokens`), log narrado (`log_entries`, 4 categorías con fuente de señal propia) y menú de 8 acciones. Se conecta a `Resources.resource_changed` directamente. Fondo por encuentro (`background_path`, razón `"background"`). Nombres resueltos con fallback a `tr(CharacterDefinition.name_key)`. Columna enemiga con envoltorio + `.scale` (ver antipatrón). Acciones delegadas en `PlayerCombatController.request_skill()`. |
 | InteractiveScene | `interactive_scene_viewmodel.gd` / `interactive_scene_view.gd` | Vista **permanente** del mapa de puntos de interés. Ver siguiente sección. |
 | Loadout | `loadout_viewmodel.gd` / `loadout_screen.gd` (+ `loadout_card.gd`, `LoadoutCard`) | `Backdrop` + `Frame` (`UIPanel` OVERLAY con marco, tope 1400×820). Izquierda: slots agrupados en Ataque / Defensa / Consumibles (habilidades como `LoadoutCard` de dos líneas, etiqueta del slot + tecla arriba y nombre debajo; consumibles como `UISlot` de 64 px con la tecla en la etiqueta). Derecha: lista de candidatos del slot seleccionado (compatibles por tag, no asignados en otro slot; «asignada aquí» si ya está en este), cajetín de detalle (costes, requisito o «sirve para», cantidad; «Vaciar slot» solo si muestra el contenido del slot seleccionado) y línea de feedback fija (token `COLOR_DANGER_SOFT`, `Timer` de 2,5 s). El slot `escape` es fijo (`FIXED_SLOTS`): tarjeta «Acción de combate», no seleccionable. Clic para seleccionar y clic para asignar (arrastre previsto). Estado en el ViewModel (`selected_slot_id`, `groups`, `slots`, `candidates`); entrega **claves** de localización y la View traduce. Razones: `opened/selection/slots/error/closed`. Teclas leídas de `CombatHudViewModel.SLOT_KEYBIND_LABEL`. Esc cierra (`ui_cancel`), `closed` sin auto-liberarse. Textos `LOADOUT_*` (`loadout.csv`, 41 claves). |
-| SkillTree | `skill_tree_viewmodel.gd` / `skill_tree_screen.gd` | Pendiente de rediseño (Spike 21): UI construida por código, fondos y bordes emulados a mano. |
+| SkillTree | `skill_tree_viewmodel.gd` / `skill_tree_screen.gd` (+ `skill_card.gd`, `SkillCard`) | `Backdrop` + `Frame` (`UIPanel` OVERLAY con marco, tope 1400×820). Cabecera con selector de entidad (‹ nombre ›, vuelta circular), Comparar/Individual y cierre; pestañas de subcategoría y filtros (`UIButton`); lista por niveles de `SkillCard` (`HFlowContainer`, 260 px; cabecera de nivel solo si hay más de uno) y detalle (barra, subtítulo, descripción, costes >0, efectos, requisitos ✓/✗) con **pie fijo** (motivo de «no entrenable» + botón Entrenar, `SECONDARY` cuando está deshabilitado). Modo Comparar: rejilla habilidades × entidades por subcategoría. El ViewModel decide todo: «mejorable» = `is_unlocked and has_progression and prereqs_met`; motivo por prioridad (requisitos → profesor → sin progresión); entrena con `SkillProgression.execute_learning_session(…"PRACTICE")` y entrega `TrainResult`; entrega **claves** y la View traduce. Razones: `opened/entity_changed/tab/selection/filter_changed/mode_changed/training_done/error/closed`. Selección en sitio (sin repintar); pestañas/filtros con repintado diferido; tras entrenar se conserva el scroll. Esc cierra (`ui_cancel`), `closed` sin auto-liberarse. Textos `SKILL_TREE_*` (`skill_tree.csv`, 37 claves) + `SKILL_FILTER_*`/`SKILL_SUBCATEGORY_*`/`SKILL_EFFECT_*`… en `translations.csv`. |
  
 ### Pantallas sin ViewModel
  

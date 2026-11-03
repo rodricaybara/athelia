@@ -149,6 +149,13 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Un clic que nace en un nodo que el repintado destruye** exige repintado diferido (`call_deferred`) (S20).
 - **Una View que muestra costes de recursos traduce `RESOURCE_<ID>_NAME` con fallback a `id.capitalize()`:** un recurso sin clave (`focus`) no sale crudo, pero conviene darla de alta (S20).
 - **Dos líneas (etiqueta + nombre) caben donde una sola línea con todo no:** para tarjetas anchas con dos datos, apilarlos (S20).
+- **`UIResourceBar` fija su alto mínimo en 14 px en su `_ready()`:** una barra fina se rebaja después de ese `_ready` (en el `_ready()` del padre; si la barra se añade más tarde, `bar.ready.connect(…, CONNECT_ONE_SHOT)`) (S21).
+- **Un `Label` con elipsis junto a otro `Label` expansivo se queda sin sitio (ancho mínimo 0):** los valores cortos (porcentajes, cantidades) llevan `OVERRUN_NO_TRIMMING`; el elástico es el nombre (S21).
+- **Un `UIButton` `PRIMARY` deshabilitado es ilegible:** la View cambia a `SECONDARY` mientras esté deshabilitado (el arreglo de raíz está en el componente y afecta a todas las pantallas) (S21).
+- **Seleccionar no repinta:** cambiar la selección actualiza el estilo de las fichas existentes; repintar la lista pierde el scroll. Cuando hay que repintar, se guarda el scroll y se restaura tras `await get_tree().process_frame` (S21).
+- **Informar del resultado real del core, no de que la llamada no falló:** `execute_learning_session` devuelve `improved`/`roll_failed`/…; mostrar «Mejoró» tras una tirada fallida miente (S21).
+- **Una definición única de «puede hacerse» en el ViewModel** (`is_trainable`) y un motivo con prioridad; la View ni la recalcula ni la reordena (S21).
+- **Un coste ≤ 0 no se muestra** («Coste: 0 Estamina» en una habilidad pasiva) (S21).
 ---
  
 ## Proceso y herramientas

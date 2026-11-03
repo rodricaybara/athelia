@@ -1,12 +1,12 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-02 (cierre del Spike 19b, que incluye la 16c)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-03 (cierre del Spike 21; spec del 22 preparada)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
 cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
 código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15,
-16 (A y B), 16c, 17, 18, 19a y 19b están cerrados y validados en partida real** (informes en
+16 (A y B), 16c, 17, 18, 19a, 19b, 20 y 21 están cerrados y validados en partida real** (informes en
 `docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md`,
 `docs/spike_16_tienda.md`, `docs/spike_17_inventario_mvvm.md` y
 `docs/spike_18_inventario_rediseno.md`, `docs/spike_19_party.md` y
@@ -29,8 +29,8 @@ narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 | 18 | Inventario B: rediseño con `UISlot` — **cerrado** | Medio | 17 |
 | 19 | Party — **19a y 19b cerrados** | Medio-alto | 18 |
 | 19b | Party: mochila a mochila, detalle con comparación, estado del compañero, regla de préstamo y 16c — **cerrado** (19b-1 y 19b-2) | Medio | 19a |
-| 20 | Loadout | Medio | 18 |
-| 21 | Árbol de habilidades | Medio-alto | 15 |
+| 20 | Loadout — **cerrado** | Medio | 18 |
+| 21 | Árbol de habilidades — **cerrado** (21a y 21b) | Medio-alto | 15 |
 | 22 | Menú del jugador | Medio | 18, 20, 21 |
 | 23 | Pantalla de inicio | Bajo | 15 |
 | 24 | Game Over: rediseño visual | Bajo | 14, 15, 23 |
@@ -542,7 +542,7 @@ detalle y comparación a pantalla completa (igual que el inventario); barra de s
 la mochila del jugador con selección a 1152×648. **Sin validar:** Party con 2 compañeros **y**
 un ítem seleccionado a 1152×648, y un tercer compañero.
 
-### Spike 20 — Loadout
+### Spike 20 — Loadout — CERRADO (2026-11-02)
 
 **Alcance:** migrar `$Root/...` a nombres únicos `%`; botones por código a
 `UIButton`/`UISlot`; tokens; maqueta.
@@ -554,9 +554,32 @@ siguen sin traducir tras el Spike 15.
 **Validación:** asignar skill y consumible, limpiar slot, slot incompatible,
 cierre; dos contextos (subpantalla de PlayerMenu y `open_loadout()`).
 
-**Spec y prompt:** `spike_20_loadout_spec.md`, `prompt_spike_20.md` (preparados tras 19b). Decisiones abiertas L1-L7: forma del slot, mecanismo de asignación, detalle, vaciar slot, selector de personaje, reglas nuevas, lista de disponibles. El ViewModel ya valida bien; el trabajo es de View y de mover el estado de selección al ViewModel.
+**Cierre:** informe `docs/spike_20_loadout.md`; spec `spike_20_loadout_spec.md`. Pantalla
+rehecha con `UIPanel` OVERLAY con marco, `UIButton`/`UISlot`, tokens, nodos `%` y `loadout.csv`
+(41 claves). Habilidades como tarjetas (`LoadoutCard`, nuevo), consumibles como `UISlot`; el
+estado de selección pasó al ViewModel (razón `selection`). Decisiones: L1 (c), L2 clic+clic
+(arrastre más adelante), L3 todos los costes, L4 el segundo clic solo deselecciona y vaciar es
+un botón, L5 solo jugador, L6/L7 sin duplicados y lista filtrada por compatibilidad, L8
+`open_loadout()` intacto, D1(a) etiquetas de tecla desde `CombatHudViewModel.SLOT_KEYBIND_LABEL`,
+D2 el slot sigue seleccionado tras asignar, D4 errores en línea fija, O1 `escape` es un slot
+fijo no asignable. Sin cambios en el core.
 
-### Spike 21 — Árbol de habilidades
+**Hallazgos de la Fase 0:** `open_loadout()` no tiene llamadores (código muerto, solo
+validable por inspección) y Esc no estaba implementado; `defend`/`flee` sin `.tres` (ids
+hardcodeados en el controlador de combate); `fireball` no cabe en ningún slot; el combate solo
+lee el loadout del jugador.
+
+**Pendientes del 20:** Huida (la tarjeta promete una acción que el HUD no muestra) y
+Defensa/Esquiva/Huida sin datos → spike futuro de combate; una skill con requisitos no
+cumplidos se puede asignar y sale atenuada en el HUD; sin slot para magia; eliminar
+`open_loadout()`; doble `P` tras cerrar el menú del jugador (→ Spike 22); falta
+`RESOURCE_FOCUS_NAME`; teclas F y G sin acción en el InputMap; mover `SLOT_KEYBIND_LABEL` a un
+sitio compartido (toca combate); loadouts de compañeros; arrastre para asignar; retirar
+`DebugPartyTool` (aún en `project.godot`, línea 56) y la traza `[DBG] tecla:` antes de cerrar
+el hito; etiqueta de tecla del `UISlot` solapada con el icono (cosmético); textos de
+`SKILL_ATTACK_LIGHT_DESC` y de la poción de vida (→ Spike 21 / datos).
+
+### Spike 21 — Árbol de habilidades — CERRADO (2026-11-03)
 
 **Fase 0:** decidir si se parte en dos (~810 líneas, construye la UI por código).
 
@@ -579,6 +602,22 @@ CSV); revisar los textos nuevos de `skills.csv` (borrador) y
 **Validación:** entrenar skill, filtros, modo comparación con companions,
 cierre; dos contextos (subpantalla de PlayerMenu y `open_skill_tree()`).
 
+**Cierre:** informe `docs/spike_21_arbol_habilidades.md`; spec `spike_21_arbol_habilidades_spec.md`. Entregado en dos partes. **21a:** `UIPanel` OVERLAY con marco, cabecera con selector de entidad, pestañas, filtros, rejilla de `SkillCard` por niveles (nuevo componente de pantalla), detalle con costes, efectos y requisitos, pie fijo con el motivo de «no entrenable»; `skill_tree.csv` (37 claves). **21b:** modo Comparar (habilidades × entidades). Layout elegido: B (lista por niveles con detalle a la derecha) + pie fijo de C. El ViewModel se reescribió con datos listos para pintar y entrega claves; «mejorable» tiene una sola definición, en el ViewModel. La pantalla informa del **resultado real** del entrenamiento (mejoró / no mejoró).
+
+**Cambio fuera de `ui/skill_tree/`:** `SceneOrchestrator.open_skill_tree()` conecta ahora `closed` (patrón de inventario/party); antes la pantalla cerrada seguía ocupando `_current_overlay` y hacían falta dos pulsaciones de H. Ningún cambio en el core de sistemas.
+
+**Hallazgos de la Fase 0:** `open_skill_tree()` está vivo (tecla H), a diferencia de `open_loadout()`; se retiró la infraestructura sin consumidores (`_ai_suggestions`, `training_cost`, `get_filtered_skills()`, accesos por `get_node_or_null("/root/...")`).
+
+**Pendientes del 21 (sin spike asignado salvo indicación):**
+- **Árbol visual con relaciones** (nodos y líneas de prerrequisitos, selector Lista/Árbol sobre el mismo ViewModel): **pendiente para un spike posterior, fuera del hito 14-24** y sin número asignado (decisión de Fernando, 2026-11-03).
+- **Unidad de `duration` de los buffs:** se supone que son **turnos**, pero no está definido; se decidirá en el futuro spike sobre el árbol y las habilidades (hoy la pantalla dice «Duración: %s s»; basta cambiar `SKILL_TREE_EFFECT_DURATION`). Pendiente también la unidad de la evasión.
+- `SKILL_ATTACK_LIGHT_DESC` («atack», espacios) y `RESOURCE_FOCUS_NAME` siguen sin comprobar/arreglar.
+- `UIButton` `PRIMARY` deshabilitado es ilegible (se resolvió solo en esta pantalla): decidir si se arregla en el componente (afecta a todas las pantallas).
+- Subcategoría de la esquiva (`EXPLORATION` en datos frente a `MELEE` en la documentación) y tratamiento de `NONE`/`ENEMY` contrario al documentado.
+- El entrenamiento `PRACTICE` es ilimitado y gratuito (decisión de diseño).
+- `SceneOrchestrator.close_skill_tree()` sin llamadores.
+- **Sin validar:** detalle de Ataque Pesado, refresco ante una mejora externa con la pantalla abierta, contexto PlayerMenu → SkillTree, capturas finales a 1680×1050, lista larga (15 habilidades de `player_base`).
+
 ### Spike 22 — Menú del jugador
 
 **Alcance:** es el hub: integra las tres subpantallas ya rediseñadas; maqueta;
@@ -587,6 +626,8 @@ cierre; dos contextos (subpantalla de PlayerMenu y `open_skill_tree()`).
 **Validación:** anidado de tres niveles con cierre correcto de cada capa;
 Loadout, Inventory y SkillTree desde el menú; HP y energía actualizándose en
 vivo.
+
+**Spec y prompt:** `spike_22_menu_jugador_spec.md`, `prompt_spike_22.md` (preparados tras el 21). Hallazgos de la lectura del paquete Fase 0 (a contrastar): `open_player_menu()` no conecta `closed` (doble `P`); los `open_*` hacen toggle sobre cualquier overlay abierto (`I` cierra el menú o Party); buffs con id crudo y tiempo estático; recursos como texto; título «Player UI». Decisiones abiertas P1-P10. La unidad de los buffs sigue sin definir (spike posterior sobre árbol y habilidades).
 
 ### Spike 23 — Pantalla de inicio
 
@@ -616,8 +657,8 @@ cambia.
 | Pendiente (recopilación) | Spike |
 |---|---|
 | `UIPanel.Variant.OVERLAY` opaco (§3) | 15 — **resuelto** (documentado como opaco) |
-| Pantalla de Loadout: pista visual del primer clic (§4) | 20 |
-| Claves `LOADOUT_*` sin traducir (§5) | 20 |
+| Pantalla de Loadout: pista visual del primer clic (§4) | 20 (resuelto) |
+| Claves `LOADOUT_*` sin traducir (§5) | 20 (resuelto) |
 | Claves `SKILL_*_NAME` sin traducir (§5) | 15 — **resuelto** (`skills.csv`); revisión de textos en 21 |
 | Lanza equipada frente a lanza vendida (§6) | 16 — **resuelto en parte**: el préstamo no se vende (16b); vender un objeto equipado queda sin probar; devolución → 16c |
 | Hito de rediseño de interfaces (§8) | todo el documento |
