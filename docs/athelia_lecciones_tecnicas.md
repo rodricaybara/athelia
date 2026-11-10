@@ -59,11 +59,16 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **`Inventory.add_item` devuelve `true` aunque pierda datos** (sobrescribe un no apilable ya presente, recorta al `max_stack`, descarta `custom_state`): quien transfiere pre-valida y comprueba la cantidad resultante (S19b).
 - **La documentación decía «máximo 2 compañeros» y el código tiene `MAX_PARTY_SIZE = 3`:** una decisión de diseño que vive solo en un documento no es una regla (S19b).
 - **Un id de ítem no tiene por qué coincidir con el nombre de su `.tres`:** `Items.get_item()` avisa y devuelve `null` (S19b).
+- **`AttributeResolver.resolve()` solo sirve para derivados:** con un atributo base devuelve 0.0 con aviso; para los base se usa `Characters.get_all_base_attributes()` y `get_active_modifiers()` (S22).
+- **Que un ítem declare un bono no garantiza que el motor lo aplique:** se comprueba contra los derivados antes de mostrarlo (el `+2 DES` de las botas no cambia la Iniciativa) (S22).
 ---
  
 ## Estado, flujo y señales
  
 - **Un overlay/sub-pantalla anidable no depende de `tree_exiting`:** ver `athelia_ui_architecture.md`. Complemento: un orquestador con `_current_overlay` único debe conectar `closed` de cada overlay, o hay que pulsar la tecla dos veces (S17).
+- **Con un orquestador de slot único, el overlay abierto se identifica por `scene_file_path` y se aplica una sola regla:** el propio se cierra, otro ligero se ignora, cualquier otro se cierra (S22).
+- **Una pantalla anidada oculta debe seguir consumiendo en `_input` la tecla que cierra a su padre:** si no, el evento llega al orquestador y cierra todo (S22).
+- **Si el core no emite señales de un estado, el ViewModel puede sondear con un `Timer` hijo solo mientras está abierto,** con razones distintas para «cambió la lista» (reconstruir) y «cambió el tiempo» (actualizar en sitio) (S22).
 - **Un `_unhandled_input()` que dispara overlays comprueba `GameLoop.is_input_blocked()`** (G3).
 - **Una señal global de cierre puede destruir un contexto anidado:** `SceneOrchestrator._on_dialogue_ended()` se gateó a `GameState.DIALOGUE` (G2).
 - **Instanciar una escena tarde puede dejar huérfanos a listeners que dependen de existir ANTES de un evento:** una señal emitida sin oyente se pierde, sin cola ni replay. Factorizar `_ensure_exploration_scene_instantiated()` (G1).
@@ -156,6 +161,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Informar del resultado real del core, no de que la llamada no falló:** `execute_learning_session` devuelve `improved`/`roll_failed`/…; mostrar «Mejoró» tras una tirada fallida miente (S21).
 - **Una definición única de «puede hacerse» en el ViewModel** (`is_trainable`) y un motivo con prioridad; la View ni la recalcula ni la reordena (S21).
 - **Un coste ≤ 0 no se muestra** («Coste: 0 Estamina» en una habilidad pasiva) (S21).
+- **Un componente de pantalla de solo script (`PlayerMenuRow`) evita `Label.new()` en la View** y permite actualizar en sitio sin crear nodos (S22).
+- **Las acciones con `physical_keycode` se muestran con `DisplayServer.keyboard_get_keycode_from_physical()`:** si no, la letra mostrada depende de la disposición del teclado (S22).
+- **`UIResourceBar` pinta su valor a 10 px:** para un texto legible, «actual / máx» va en una etiqueta aparte (S22).
 ---
  
 ## Proceso y herramientas

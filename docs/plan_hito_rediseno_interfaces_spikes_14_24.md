@@ -1,12 +1,12 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-03 (cierre del Spike 21; spec del 22 preparada)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-10 (cierre del Spike 22; spec del 23 preparada)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
 cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
 código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15,
-16 (A y B), 16c, 17, 18, 19a, 19b, 20 y 21 están cerrados y validados en partida real** (informes en
+16 (A y B), 16c, 17, 18, 19a, 19b, 20, 21 y 22 están cerrados y validados en partida real** (informes en
 `docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md`,
 `docs/spike_16_tienda.md`, `docs/spike_17_inventario_mvvm.md` y
 `docs/spike_18_inventario_rediseno.md`, `docs/spike_19_party.md` y
@@ -31,7 +31,7 @@ narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 | 19b | Party: mochila a mochila, detalle con comparación, estado del compañero, regla de préstamo y 16c — **cerrado** (19b-1 y 19b-2) | Medio | 19a |
 | 20 | Loadout — **cerrado** | Medio | 18 |
 | 21 | Árbol de habilidades — **cerrado** (21a y 21b) | Medio-alto | 15 |
-| 22 | Menú del jugador | Medio | 18, 20, 21 |
+| 22 | Menú del jugador — **cerrado** | Medio | 18, 20, 21 |
 | 23 | Pantalla de inicio | Bajo | 15 |
 | 24 | Game Over: rediseño visual | Bajo | 14, 15, 23 |
 
@@ -618,7 +618,7 @@ cierre; dos contextos (subpantalla de PlayerMenu y `open_skill_tree()`).
 - `SceneOrchestrator.close_skill_tree()` sin llamadores.
 - **Sin validar:** detalle de Ataque Pesado, refresco ante una mejora externa con la pantalla abierta, contexto PlayerMenu → SkillTree, capturas finales a 1680×1050, lista larga (15 habilidades de `player_base`).
 
-### Spike 22 — Menú del jugador
+### Spike 22 — Menú del jugador — CERRADO (2026-11-10)
 
 **Alcance:** es el hub: integra las tres subpantallas ya rediseñadas; maqueta;
 `closed` y `_open_subscreen()` ya son correctos y se conservan.
@@ -627,7 +627,21 @@ cierre; dos contextos (subpantalla de PlayerMenu y `open_skill_tree()`).
 Loadout, Inventory y SkillTree desde el menú; HP y energía actualizándose en
 vivo.
 
-**Spec y prompt:** `spike_22_menu_jugador_spec.md`, `prompt_spike_22.md` (preparados tras el 21). Hallazgos de la lectura del paquete Fase 0 (a contrastar): `open_player_menu()` no conecta `closed` (doble `P`); los `open_*` hacen toggle sobre cualquier overlay abierto (`I` cierra el menú o Party); buffs con id crudo y tiempo estático; recursos como texto; título «Player UI». Decisiones abiertas P1-P10. La unidad de los buffs sigue sin definir (spike posterior sobre árbol y habilidades).
+**Cierre:** informe `docs/spike_22_menu_jugador.md`; spec `spike_22_menu_jugador_spec.md`. Entregado en tres fases (pantalla, orquestador, buffs). Layout C (cabecera, fila de tres botones `LG` y tres paneles: Recursos, Atributos, Efectos activos); `UIResourceBar` con «actual / máx» como texto aparte; atributos derivados + base (valor efectivo); buffs localizados por clave `PLAYER_MENU_BUFF_<ID>` con id crudo de respaldo y tiempo en vivo (un `Timer` de 0,5 s en el ViewModel); `PlayerMenuRow` (componente de pantalla, solo script); `player_menu.csv` (14 claves). Atajos leídos de `InputMap` por el ViewModel. Fuera de este spike: los seis slots del equipo (spike propio).
+
+**Cambio fuera de `ui/player_menu/`:** `core/scene_orchestrator.gd` (seis parches): `LIGHT_OVERLAY_SCENES` y `_handle_overlay_toggle()` (el propio overlay se cierra, otro ligero se ignora, cualquier otro se cierra como antes; se identifica por `scene_file_path`) en los cuatro `open_*`, y `closed` conectado en `open_player_menu()` (fin del doble `P`). Dentro del menú, `I`/`H` abren la subpantalla y con una subpantalla abierta solo se consume `open_player_menu`. Ningún sistema del core ni los sub-overlays de `NarrativeScenePanel` tocados.
+
+**Hallazgos de la Fase 0:** no hay productor de buffs en producción y `ModifierApplicator` no emite señales de estados temporales; las claves del menú estaban en `translations.csv`, no en `menus.csv`; las teclas se reparten entre `ExplorationController` (`I`, `O`, `P`) y `ExplorationHUD` (`H`, `P`).
+
+**Pendientes del 22 (sin spike asignado salvo indicación):**
+- **Los modificadores `attribute.<base>` no afectan a los derivados** (`_resolve_linear_combination` lee el atributo base): el `+2 DES` de las botas no cambia la Iniciativa. El menú muestra el bono declarado por el ítem (opción A); arreglarlo es un cambio de motor con spike propio.
+- **Seis slots del equipo en el menú:** spike propio.
+- `ModifierApplicator` no emite señales al aplicar o expirar estados temporales y nadie los aplica en producción.
+- La unidad de la duración de los buffs de **habilidades** sigue sin definir (los estados temporales del personaje son segundos reales).
+- Tab no enlazada a `open_inventory` (comentario obsoleto «I / Tab» en `ExplorationController`; acción `toggle_inventory` sin uso); Loadout sin atajo (exigiría una acción nueva del InputMap).
+- Trazas de depuración ajenas: `[DBG] tecla:` en `ExplorationController` y `[DIAG]` en `narrative_scene_panel.gd` (retirar antes de cerrar el hito, junto con `DebugPartyTool`).
+- `open_loadout()` del orquestador sin llamadores y con comentario obsoleto.
+- **Sin validar:** scroll de buffs con más de seis, captura en inglés a 1680×1050, buffs con modificadores reales sobre atributos, y que `scene_file_path` coincida con las constantes `OVERLAY_*` en todos los casos (validado de forma indirecta).
 
 ### Spike 23 — Pantalla de inicio
 
@@ -638,6 +652,8 @@ Opciones, Créditos y Confirmar salida; mantener el ciclo de vida de Main Scene
 **Validación:** Nueva partida, Cargar (con y sin guardado), Opciones (volumen,
 pantalla completa, idioma), Créditos, salir con confirmación, volver al menú
 desde Character Creation y tras una derrota.
+
+**Spec y prompt:** `spike_23_pantalla_inicio_spec.md`, `prompt_spike_23.md` (preparados tras el 22). Hallazgos de la lectura del paquete Fase 0 (a contrastar): `HSlider` sin rango en el `.tscn` (0-100) tratados como 0-1; opciones no persistentes; la View llama a `AudioServer`/`DisplayServer`/`TranslationServer`; Confirmar probablemente solapa al panel principal; fecha en bruto pegada al botón de cargar; sin foco ni Esc; componentes del DS adjuntados como script suelto. Decisiones abiertas M1-M11. El fondo y el título se hacen como componente reutilizable para el Spike 24.
 
 ### Spike 24 — Game Over: rediseño visual
 

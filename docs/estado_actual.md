@@ -1,6 +1,6 @@
 # Athelia — Estado actual (hito de rediseño de interfaces)
  
-*Actualizado: 2026-11-03, tras el cierre del Spike 21.*
+*Actualizado: 2026-11-10, tras el cierre del Spike 22.*
 Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`.
  
 ## Spikes del hito
@@ -18,7 +18,7 @@ Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_archit
 | 20 | Loadout | cerrado | 18 |
 | 21 | Árbol de habilidades (21a pantalla, 21b comparación) | cerrado | 15 |
 | 21c | Árbol visual con relaciones (selector Lista/Árbol) | propuesto; numeración por decidir (el 22 es el Menú del jugador) | 21 |
-| 22 | Menú del jugador | pendiente | 18, 20, 21 |
+| 22 | Menú del jugador | cerrado | 18, 20, 21 |
 | 23 | Pantalla de inicio | pendiente | 15 |
 | 24 | Game Over: rediseño visual | pendiente | 14, 15, 23 |
  
@@ -28,7 +28,7 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
  
 **21c — Árbol visual (propuesto).** Nodos y líneas de prerrequisitos con un selector «Lista/Árbol» en la cabecera, sobre el `SkillTreeViewModel` del 21 (ya entrega niveles, requisitos y estado). Decidir en la Fase 0 la disposición (por nivel/subcategoría) y qué hace el scroll/zoom.
  
-**22 — Menú del jugador.** Es el hub: integra Loadout, Inventory y SkillTree ya rediseñados; `closed` y `_open_subscreen()` son correctos y se conservan. Incluye el problema del orquestador de slot único: `I` dentro de PlayerMenu cierra el menú entero, e `I` con Party abierta la cierra; y la doble pulsación de `P` tras cerrar el menú del jugador (`open_player_menu()` no conecta `_on_overlay_closed`). Validar: anidado de tres niveles, HP/EN en vivo.
+**22 — Menú del jugador (cerrado, 2026-11-10).** Resueltos `I` dentro del menú, `I` con Party y la doble `P`. Ver `docs/spike_22_menu_jugador.md`.
  
 **23 — Pantalla de inicio.** Arte de fondo y título, `UIButton` `LG`, marco en Opciones/Créditos/Confirmar salida; mantener el ciclo de vida de Main Scene (el ViewModel escucha `game_state_changed`). Validar: nueva partida, cargar (con y sin guardado), opciones, créditos, salir, volver desde Character Creation y tras una derrota.
  
@@ -47,6 +47,8 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - `PartyManager._register_in_systems()` conserva un acceso privado (`_entity_skills.get(...).keys()`): falta un listador público en `SkillSystem`.
 - `equip_item` ignora el slot de destino; motivos de `equip_failed`/`item_use_failed` en texto libre en inglés (hace falta código de motivo).
 - Una poción se consume aunque no tenga efecto (puente de ítems).
+- Los modificadores `attribute.<base>` no afectan a los derivados (`_resolve_linear_combination` lee `state.get_base_attribute()`); el menú del jugador muestra el bono declarado (Spike 22). Arreglarlo es un cambio de motor con spike propio.
+- `ModifierApplicator` no emite `temporary_state_added/removed/expired` y nadie aplica estados temporales en producción (el menú del jugador sondea con un `Timer`).
 - `Inventory.add_item` sobrescribe una pila no apilable ya existente y recorta al tope de pila devolviendo `true` (reproducido en el 19b; Party lo evita con pre-validación en el ViewModel; sin arreglar en el core).
 - `PartyManager.MAX_PARTY_SIZE = 3` (la documentación decía 2): decidir. La interfaz no impone máximo; a 1152×648 con 2 compañeros el margen vertical es ≈2 px.
 - `InventorySystem.load_save_state()` comprueba `item_added` pero desconecta y reconecta `item_use_success`.
@@ -60,6 +62,7 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 **Contenido y datos**
 - Marcador `telmori_village_departure` (salida final del pueblo): sale un aviso al cargar la exploración; decidir qué ocurre al salir.
 - Retrato del posadero es un placeholder (muestra el del sheriff).
+- Menú del jugador (Spike 22): los seis slots de equipo no se muestran (spike propio); Loadout sin atajo de teclado (exige una acción nueva en el InputMap); los atributos base mostrados no aplican `mul` ni `override`.
 - Falta `RESOURCE_FOCUS_NAME` (el coste de `focus` en el Loadout cae a `id.capitalize()`); solo existen las claves de salud, estamina y oro.
 - `ITEM_HEALTH_POTION_DESC`: espacio inicial en ES y efecto inconsistente (EN «10», ES «50», `value = 10.0`).
 - `telmori_lair_loot_obsidian.json.json` pendiente de renombrar (carga igual).
@@ -75,6 +78,7 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Autoload `DebugPartyTool` aún en `project.godot` (línea 56) y traza `[DBG] tecla:` en el Output: retirar antes de cerrar el hito.
 - Duplicado `damage_number.tscn` (`ui\` y `ui\combat\`); etiqueta de depuración `estado | paused=` en el HUD; `print` `[DIAG]` en `narrative_scene_panel.gd`; doble `create_shop_snapshot` y `print` de depuración en la tienda; comentarios «UISlot.setup()» obsoletos en `combat_arena_test_scene.gd` y `combat_production_scene.gd`.
 - Fuga de la instancia de `SCENE_COMBAT` en `SceneOrchestrator` (mitigada localmente en `combat_production_scene.gd`).
+- Comentario «Tecla I / Tab» obsoleto en `ExplorationController` (Tab no está enlazada) y acción `toggle_inventory` sin uso; comentario obsoleto de `open_loadout()` («llamado desde `PlayerMenuViewModel.request_open_loadout()`»).
 - Fuera del hito, para el final: CharacterCreation (6 offsets fijos), HUD de exploración, combate (`UICombatToken` de tamaño fijo), `main_theme.tres` sin aplicar (fuentes y tema sin decidir), comentario erróneo en `interactive_scene_view.gd:15`.
 - Decisión cerrada: F9/quickload en sesión activa queda no operativo; no se vuelve a tratar.
 ## Sin validar en partida (no es trabajo de código)
@@ -88,3 +92,4 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Spike 10: camino de fallo del libro (`item_use_failed`) y guardado/carga con Curtido aprendido.
 - Spike 21: detalle de Ataque Pesado, refresco ante una mejora externa con la pantalla abierta, contexto PlayerMenu → SkillTree, 1680×1050 de la versión final, lista larga (>15 habilidades).
 - Spike 20: el contexto `open_loadout()` (sin llamadores) y los errores de asignación (`LOADOUT_ERROR_*`), que la interfaz no puede provocar porque la lista ya filtra; asignación con un compañero en la party (el Loadout es solo del jugador).
+- Spike 22: scroll de la lista de buffs con más de seis, captura en inglés a 1680×1050 y buffs con modificadores reales sobre atributos (los de depuración llevan lista vacía).

@@ -89,7 +89,7 @@ Reutiliza el sub-overlay del Grupo 2 para `telmori_sheriff_reward_intro` y `telm
  
 ---
  
-## Spikes 11-21
+## Spikes 11-22
  
 ### Spike 11 — Rediseño de la ventana de diálogo
 `DialoguePanel` pasa de `PanelContainer` plano a `UIPanel` con marco (cierra el pendiente del Spike 9). **Un único retrato** del NPC (se descarta definitivamente el layout de dos retratos), hermano del panel para sobresalir por el marco (layout C de la maqueta), y fondo de ambiente propio (`BackgroundImage` + velo, mismo patrón que la arena de combate; imagen pre-difuminada en la generación). Datos: `DialogueNodeDefinition.mood` (por nodo, no por diálogo), `DialogueDefinition.portrait_folder` y `background_id`, todos opcionales y con respaldo; retrato resuelto por cascada `<portrait_id>_<mood>.png` → `<portrait_id>.png` → ninguno, con `push_warning` en cada salto. `EventBus.dialogue_node_shown` pasa de 4 a 7 argumentos sin romper oyentes. Antipatrón nuevo: un `PanelContainer` no se encoge por debajo de sus hijos, así que un número variable de opciones va en `ScrollContainer`. Deuda anotada: tests de `dialogue_node_shown` sin adaptar a 7 argumentos. Informe: `docs/spike_11_ventana_dialogo.md`.
@@ -128,6 +128,9 @@ Rediseño de la pantalla con el Design System: `UIPanel` OVERLAY con marco, `UIB
 
 ### Spike 21 — Árbol de habilidades
 Rediseño de `SkillTreeScreen`/`SkillTreeViewModel` con el Design System sin tocar reglas ni core: `UIPanel` OVERLAY con marco, `UIButton`, componente propio `SkillCard`, nodos `%`, solo tokens y 37 claves `SKILL_TREE_*` (`skill_tree.csv`). Maqueta de 3 layouts y simulación con 20 habilidades; elegido lista por niveles + detalle a la derecha con pie fijo (motivo de «no entrenable» y botón Entrenar). «Mejorable» tiene una única definición en el ViewModel; el entrenamiento informa del resultado real de `execute_learning_session` (mejoró / no mejoró / error) y la selección actualiza las fichas en sitio para no perder el scroll. 21b añade el modo Comparar (habilidades × party, datos tipados en el ViewModel). Bugs: doble pulsación de H (el orquestador no conectaba `closed` en `open_skill_tree()`, único cambio fuera de `ui/skill_tree/`), compañero con su id, efectos mal formateados, éxito falso al fallar la tirada, porcentaje de ficha colapsado, «Coste: 0», botón deshabilitado ilegible. Sin confirmar: unidad de `duration` de buffs. El árbol visual con relaciones queda como spike aparte. Informe: `docs/spike_21_arbol_habilidades.md`.
+
+### Spike 22 — Menú del jugador
+`PlayerMenuScreen` rehecho con el Design System (`UIPanel` OVERLAY con marco, `UIButton` LG, `UIResourceBar`, layout C con tres paneles: Recursos, Atributos y Efectos activos) y un componente de pantalla nuevo, `PlayerMenuRow`. El ViewModel entrega claves, agrupa el refresco de recursos una vez por frame y sondea los buffs con un `Timer` de 0,5 s (el core no emite señales de estados temporales); los atributos base muestran el valor efectivo (base + modificadores `add`). 14 claves `PLAYER_MENU_*` en `player_menu.csv`. En el orquestador, `open_player_menu()` conecta `closed` (fin del doble `P`) y los cuatro `open_*` usan una regla de toggle única (`_handle_overlay_toggle`): el propio overlay se cierra y otro ligero se ignora. Bugs corregidos: `I`/`H`/`O` cerraban el menú entero, `I` cerraba Party, máximos de vida y estamina sin refrescar al equipar, lista de buffs que nunca se refrescaba y menú sin fondo ni marco. Sin cambios en el core. Detectado y no tocado: los modificadores `attribute.<base>` no afectan a los derivados. Equipo (los seis slots) fuera, spike propio. Informe: `docs/spike_22_menu_jugador.md`.
 
 ---
 

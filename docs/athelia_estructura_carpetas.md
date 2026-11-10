@@ -198,6 +198,7 @@ athelia/
 │   ├── party.csv                    # PARTY_* (34 claves)
 │   ├── loadout.csv                  # LOADOUT_* (41 claves)
 │   ├── skill_tree.csv               # SKILL_TREE_* (37 claves, incl. SKILL_BUFF_*)
+│   ├── player_menu.csv              # PLAYER_MENU_* (14 claves)
 │   ├── items.csv
 │   ├── items_telmori.csv
 │   ├── world_objects.csv
@@ -274,7 +275,7 @@ athelia/
     ├── party/
     │   ├── party_viewmodel.gd
     │   └── party_ui.gd / .tscn
-    ├── player_menu/                 # viewmodel + screen + tscn
+    ├── player_menu/                 # viewmodel + screen + tscn + player_menu_row.gd (PlayerMenuRow: fila, solo script)
     ├── shop/
     │   ├── shop_viewmodel.gd
     │   ├── shop_ui.gd / .tscn

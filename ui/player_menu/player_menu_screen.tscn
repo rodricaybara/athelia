@@ -1,111 +1,191 @@
 [gd_scene format=3 uid="uid://dfmatseiuf8pb"]
 
 [ext_resource type="Script" uid="uid://dbkf0xjgn7fr0" path="res://ui/player_menu/player_menu_screen.gd" id="1_3l7ul"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="2_panel"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="3_button"]
 
-[node name="PlayerMenuScreen" type="CanvasLayer" unique_id=2075109536]
+[node name="PlayerMenuScreen" type="CanvasLayer"]
 layer = 10
 script = ExtResource("1_3l7ul")
 
-[node name="Root" type="Control" parent="." unique_id=1111111111]
-layout_mode = 3
+[node name="Backdrop" type="ColorRect" parent="."]
+unique_name_in_owner = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="Root" unique_id=1330865563]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+[node name="Frame" parent="." instance=ExtResource("2_panel")]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -518.0
+offset_top = -291.0
+offset_right = 518.0
+offset_bottom = 291.0
 grow_horizontal = 2
 grow_vertical = 2
+variant = 2
+padding = 16
+decorative_frame = true
 
-[node name="MarginContainer" type="MarginContainer" parent="Root/Panel" unique_id=1054334087]
+[node name="Root" type="VBoxContainer" parent="Frame"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="Frame/Root"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="Frame/Root/Header"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="Root/Panel/MarginContainer" unique_id=812522758]
-layout_mode = 2
-
-[node name="Header" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox" unique_id=2048947597]
-layout_mode = 2
-
-[node name="TitleLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/Header" unique_id=29487442]
-layout_mode = 2
-text = "Player UI"
-
-[node name="CloseButton" type="Button" parent="Root/Panel/MarginContainer/VBox/Header" unique_id=472189865]
-layout_mode = 2
-text = "X"
-
-[node name="ContentHBox" type="HBoxContainer" parent="Root/Panel/MarginContainer/VBox" unique_id=298026754]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="StatusPanel" type="PanelContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox" unique_id=990636514]
+[node name="Spacer" type="Control" parent="Frame/Root/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel" unique_id=1928765141]
+[node name="CloseButton" parent="Frame/Root/Header" instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+variant = 3
+min_square = 32
+text = "X"
+
+[node name="NavRow" type="HBoxContainer" parent="Frame/Root"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LoadoutButton" parent="Frame/Root/NavRow" instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+variant = 1
+btn_size = 2
+
+[node name="InventoryButton" parent="Frame/Root/NavRow" instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+variant = 1
+btn_size = 2
+
+[node name="SkillTreeButton" parent="Frame/Root/NavRow" instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+variant = 1
+btn_size = 2
+
+[node name="Content" type="HBoxContainer" parent="Frame/Root"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="ResourcesPanel" parent="Frame/Root/Content" instance=ExtResource("2_panel")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.3
+padding = 16
+
+[node name="ResourcesBox" type="VBoxContainer" parent="Frame/Root/Content/ResourcesPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResourcesTitle" type="Label" parent="Frame/Root/Content/ResourcesPanel/ResourcesBox"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="StatusVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer" unique_id=1472413109]
+[node name="ResourcesDivider" type="ColorRect" parent="Frame/Root/Content/ResourcesPanel/ResourcesBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 
-[node name="ResourcesSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1051471566]
+[node name="ResourcesRows" type="VBoxContainer" parent="Frame/Root/Content/ResourcesPanel/ResourcesBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AttributesPanel" parent="Frame/Root/Content" instance=ExtResource("2_panel")]
+layout_mode = 2
+size_flags_horizontal = 3
+padding = 16
+
+[node name="AttributesBox" type="VBoxContainer" parent="Frame/Root/Content/AttributesPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AttributesTitle" type="Label" parent="Frame/Root/Content/AttributesPanel/AttributesBox"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ResourcesLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=747931684]
+[node name="AttributesDivider" type="ColorRect" parent="Frame/Root/Content/AttributesPanel/AttributesBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 
-[node name="HealthLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=2063711436]
+[node name="AttributesScroll" type="ScrollContainer" parent="Frame/Root/Content/AttributesPanel/AttributesBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="AttributesContent" type="VBoxContainer" parent="Frame/Root/Content/AttributesPanel/AttributesBox/AttributesScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="DerivedTitle" type="Label" parent="Frame/Root/Content/AttributesPanel/AttributesBox/AttributesScroll/AttributesContent"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="StaminaLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=1021546154]
+[node name="DerivedRows" type="VBoxContainer" parent="Frame/Root/Content/AttributesPanel/AttributesBox/AttributesScroll/AttributesContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BaseTitle" type="Label" parent="Frame/Root/Content/AttributesPanel/AttributesBox/AttributesScroll/AttributesContent"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="GoldLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/ResourcesSection" unique_id=252144650]
+[node name="BaseRows" type="VBoxContainer" parent="Frame/Root/Content/AttributesPanel/AttributesBox/AttributesScroll/AttributesContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BuffsPanel" parent="Frame/Root/Content" instance=ExtResource("2_panel")]
+layout_mode = 2
+size_flags_horizontal = 3
+padding = 16
+
+[node name="BuffsBox" type="VBoxContainer" parent="Frame/Root/Content/BuffsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BuffsTitle" type="Label" parent="Frame/Root/Content/BuffsPanel/BuffsBox"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="HSeparator" type="HSeparator" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=864621624]
+[node name="BuffsDivider" type="ColorRect" parent="Frame/Root/Content/BuffsPanel/BuffsBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 
-[node name="AttributesSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1089634127]
+[node name="EmptyBuffsLabel" type="Label" parent="Frame/Root/Content/BuffsPanel/BuffsBox"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AttributesLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/AttributesSection" unique_id=2084506602]
+[node name="BuffsScroll" type="ScrollContainer" parent="Frame/Root/Content/BuffsPanel/BuffsBox"]
 layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="AttributesVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/AttributesSection" unique_id=1571492414]
+[node name="BuffsRows" type="VBoxContainer" parent="Frame/Root/Content/BuffsPanel/BuffsBox/BuffsScroll"]
+unique_name_in_owner = true
 layout_mode = 2
-
-[node name="HSeparator2" type="HSeparator" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1474656696]
-layout_mode = 2
-
-[node name="BuffsSection" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox" unique_id=1405880433]
-layout_mode = 2
-
-[node name="BuffsLabel" type="Label" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/BuffsSection" unique_id=92277349]
-layout_mode = 2
-
-[node name="BuffsVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/StatusPanel/MarginContainer/StatusVBox/BuffsSection" unique_id=1843326851]
-layout_mode = 2
-
-[node name="NavigationPanel" type="PanelContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox" unique_id=1358882940]
-layout_mode = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel" unique_id=892094855]
-layout_mode = 2
-
-[node name="NavigationVBox" type="VBoxContainer" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer" unique_id=1447993207]
-layout_mode = 2
-
-[node name="LoadoutButton" type="Button" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer/NavigationVBox" unique_id=46879644]
-layout_mode = 2
-
-[node name="InventoryButton" type="Button" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer/NavigationVBox" unique_id=411559720]
-layout_mode = 2
-
-[node name="SkillTreeButton" type="Button" parent="Root/Panel/MarginContainer/VBox/ContentHBox/NavigationPanel/MarginContainer/NavigationVBox" unique_id=1373410934]
-layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8

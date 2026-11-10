@@ -58,10 +58,3 @@ ATTR_STAMINA_MAX,Stamina Max,Stamina máx.
 ATTR_INITIATIVE,Initiative,Iniciativa
 ATTR_MELEE_DAMAGE,Melee Damage,Daño cuerpo a cuerpo
 ATTR_ARMOR_RATING,Armor Rating,Armadura
-MENU_NO_BUFFS,No active effects,Sin efectos activos
-MENU_HEALTH,Health,Vida
-MENU_STAMINA,Stamina,Stamina
-MENU_GOLD,Gold,Oro
-MENU_LOADOUT,Loadout,Loadout
-MENU_INVENTORY,Inventory,Inventario
-MENU_SKILL_TREE,Skills,Habilidades

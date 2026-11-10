@@ -58,6 +58,12 @@ const LIGHT_OVERLAY_ALLOWED_STATES: Array = [
 	GameLoopSystem.GameState.NARRATIVE_SCENE,
 ]
 
+## Overlays ligeros: una tecla de otro overlay distinto no los cierra.
+const LIGHT_OVERLAY_SCENES: Array[String] = [
+	OVERLAY_INVENTORY, OVERLAY_PARTY, OVERLAY_SKILL_TREE,
+	OVERLAY_PLAYER_MENU, OVERLAY_LOADOUT,
+]
+
 # ============================================
 # ESTADO INTERNO
 # ============================================
@@ -391,7 +397,7 @@ func open_inventory() -> void:
 
 	if _current_overlay and is_instance_valid(_current_overlay):
 		# Ya está abierto — cerrar (toggle)
-		_hide_current_overlay()
+		_handle_overlay_toggle(OVERLAY_INVENTORY)
 		return
 
 	_show_overlay(OVERLAY_INVENTORY)
@@ -416,6 +422,16 @@ func _on_overlay_closed(overlay: Node) -> void:
 	elif is_instance_valid(overlay):
 		overlay.queue_free()
 
+
+## Se llama con un overlay ya abierto. Propio: se cierra (toggle).
+## Otro overlay ligero: se ignora. Cualquier otro: se cierra como antes.
+func _handle_overlay_toggle(scene_path: String) -> void:
+	var open_path: String = _current_overlay.scene_file_path
+	if open_path == scene_path:
+		_hide_current_overlay()
+	elif not LIGHT_OVERLAY_SCENES.has(open_path):
+		_hide_current_overlay()
+
 ## Grupo 3: mismo criterio que open_inventory() — ver comentario de ese
 ## método para el porqué del guard de NARRATIVE_SCENE.
 func open_party() -> void:
@@ -430,7 +446,7 @@ func open_party() -> void:
 		return
 
 	if _current_overlay and is_instance_valid(_current_overlay):
-		_hide_current_overlay()
+		_handle_overlay_toggle(OVERLAY_PARTY)
 		return
 
 	_show_overlay(OVERLAY_PARTY)
@@ -458,7 +474,7 @@ func open_skill_tree(entity_id: String = "player") -> void:
 
 	# Toggle: si ya está abierto, cerrar
 	if _current_overlay and is_instance_valid(_current_overlay):
-		_hide_current_overlay()
+		_handle_overlay_toggle(OVERLAY_SKILL_TREE)
 		return
 
 	_show_overlay(OVERLAY_SKILL_TREE)
@@ -500,10 +516,13 @@ func open_player_menu() -> void:
 		return
 
 	if _current_overlay and is_instance_valid(_current_overlay):
-		_hide_current_overlay()
+		_handle_overlay_toggle(OVERLAY_PLAYER_MENU)
 		return
 
 	_show_overlay(OVERLAY_PLAYER_MENU)
+	# Quien instancia libera al recibir "closed" (mismo patrón que inventario, party y árbol)
+	if _current_overlay and _current_overlay.has_signal("closed"):
+		_current_overlay.closed.connect(_on_overlay_closed.bind(_current_overlay))
 
 	if _current_overlay and _current_overlay.has_method("open"):
 		_current_overlay.open("player")

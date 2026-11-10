@@ -1,0 +1,15 @@
+id,en,es
+PLAYER_MENU_HEALTH,Health,Vida
+PLAYER_MENU_STAMINA,Stamina,Stamina
+PLAYER_MENU_GOLD,Gold,Oro
+PLAYER_MENU_NAV_LOADOUT,Loadout,Loadout
+PLAYER_MENU_NAV_INVENTORY,Inventory,Inventario
+PLAYER_MENU_NAV_SKILL_TREE,Skills,Habilidades
+PLAYER_MENU_SECTION_RESOURCES,Resources,Recursos
+PLAYER_MENU_SECTION_ATTRIBUTES,Attributes,Atributos
+PLAYER_MENU_SECTION_BUFFS,Active effects,Efectos activos
+PLAYER_MENU_ATTR_DERIVED,Derived,Derivados
+PLAYER_MENU_ATTR_BASE,Base,Base
+PLAYER_MENU_ATTR_BONUS_TOOLTIP,"Base %d, modifiers %+d","Base %d, modificadores %+d"
+PLAYER_MENU_NO_BUFFS,No active effects,Sin efectos activos
+PLAYER_MENU_BUFF_TIME,%d s,%d s
