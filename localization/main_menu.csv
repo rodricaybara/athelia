@@ -1,0 +1,14 @@
+id,en,es
+MAIN_MENU_NEW_GAME,New game,Nueva partida
+MAIN_MENU_LOAD_GAME,Load game,Cargar partida
+MAIN_MENU_OPTIONS,Options,Opciones
+MAIN_MENU_CREDITS,Credits,Créditos
+MAIN_MENU_QUIT,Quit,Salir
+MAIN_MENU_NO_SAVE,No saved game,Sin partida guardada
+MAIN_MENU_SAVE_DATE,{y}-{m}-{d} {h}:{min},{d}/{m}/{y} {h}:{min}
+MAIN_MENU_CREDITS_TITLE,Credits,Créditos
+MAIN_MENU_CREDITS_BACK,Back,Volver
+MAIN_MENU_CREDITS_BODY,"Athelia\n\nDevelopment\nFernando\n\nEngine\nGodot 4\n\nMusic and art\nTBD\n\nThanks for playing.","Athelia\n\nDesarrollo\nFernando\n\nMotor\nGodot 4\n\nMúsica y arte\nPor definir\n\nGracias por jugar."
+MAIN_MENU_CONFIRM_TEXT,Are you sure you want to quit?,¿Seguro que quieres salir?
+MAIN_MENU_CONFIRM_YES,"Yes, quit","Sí, salir"
+MAIN_MENU_CONFIRM_NO,Cancel,Cancelar

@@ -67,6 +67,7 @@ Este fichero describe **qué existe hoy y cómo se comporta**. El porqué de cad
 - `SessionReset.apply()` y `EntityLifecycle.unregister_everywhere(id)` (`core/session/`). Ver «Reinicio de sesión».
 - `AdventureStarter.apply(adventure_id)` (`core/adventures/`). Ver «Arranque de aventura».
 - `BagCapacity.compute(...)` (`ui/inventory/`): único punto de cálculo de capacidad de mochila.
+- `GameSettings` (`ui/options/game_settings.gd`, `RefCounted` estático, sin autoload): lee, escribe y aplica `user://settings.cfg`, sección `[options]`: `language` (`"es"`/`"en"`), `fullscreen` (bool), `music_volume` y `sfx_volume` (0..1). Sin fichero no toca nada (arranque por defecto). Los volúmenes solo se aplican si existen los buses `Music`/`SFX` (hoy no existen: no hay audio diseñado). `apply_saved()` lo llama `MainMenuViewModel._ready()`; el resto lo usa `OptionsViewModel`, único sitio que toca `AudioServer`, `DisplayServer` y `TranslationServer`.
 ---
  
 ## GameLoop — estados y fases de turno
@@ -139,6 +140,8 @@ Al entrar en `MENU`, `SceneOrchestrator` libera las escenas de la partida, esper
 - `_restore_state()` restaura primero `CharacterSystem` (puede bootstrapear la entidad por `definition_id`) y registra en frío en `ResourceSystem`/`SkillSystem` si falta (`has_entity()`); `EquipmentManager` e `InventorySystem` se auto-registran en su `load_save_state()` (el aviso «Entity not registered for load» es inofensivo). `SkillSystem.load_save_state()` recrea las skills aprendidas en runtime.
 - `_collect_player_state()` guarda sin la clave `position` si no hay nodo `Player` (`position` es dato vestigial). `SaveSystem._find_player()` busca bajo `"ExplorationScene"`.
 - `SaveFeedbackUI` escucha `save_completed`/`save_failed`.
+- Las opciones del jugador (idioma, pantalla completa, volúmenes) **no** van en el guardado de partida: viven en `user://settings.cfg` (`GameSettings`).
+- `playtime_seconds` suma desde que arranca el proceso (también en el menú) y no se reinicia en una partida nueva; solo se sustituye al cargar. Por eso no es fiable para mostrarlo (pendiente de core).
 - Un guardado dentro de una cadena que entrega recompensas permitiría cobrar dos veces: por eso el hub del sheriff no ofrece guardado en la etapa de recompensa.
 ---
  
@@ -156,7 +159,7 @@ Al entrar en `MENU`, `SceneOrchestrator` libera las escenas de la partida, esper
  
 ## Menú principal, carga y Character Creation
  
-- **Menú principal:** Main Scene (`MainMenuScreen`, `CanvasLayer`). Estados del ViewModel: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`. Escucha `game_state_changed` (ver `athelia_ui_architecture.md`).
+- **Menú principal:** Main Scene (`MainMenuScreen`, `CanvasLayer`). Estados del ViewModel: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`. Escucha `game_state_changed` (ver `athelia_ui_architecture.md`). Su `_ready()` aplica las opciones guardadas (`GameSettings.apply_saved()`). «Cargar partida» muestra la fecha del guardado (`save_info.timestamp`, ISO local, troceada en el ViewModel); no muestra el tiempo jugado. Las opciones (idioma, pantalla completa, volúmenes) las gestiona `OptionsPanel` + `OptionsViewModel`, reutilizable fuera del menú. El proyecto arranca en pantalla completa (`window/size/mode=3`) salvo que `settings.cfg` diga otra cosa.
 - **LoadingScreen:** carga asíncrona con barra; implementada y sin conectar al orquestador.
 - **Character Creation:** MVVM. **6 atributos** (no 7 de RuneQuest): `strength, dexterity, constitution, intelligence, wisdom, charisma`. Roll-and-assign: 3D6 (STR/DEX/CHA), 2D6+6 (CON/INT/WIS), 1 reroll. Estados: `ROLLING → ASSIGNING → NAMING → SUMMARY → TRANSITIONING`. Usa `data/characters/player_new.tres` (no `player_base.tres`, plantilla de test). `_create_player_entity()` registra en `Characters`, `Resources`, `Skills`, `Equipment` e `Inventory`; `Resources.register_entity()` debe preceder a `set_base_attribute()` (este dispara `ModifierApplicator` de forma síncrona). El kit de skills se lee de `definition.skills`, nunca de una lista duplicada. Usa `skills.has_entity("player")`.
 ## Arranque de aventura

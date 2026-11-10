@@ -1,14 +1,16 @@
 [gd_scene format=3 uid="uid://jr1soh0askvt"]
 
-[ext_resource type="Script" uid="uid://r6fm3adwn5yg" path="res://ui/design_system/components/ui_button/ui_button.gd" id="1_bhbkj"]
 [ext_resource type="Script" uid="uid://fmafn6i4g0oh" path="res://ui/main_menu/main_menu_screen.gd" id="1_pp6s7"]
-[ext_resource type="Script" uid="uid://105d84us6jdl" path="res://ui/design_system/components/ui_panel/ui_panel.gd" id="2_uu01r"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/title_backdrop/title_backdrop.tscn" id="2_backdrop"]
+[ext_resource type="PackedScene" path="res://ui/design_system/components/ui_button/ui_button.tscn" id="3_button"]
+[ext_resource type="PackedScene" uid="uid://bkjn07uwfc3l0" path="res://ui/design_system/components/ui_panel/ui_panel.tscn" id="4_panel"]
+[ext_resource type="PackedScene" path="res://ui/options/options_panel.tscn" id="5_options"]
 
-[node name="MainMenuScreen" type="CanvasLayer" unique_id=526992115]
+[node name="MainMenuScreen" type="CanvasLayer" unique_id=1828728938]
 layer = 0
 script = ExtResource("1_pp6s7")
 
-[node name="Control" type="Control" parent="." unique_id=688562828]
+[node name="Root" type="Control" parent="." unique_id=1169964215]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -16,223 +18,145 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BackgroundRect" type="ColorRect" parent="Control" unique_id=664490636]
+[node name="Backdrop" parent="Root" unique_id=1951206390 instance=ExtResource("2_backdrop")]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.101960786, 0.09411765, 0.08627451, 1)
 
-[node name="TitleLabel" type="Label" parent="Control" unique_id=722004739]
+[node name="ButtonColumn" type="VBoxContainer" parent="Root" unique_id=24278129]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.4
+anchor_right = 0.5
+anchor_bottom = 0.4
 grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 55
-text = "ATHELIA"
+theme_override_constants/separation = 12
+
+[node name="NewGameButton" parent="Root/ButtonColumn" unique_id=1916543328 instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+btn_size = 2
+
+[node name="LoadBox" type="VBoxContainer" parent="Root/ButtonColumn" unique_id=1505279223]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LoadGameButton" parent="Root/ButtonColumn/LoadBox" unique_id=225574930 instance=ExtResource("3_button")]
+unique_name_in_owner = true
+layout_mode = 2
+variant = 1
+btn_size = 2
+
+[node name="LoadInfoLabel" type="Label" parent="Root/ButtonColumn/LoadBox" unique_id=1478639127]
+unique_name_in_owner = true
+layout_mode = 2
 horizontal_alignment = 1
 
-[node name="MainPanel" type="VBoxContainer" parent="Control" unique_id=169051608]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-alignment = 1
-
-[node name="BtnNewGame" type="Button" parent="Control/MainPanel" unique_id=202229068]
+[node name="OptionsButton" parent="Root/ButtonColumn" unique_id=472997159 instance=ExtResource("3_button")]
 unique_name_in_owner = true
 layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+variant = 1
+btn_size = 2
 
-[node name="BtnLoadGame" type="Button" parent="Control/MainPanel" unique_id=621039349]
+[node name="CreditsButton" parent="Root/ButtonColumn" unique_id=713879508 instance=ExtResource("3_button")]
 unique_name_in_owner = true
 layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+variant = 1
+btn_size = 2
 
-[node name="BtnOptions" type="Button" parent="Control/MainPanel" unique_id=1897732467]
+[node name="QuitButton" parent="Root/ButtonColumn" unique_id=1596536138 instance=ExtResource("3_button")]
 unique_name_in_owner = true
 layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+variant = 3
+btn_size = 2
 
-[node name="BtnCredits" type="Button" parent="Control/MainPanel" unique_id=1741845431]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
-
-[node name="BtnQuit" type="Button" parent="Control/MainPanel" unique_id=464447306]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
-
-[node name="OptionsPanel" type="PanelContainer" parent="Control" unique_id=1012424770]
+[node name="ModalVeil" type="ColorRect" parent="Root" unique_id=64279805]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -24.5
-offset_top = -72.0
-offset_right = 24.5
-offset_bottom = 72.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("2_uu01r")
-metadata/_custom_type_script = "uid://105d84us6jdl"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Control/OptionsPanel" unique_id=1232863528]
+[node name="OptionsPanel" parent="Root" unique_id=908228870 instance=ExtResource("5_options")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+
+[node name="CreditsPanel" parent="Root" unique_id=1931094899 instance=ExtResource("4_panel")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+variant = 2
+padding = 24
+decorative_frame = true
+
+[node name="CreditsBox" type="VBoxContainer" parent="Root/CreditsPanel" unique_id=354412448]
 layout_mode = 2
-offset_transform_enabled = true
-alignment = 1
+theme_override_constants/separation = 12
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1286611918]
-layout_mode = 2
-
-[node name="LblFullscreen" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer3" unique_id=896743821]
+[node name="CreditsTitle" type="Label" parent="Root/CreditsPanel/CreditsBox" unique_id=403834978]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ChkFullscreen" type="CheckButton" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer3" unique_id=1402589666]
+[node name="CreditsDivider" type="ColorRect" parent="Root/CreditsPanel/CreditsBox" unique_id=989437930]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+
+[node name="CreditsScroll" type="ScrollContainer" parent="Root/CreditsPanel/CreditsBox" unique_id=639689887]
 unique_name_in_owner = true
 layout_mode = 2
+horizontal_scroll_mode = 0
 
-[node name="HBoxContainer4" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1966214441]
-layout_mode = 2
-
-[node name="LblLanguage" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer4" unique_id=2075516492]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="OptLanguage" type="OptionButton" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer4" unique_id=1317791155]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="HBoxContainer2" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1494467795]
-layout_mode = 2
-
-[node name="LblSfxVol" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer2" unique_id=1328522955]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="SliderSfxVol" type="HSlider" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer2" unique_id=417850335]
+[node name="CreditsBody" type="Label" parent="Root/CreditsPanel/CreditsBox/CreditsScroll" unique_id=1030428458]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="LblOptionsTitle" type="Label" parent="Control/OptionsPanel/VBoxContainer" unique_id=1532351124]
+[node name="CreditsBackButton" parent="Root/CreditsPanel/CreditsBox" unique_id=1451113382 instance=ExtResource("3_button")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+variant = 1
+
+[node name="ConfirmPanel" parent="Root" unique_id=1351143439 instance=ExtResource("4_panel")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+variant = 2
+padding = 24
+decorative_frame = true
+
+[node name="ConfirmBox" type="VBoxContainer" parent="Root/ConfirmPanel" unique_id=1363771617]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="ConfirmText" type="Label" parent="Root/ConfirmPanel/ConfirmBox" unique_id=516407422]
 unique_name_in_owner = true
 layout_mode = 2
+horizontal_alignment = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Control/OptionsPanel/VBoxContainer" unique_id=1746624216]
+[node name="ConfirmButtons" type="HBoxContainer" parent="Root/ConfirmPanel/ConfirmBox" unique_id=2053739449]
 layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="LblMusicVol" type="Label" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer" unique_id=1608368189]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="SliderMusicVol" type="HSlider" parent="Control/OptionsPanel/VBoxContainer/HBoxContainer" unique_id=1809047645]
+[node name="ConfirmYesButton" parent="Root/ConfirmPanel/ConfirmBox/ConfirmButtons" unique_id=1719900069 instance=ExtResource("3_button")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+variant = 2
+btn_size = 2
 
-[node name="BtnOptionsBack" type="Button" parent="Control/OptionsPanel/VBoxContainer" unique_id=644667426]
+[node name="ConfirmNoButton" parent="Root/ConfirmPanel/ConfirmBox/ConfirmButtons" unique_id=646936918 instance=ExtResource("3_button")]
 unique_name_in_owner = true
 layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
-
-[node name="CreditsPanel" type="PanelContainer" parent="Control" unique_id=1777333368]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("2_uu01r")
-metadata/_custom_type_script = "uid://105d84us6jdl"
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Control/CreditsPanel" unique_id=144839920]
-layout_mode = 2
-
-[node name="LblCreditsTitle" type="Label" parent="Control/CreditsPanel/VBoxContainer" unique_id=1321575282]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="ScrollContainer" type="ScrollContainer" parent="Control/CreditsPanel/VBoxContainer" unique_id=90905068]
-layout_mode = 2
-
-[node name="CreditsLabel" type="Label" parent="Control/CreditsPanel/VBoxContainer/ScrollContainer" unique_id=854271628]
-unique_name_in_owner = true
-layout_mode = 2
-autowrap_mode = 2
-
-[node name="BtnCreditsBack" type="Button" parent="Control/CreditsPanel/VBoxContainer" unique_id=1964958570]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
-
-[node name="ConfirmQuitPanel" type="PanelContainer" parent="Control" unique_id=1268898284]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -23.5
-offset_right = 20.0
-offset_bottom = 23.5
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("2_uu01r")
-metadata/_custom_type_script = "uid://105d84us6jdl"
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Control/ConfirmQuitPanel" unique_id=1082478463]
-layout_mode = 2
-
-[node name="LblConfirmText" type="Label" parent="Control/ConfirmQuitPanel/VBoxContainer" unique_id=937805891]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="BtnConfirmYes" type="Button" parent="Control/ConfirmQuitPanel/VBoxContainer" unique_id=412800781]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
-
-[node name="BtnConfirmNo" type="Button" parent="Control/ConfirmQuitPanel/VBoxContainer" unique_id=1401851391]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("1_bhbkj")
-metadata/_custom_type_script = "uid://r6fm3adwn5yg"
+size_flags_horizontal = 3
+variant = 1
+btn_size = 2

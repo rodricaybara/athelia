@@ -1,6 +1,6 @@
 # Athelia — Estado actual (hito de rediseño de interfaces)
  
-*Actualizado: 2026-11-10, tras el cierre del Spike 22.*
+*Actualizado: 2026-11-10, tras el cierre del Spike 23.*
 Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`.
  
 ## Spikes del hito
@@ -19,7 +19,7 @@ Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_archit
 | 21 | Árbol de habilidades (21a pantalla, 21b comparación) | cerrado | 15 |
 | 21c | Árbol visual con relaciones (selector Lista/Árbol) | propuesto; numeración por decidir (el 22 es el Menú del jugador) | 21 |
 | 22 | Menú del jugador | cerrado | 18, 20, 21 |
-| 23 | Pantalla de inicio | pendiente | 15 |
+| 23 | Pantalla de inicio | cerrado | 15 |
 | 24 | Game Over: rediseño visual | pendiente | 14, 15, 23 |
  
 El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencias.
@@ -30,9 +30,9 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
  
 **22 — Menú del jugador (cerrado, 2026-11-10).** Resueltos `I` dentro del menú, `I` con Party y la doble `P`. Ver `docs/spike_22_menu_jugador.md`.
  
-**23 — Pantalla de inicio.** Arte de fondo y título, `UIButton` `LG`, marco en Opciones/Créditos/Confirmar salida; mantener el ciclo de vida de Main Scene (el ViewModel escucha `game_state_changed`). Validar: nueva partida, cargar (con y sin guardado), opciones, créditos, salir, volver desde Character Creation y tras una derrota.
+**23 — Pantalla de inicio (cerrado, 2026-11-10).** Layout A con `TitleBackdrop` (fondo y título reutilizables, placeholder plano), `UIButton` `LG` con jerarquía, `UIPanel` con marco en Créditos y Confirmar, foco inicial y Esc = Volver. Opciones se extrajo como componente (`OptionsPanel` + `GameSettings`, `ui/options/`) con persistencia de idioma y pantalla completa en `user://settings.cfg`; los sliders de volumen quedan ocultos hasta que exista el audio. Ver `docs/spike_23_pantalla_inicio.md`.
  
-**24 — Game Over.** `UIPanel` + tokens + arte del estilo del 23; foco inicial en el botón. La lógica ya está en `GameOverViewModel` (Spike 14). El botón `ReturnToMenuButton` se ensancha («Volver al menú principal»): resolver en la maqueta.
+**24 — Game Over.** `UIPanel` + tokens + arte del estilo del 23 (hereda `TitleBackdrop`, que ya existe: basta instanciarlo con el título y el mensaje de derrota); foco inicial en el botón. La lógica ya está en `GameOverViewModel` (Spike 14). El botón `ReturnToMenuButton` se ensancha («Volver al menú principal»): resolver en la maqueta.
  
 ## Pendientes sin spike asignado
  
@@ -59,6 +59,15 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Un `NarrativeScene` con id inexistente abre un panel vacío sin salida desde cualquier origen (solo se protegió la ruta de victoria).
 - Capacidad de mochila: cualquier mecanismo de ampliación (premium, monedas, magia) entra por `BagCapacity`.
 - `base_damage` frente a `melee_damage` incoherentes (`steel_sword`/`iron_sword`); `amulet_strength` sin tag de slot.
+**Pantalla de inicio y opciones (Spike 23)**
+- Audio: no existe ni audio ni buses `Music`/`SFX`. Diseñarlo, crear los buses, dar estilo a los sliders y poner `OptionsPanel.SHOW_VOLUME_SLIDERS = true` (hoy `false`). La persistencia de volúmenes ya está preparada en `GameSettings`.
+- Menú de pausa / Opciones desde la partida: reutiliza `OptionsPanel`; exige orquestador y `GameLoop` (spike propio) y que cada pantalla retraduzca al cambiar de idioma.
+- `fullscreen` se guarda aunque no se aplique (ventana incrustada del editor, que solo admite modo ventana): mejora opcional, guardar el modo realmente aplicado.
+- Tiempo jugado del guardado: `playtime_seconds` suma también el tiempo de menú y no se reinicia en una partida nueva (core). Por eso «Cargar partida» no lo muestra.
+- Limpieza de quickload: `consume_pending_quickload()` (`MainMenuViewModel`) y `_quickload()` (`ExplorationController`) siguen vivos, aunque F9 está desestimado.
+- `TRANSITIONING` atascado: si `enter_post_load_state()` o `enter_character_creation()` rechazan la transición, `MainMenuViewModel` no se recupera (mismo patrón que el 14 arregló en Game Over).
+- Versión en el pie (requiere `config/version` en `project.godot`); sustituir los «Por definir» de Créditos; asignar arte a `TitleBackdrop` y comprobar la legibilidad con el velo.
+- Borrar `localization/menus.csv.bak`.
 **Contenido y datos**
 - Marcador `telmori_village_departure` (salida final del pueblo): sale un aviso al cargar la exploración; decidir qué ocurre al salir.
 - Retrato del posadero es un placeholder (muestra el del sheriff).
@@ -79,7 +88,7 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Duplicado `damage_number.tscn` (`ui\` y `ui\combat\`); etiqueta de depuración `estado | paused=` en el HUD; `print` `[DIAG]` en `narrative_scene_panel.gd`; doble `create_shop_snapshot` y `print` de depuración en la tienda; comentarios «UISlot.setup()» obsoletos en `combat_arena_test_scene.gd` y `combat_production_scene.gd`.
 - Fuga de la instancia de `SCENE_COMBAT` en `SceneOrchestrator` (mitigada localmente en `combat_production_scene.gd`).
 - Comentario «Tecla I / Tab» obsoleto en `ExplorationController` (Tab no está enlazada) y acción `toggle_inventory` sin uso; comentario obsoleto de `open_loadout()` («llamado desde `PlayerMenuViewModel.request_open_loadout()`»).
-- Fuera del hito, para el final: CharacterCreation (6 offsets fijos), HUD de exploración, combate (`UICombatToken` de tamaño fijo), `main_theme.tres` sin aplicar (fuentes y tema sin decidir), comentario erróneo en `interactive_scene_view.gd:15`.
+- Fuera del hito, para el final: CharacterCreation (6 offsets fijos y fondo gris plano sin el estilo del hito), HUD de exploración, combate (`UICombatToken` de tamaño fijo), `main_theme.tres` sin aplicar (fuentes y tema sin decidir), comentario erróneo en `interactive_scene_view.gd:15`.
 - Decisión cerrada: F9/quickload en sesión activa queda no operativo; no se vuelve a tratar.
 ## Sin validar en partida (no es trabajo de código)
  

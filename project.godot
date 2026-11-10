@@ -19,6 +19,10 @@ run/main_scene="uid://jr1soh0askvt"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[audio]
+
+video/use_custom_user_dir=true
+
 [autoload]
 
 EventBus="*res://core/event_bus.gd"
@@ -53,6 +57,10 @@ PartyEventHandler="*uid://krqxj71rudvc"
 NarrativeSceneDB="*uid://f83s38eh5frk"
 EnemyWorldLink="*uid://cgdukmwcmga6t"
 InteractiveSceneDB="*uid://b5j6uci2f7mcd"
+
+[display]
+
+window/size/mode=3
 
 [input]
 
@@ -139,4 +147,4 @@ combat_scape={
 
 [internationalization]
 
-locale/translations=PackedStringArray("res://localization/translations.en.translation", "res://localization/translations.es.translation", "res://localization/dialogues.en.translation", "res://localization/dialogues.es.translation", "res://localization/items.en.translation", "res://localization/items.es.translation", "res://localization/world_objects.en.translation", "res://localization/world_objects.es.translation", "res://localization/menus.en.translation", "res://localization/menus.es.translation", "res://localization/character_creation.en.translation", "res://localization/character_creation.es.translation", "res://localization/narrative_scenes.en.translation", "res://localization/narrative_scenes.es.translation", "res://localization/narrative_scenes_telmori.en.translation", "res://localization/narrative_scenes_telmori.es.translation", "res://localization/dialogues_scenes_telmori.en.translation", "res://localization/dialogues_scenes_telmori.es.translation", "res://localization/combat.en.translation", "res://localization/combat.es.translation", "res://localization/items_telmori.en.translation", "res://localization/items_telmori.es.translation", "res://localization/shops.en.translation", "res://localization/shops.es.translation", "res://localization/skills.en.translation", "res://localization/skills.es.translation", "res://localization/inventory.en.translation", "res://localization/inventory.es.translation", "res://localization/party.en.translation", "res://localization/party.es.translation", "res://localization/loadout.en.translation", "res://localization/loadout.es.translation", "res://localization/skill_tree.en.translation", "res://localization/skill_tree.es.translation", "res://localization/player_menu.en.translation", "res://localization/player_menu.es.translation")
+locale/translations=PackedStringArray("res://localization/translations.en.translation", "res://localization/translations.es.translation", "res://localization/dialogues.en.translation", "res://localization/dialogues.es.translation", "res://localization/items.en.translation", "res://localization/items.es.translation", "res://localization/world_objects.en.translation", "res://localization/world_objects.es.translation", "res://localization/menus.en.translation", "res://localization/menus.es.translation", "res://localization/character_creation.en.translation", "res://localization/character_creation.es.translation", "res://localization/narrative_scenes.en.translation", "res://localization/narrative_scenes.es.translation", "res://localization/narrative_scenes_telmori.en.translation", "res://localization/narrative_scenes_telmori.es.translation", "res://localization/dialogues_scenes_telmori.en.translation", "res://localization/dialogues_scenes_telmori.es.translation", "res://localization/combat.en.translation", "res://localization/combat.es.translation", "res://localization/items_telmori.en.translation", "res://localization/items_telmori.es.translation", "res://localization/shops.en.translation", "res://localization/shops.es.translation", "res://localization/skills.en.translation", "res://localization/skills.es.translation", "res://localization/inventory.en.translation", "res://localization/inventory.es.translation", "res://localization/party.en.translation", "res://localization/party.es.translation", "res://localization/loadout.en.translation", "res://localization/loadout.es.translation", "res://localization/skill_tree.en.translation", "res://localization/skill_tree.es.translation", "res://localization/player_menu.en.translation", "res://localization/player_menu.es.translation", "res://localization/main_menu.en.translation", "res://localization/main_menu.es.translation", "res://localization/options.en.translation", "res://localization/options.es.translation")

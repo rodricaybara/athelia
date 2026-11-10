@@ -42,6 +42,8 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Tras `queue_free()` + `await process_frame`, comprobar el estado al reanudar** (S14).
 - **Tras `queue_free()` el hijo sigue en el árbol hasta el fin del frame:** para contar filas se usa la lista propia, y se hace `remove_child()` antes (S15, S16).
 - **`user://` no es la carpeta del proyecto:** en Windows es `%APPDATA%\Godot\app_userdata\<proyecto>\` (S12).
+- **`NOTIFICATION_TRANSLATION_CHANGED` llega a todos los nodos, también a los ocultos:** retraducir ahí (con `is_node_ready()` y el ViewModel ya creado) da cambio de idioma en caliente sin recargar escenas ni cerrar paneles (S23).
+- **Un `const` declarado dos veces en un autoload lo deja sin compilar** y arrastra «Cannot infer the type» en todos los consumidores de `UITokens` (decenas de ficheros, y tests): ante ese aluvión, mirar el primer error, no los demás (S23).
 ---
  
 ## Datos, registries y localización
@@ -95,6 +97,8 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Mover objetos entre entidades invalida las acciones narrativas que asumen el inventario del jugador:** `take_item` falla en silencio (S16).
 - **Un `CharacterState.character_name` vacío para toda entidad no-jugador** requiere fallback explícito a `tr(CharacterDefinition.name_key)` (S8).
 - **`PartyManager.MAX_PARTY_SIZE` cuenta solo compañeros** (no al jugador): el máximo de 2 es decisión de diseño (S19).
+- **Un helper estático (`GameSettings`) comparte la configuración entre ViewModels sin autoload ni core:** `apply_saved()` al arrancar y las intenciones del panel de opciones usan el mismo código, y sin fichero no cambia nada (S23).
+- **`playtime_seconds` de `SaveSystem` suma también el tiempo de menú y no se reinicia en una partida nueva:** no se muestra hasta arreglarlo (S23).
 ---
  
 ## Combate y narrativa
@@ -164,6 +168,12 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Un componente de pantalla de solo script (`PlayerMenuRow`) evita `Label.new()` en la View** y permite actualizar en sitio sin crear nodos (S22).
 - **Las acciones con `physical_keycode` se muestran con `DisplayServer.keyboard_get_keycode_from_physical()`:** si no, la letra mostrada depende de la disposición del teclado (S22).
 - **`UIResourceBar` pinta su valor a 10 px:** para un texto legible, «actual / máx» va en una etiqueta aparte (S22).
+- **Centrar un panel que sigue a su contenido:** anclas al centro + `grow_horizontal/vertical = BOTH` + offsets a 0. `set_anchors_and_offsets_preset(…, MINSIZE)` congela los offsets con el mínimo provisional del momento (paneles descentrados, un modal que se estira en vertical) (S23).
+- **Un `Label` con `autowrap` en un modal corto puede dar un mínimo enorme si se mide antes de recibir su ancho:** sin autowrap en textos cortos de modales (S23).
+- **Una View con subpaneles oculta la columna de botones mientras hay un subpanel** (velo + foco): si solo se apaga con un velo, los botones de detrás siguen enfocables por teclado y se ven al fondo (S23).
+- **Un panel anidable con señal `closed` y sin autoliberación sirve para varios huéspedes:** `OptionsPanel` vive hoy en el menú principal y mañana puede vivir en un menú de pausa sin cambios (S23).
+- **Al volver al panel principal, el foco vuelve al botón que abrió el subpanel,** y en un modal destructivo empieza en la acción segura (Cancelar) (S23).
+- **Un control de opciones sin sistema detrás no se enseña:** los sliders de volumen no controlaban nada porque no hay buses ni audio. Se dejan en la escena, ocultos tras una constante, y se anota el pendiente (S23).
 ---
  
 ## Proceso y herramientas
@@ -185,6 +195,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Una hipótesis de la spec se prueba con un caso que de verdad la ejerza:** la primera prueba de la 16c tenía la lanza en el jugador y funcionaba; el fallo solo aparece con ella en un compañero (S19b).
 - **Seis parches en un mismo fichero se entregan como fichero completo:** un parche mal colocado da un error de compilación en un sitio que no es el del cambio (S19b).
 - **Una herramienta de depuración que mete el juego en estados imposibles** (lanza prestada en un compañero tras bloquearlo en la interfaz) es la única forma de probar una corrección de compatibilidad con partidas antiguas (S19b).
+- **Un parche de un fichero lleva un único camino:** dos instrucciones solapadas (un parche con ancla y un bloque «pégalo al final») dejan constantes duplicadas. Si una ancla no coincide, se comprueba primero qué hay (`Select-String`) antes de pegar nada (S23).
+- **El editor ejecuta el juego incrustado en la pestaña Game, que solo admite modo ventana** («Embedded window only supports Windowed mode»): la pantalla completa se prueba con el juego en ventana propia o exportado (S23).
+- **Una comprobación del paquete Fase 0 con `Select-String` sobre las líneas clave (`_feedback_timer`, `consume_pending_quickload`) confirma si el paquete adjunto coincide con el código actual** antes de fiarse de él (S23).
 ---
  
 ## Convenciones de ficheros

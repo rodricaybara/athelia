@@ -1,12 +1,12 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-10 (cierre del Spike 22; spec del 23 preparada)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-10 (cierre del Spike 23; spec del 24 preparada)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
 cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
 código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15,
-16 (A y B), 16c, 17, 18, 19a, 19b, 20, 21 y 22 están cerrados y validados en partida real** (informes en
+16 (A y B), 16c, 17, 18, 19a, 19b, 20, 21, 22 y 23 están cerrados y validados en partida real** (informes en
 `docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md`,
 `docs/spike_16_tienda.md`, `docs/spike_17_inventario_mvvm.md` y
 `docs/spike_18_inventario_rediseno.md`, `docs/spike_19_party.md` y
@@ -32,7 +32,7 @@ narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 | 20 | Loadout — **cerrado** | Medio | 18 |
 | 21 | Árbol de habilidades — **cerrado** (21a y 21b) | Medio-alto | 15 |
 | 22 | Menú del jugador — **cerrado** | Medio | 18, 20, 21 |
-| 23 | Pantalla de inicio | Bajo | 15 |
+| 23 | Pantalla de inicio — **cerrado** | Bajo | 15 |
 | 24 | Game Over: rediseño visual | Bajo | 14, 15, 23 |
 
 - **14 y 15 están cerrados:** perder un combate lleva al menú principal con la
@@ -643,7 +643,7 @@ vivo.
 - `open_loadout()` del orquestador sin llamadores y con comentario obsoleto.
 - **Sin validar:** scroll de buffs con más de seis, captura en inglés a 1680×1050, buffs con modificadores reales sobre atributos, y que `scene_file_path` coincida con las constantes `OVERLAY_*` en todos los casos (validado de forma indirecta).
 
-### Spike 23 — Pantalla de inicio
+### Spike 23 — Pantalla de inicio — CERRADO (2026-11-10)
 
 **Alcance:** arte de fondo y título; `UIButton` `LG` en los botones; marco en
 Opciones, Créditos y Confirmar salida; mantener el ciclo de vida de Main Scene
@@ -653,7 +653,22 @@ Opciones, Créditos y Confirmar salida; mantener el ciclo de vida de Main Scene
 pantalla completa, idioma), Créditos, salir con confirmación, volver al menú
 desde Character Creation y tras una derrota.
 
-**Spec y prompt:** `spike_23_pantalla_inicio_spec.md`, `prompt_spike_23.md` (preparados tras el 22). Hallazgos de la lectura del paquete Fase 0 (a contrastar): `HSlider` sin rango en el `.tscn` (0-100) tratados como 0-1; opciones no persistentes; la View llama a `AudioServer`/`DisplayServer`/`TranslationServer`; Confirmar probablemente solapa al panel principal; fecha en bruto pegada al botón de cargar; sin foco ni Esc; componentes del DS adjuntados como script suelto. Decisiones abiertas M1-M11. El fondo y el título se hacen como componente reutilizable para el Spike 24.
+**Cierre:** informe `docs/spike_23_pantalla_inicio.md`; spec `spike_23_pantalla_inicio_spec.md`. Layout A (título centrado arriba, columna de botones centrada) con fondo placeholder por tokens (no hay arte propio del menú); jerarquía de botones (Nueva partida `PRIMARY`, resto `SECONDARY`, Salir `GHOST`; Confirmar: Sí `DANGER` / Cancelar `SECONDARY`); Opciones y Créditos como ventana con marco y Confirmar como modal pequeño bajo un velo; idioma y pantalla completa como pares de `UIButton` segmentados; foco inicial y Esc = Volver; «Cargar partida» fijo con la fecha localizada en una línea aparte. Ciclo de vida de Main Scene, flujos de sesión y core sin cambios.
+
+**Componentes nuevos reutilizables:** `TitleBackdrop` (fondo y título; hereda el Spike 24), `OptionsPanel` + `OptionsViewModel` (extraído para un futuro menú de pausa) y `GameSettings` (helper estático que lee, escribe y aplica `user://settings.cfg`: idioma, pantalla completa y volúmenes). Tokens nuevos (aditivos): `FONT_SIZE_DISPLAY`, `COLOR_SCRIM`, `COLOR_MODAL_VEIL`. CSV nuevos: `main_menu.csv` (13 claves) y `options.csv` (8 claves); salen de `menus.csv` las 17 claves `MENU_*` y `CREDITS_BODY`.
+
+**Hallazgos de la Fase 0:** no hay audio ni buses (los sliders no controlaban nada y tenían rango 0-100 con semántica 0-1); Créditos no mostraba el texto; cambiar de idioma sacaba al jugador de Opciones; Confirmar solapaba con el panel principal; el contador `playtime_seconds` de `SaveSystem` no es fiable.
+
+**Pendientes del 23 (sin spike asignado salvo indicación):**
+- **Audio:** diseñar el audio, crear los buses `Music` y `SFX`, dar estilo a los sliders y poner `SHOW_VOLUME_SLIDERS = true` (hoy `false`). La persistencia de volúmenes ya está preparada.
+- **Menú de pausa / Opciones desde la partida:** reutiliza `OptionsPanel`; exige orquestador y `GameLoop` (spike propio).
+- `fullscreen` guardado sin aplicarse en la ventana incrustada del editor (mejora opcional: guardar el valor real tras aplicarlo).
+- Tiempo jugado del guardado: el contador de `SaveSystem` incluye el tiempo de menú y no se reinicia (core).
+- Limpieza de quickload: `consume_pending_quickload()` y `_quickload()` siguen, aunque F9 está desestimado.
+- **`TRANSITIONING` atascado:** si `enter_post_load_state()` o `enter_character_creation()` rechazan la transición, el menú no se recupera (mismo patrón que el 14 arregló en Game Over).
+- Versión en el pie (requiere `config/version`); créditos «Por definir»; asignar `background_texture` cuando exista arte y comprobar la legibilidad con el velo.
+- **Character Creation** (pantalla gris sin estilo, tamaños fijos): fuera del hito, para el barrido de §8.
+- Borrar `localization/menus.csv.bak`.
 
 ### Spike 24 — Game Over: rediseño visual
 
@@ -665,6 +680,8 @@ anterior: resolverlo en la maqueta. La View ya delega en `GameOverViewModel`.
 
 **Validación:** derrota → pantalla → menú; el flujo funcional del spike 14 no
 cambia.
+
+**Spec y prompt:** `spike_24_game_over_spec.md`, `prompt_spike_24.md` (preparados tras el 23). Además del rediseño, incluye la **limpieza de cierre del hito**: `DebugPartyTool` (aún en `project.godot`), trazas `[DBG]`/`[DIAG]`, `menus.csv.bak`, comentarios obsoletos y, según decida Fernando, la etiqueta de depuración del HUD de exploración y el atasco de `TRANSITIONING` del menú principal; auditoría global de contrato de `ui/` y documentación final. Decisiones abiertas G1-G9. El código actual del Game Over no se ha visto (el paquete es anterior al Spike 14).
 
 ---
 

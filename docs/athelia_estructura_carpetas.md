@@ -199,10 +199,12 @@ athelia/
 │   ├── loadout.csv                  # LOADOUT_* (41 claves)
 │   ├── skill_tree.csv               # SKILL_TREE_* (37 claves, incl. SKILL_BUFF_*)
 │   ├── player_menu.csv              # PLAYER_MENU_* (14 claves)
+│   ├── main_menu.csv                # MAIN_MENU_* (13 claves; pantalla de inicio)
+│   ├── options.csv                  # OPTIONS_* (8 claves; OptionsPanel)
 │   ├── items.csv
 │   ├── items_telmori.csv
 │   ├── world_objects.csv
-│   ├── menus.csv                    # menú + GAMEOVER_*  (columnas id,es,en)
+│   ├── menus.csv                    # LOADING_LABEL + GAMEOVER_* (las claves del menú principal pasaron a `main_menu.csv` en el Spike 23)  (columnas id,es,en)
 │   ├── character_creation.csv
 │   ├── narrative_scenes.csv
 │   ├── narrative_scenes_telmori.csv
@@ -270,8 +272,9 @@ athelia/
     │   ├── loadout_screen.gd / .tscn    # View (UIPanel OVERLAY con marco)
     │   └── loadout_card.gd              # LoadoutCard (class_name): tarjeta de slot/candidato, STACKED o INLINE
     ├── loading_screen/              # loading_screen.gd / .tscn  (sin conectar al orquestador)
-    ├── main_menu/                   # viewmodel + screen + tscn  (Main Scene del proyecto)
+    ├── main_menu/                   # viewmodel + screen + tscn  (Main Scene del proyecto); instancia TitleBackdrop, OptionsPanel y dos UIPanel (Créditos, Confirmar)
     ├── narrative_scene/             # viewmodel, panel (.gd/.tscn)
+    ├── options/                     # game_settings.gd (GameSettings), options_viewmodel.gd, options_panel.gd / .tscn (OptionsPanel)
     ├── party/
     │   ├── party_viewmodel.gd
     │   └── party_ui.gd / .tscn
@@ -293,7 +296,8 @@ athelia/
         │   ├── ui_slot/             # + owner_id, slot_item_dropped
         │   ├── ui_resource_bar/
         │   ├── ui_radial_gauge/     # anillo de progreso (_draw())
-        │   └── ui_combat_token/     # ficha de combate (3 scripts helper sin class_name)
+        │   ├── ui_combat_token/     # ficha de combate (3 scripts helper sin class_name)
+        │   └── title_backdrop/      # title_backdrop.gd / .tscn: fondo + título (Spike 23; lo usa MainMenu y lo usará GameOver)
         ├── assets/
         │   ├── icons/icon_item_placeholder.png   # silueta 64×64, se tiñe con COLOR_TEXT_MUTED
         │   └── frames/frame_corner_64x64.png     # en uso (96×96 de reserva)

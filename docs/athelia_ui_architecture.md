@@ -14,7 +14,7 @@ cada spike vive en `athelia_historial_spikes.md` y en `docs/spike_N.md`.
 7. Cómo crear un nuevo panel UI
 8. Reglas que no se rompen
 9. Antipatrones conocidos
-10. Design System (`UIPanel`, `UIButton`, fila de lista, `UISlot`)
+10. Design System (`UIPanel`, `UIButton`, fila de lista, `UISlot`, `TitleBackdrop`)
 11. Contrato de pantalla y resolución de referencia
 12. Contextos de apertura (inventario, Party)
 13. Referencia de pantallas existentes
@@ -91,7 +91,7 @@ Al cerrar:
 No la instancia `SceneOrchestrator`; arranca directamente y nunca se destruye.
  
 ```
-_ready() → crea MainMenuViewModel como hijo → conecta botones → _vm.open() → changed("main")
+_ready() → crea MainMenuViewModel como hijo (su _ready aplica GameSettings) → conecta botones y OptionsPanel.closed → _vm.open() → changed("main")
  
 Nueva partida:  _vm.request_new_game() → changed("transitioning") → await process_frame
                 → GameLoop.enter_character_creation()
@@ -102,6 +102,8 @@ Volver a MENU desde cualquier estado: EventBus.game_state_changed(MENU)
 ```
  
 **Regla derivada:** el ViewModel de una View que es Main Scene persistente **debe** escuchar `EventBus.game_state_changed` en su `_ready()` y reaccionar al entrar y al salir de su estado. Puede volver a ese estado por un camino que no pasa por su código (sin el listener se quedaba para siempre en `TRANSITIONING`).
+
+**Spike 23:** (1) el orden de arranque importa: el `_ready()` del ViewModel aplica lo guardado (`GameSettings.apply_saved()`) y puede encolar una carga pendiente, y el `open()` de la View se ejecuta antes de esa carga diferida. (2) `_input` de la View consume `ui_cancel` solo en `OPTIONS`, `CREDITS` y `CONFIRM_QUIT` (equivale a Volver); en la principal, `HIDDEN` y `TRANSITIONING` no hace nada ni consume, porque un `CanvasLayer` oculto sigue recibiendo `_input`. (3) La View no toca `AudioServer`, `DisplayServer` ni `TranslationServer`: las opciones viven en `OptionsViewModel`. (4) Al cambiar el idioma se retraducen todos los textos en `NOTIFICATION_TRANSLATION_CHANGED` (también los de paneles ocultos), sin recargar escenas ni cerrar el panel.
  
 `DEFEAT` no transiciona directo a `CHARACTER_CREATION`. Desde el Spike 14, Game Over lleva al menú principal y `SessionReset` deja la sesión limpia (pasar por `MENU` por sí solo no limpia nada: lo hace `SceneOrchestrator._handle_main_menu()` + `SessionReset`).
  
@@ -381,6 +383,24 @@ Ninguna pantalla del proyecto se auto-libera en su cierre (solo `visible = false
  
 `UICombatToken` ancla sus hijos con desplazamientos absolutos calculados para 96×144 (`BASE_SIZE`). Forzar un `.size` menor descoloca el contenido. Correcto: un `Control` envoltorio que el `Container` redimensiona, y `.scale` sobre el componente, que nunca cambia de tamaño real.
  
+### ❌ Centrar un panel de tamaño variable con `set_anchors_and_offsets_preset(…, PRESET_MODE_MINSIZE)`
+
+```gdscript
+# MAL: calcula los offsets con el mínimo PROVISIONAL del momento y los deja
+# congelados; si el contenido crece después (o un texto con autowrap se mide
+# con poco ancho), el panel queda descentrado o se estira en vertical
+panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+
+# BIEN: anclas al centro + crecimiento a ambos lados + offsets a 0; el tamaño
+# sigue al contenido
+panel.set_anchors_preset(Control.PRESET_CENTER)
+panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+panel.offset_left = 0.0; panel.offset_top = 0.0; panel.offset_right = 0.0; panel.offset_bottom = 0.0
+```
+
+El ancho se fija con `custom_minimum_size.x` (fracción de la pantalla con tope). Un `Label` con `autowrap` dentro de un modal corto no lo necesita: si se mide antes de recibir su ancho da un mínimo desproporcionado (el «panel que se estira» de la pantalla de inicio).
+
 ### ❌ Nodo hijo colgado del padre equivocado en un `PanelContainer`
  
 Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectángulo: un nodo mal anidado no da error, se dibuja encima. El contenido de un panel va dentro de un único `VBoxContainer`/`HBoxContainer`, y al montar escenas a mano se verifica el padre de cada nodo.
@@ -393,9 +413,9 @@ Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectáng
  
 | Variante | Qué es | Consumidores |
 |---|---|---|
-| `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation, Diálogo, Narrativa, sub-paneles del menú, cabeceras y filas de la tienda |
+| `DEFAULT` | Fondo `COLOR_PANEL` con borde, padding 16 | Character Creation, Diálogo, Narrativa, cabeceras y filas de la tienda |
 | `POPUP` | `COLOR_PANEL_ALT`, borde de foco, padding 8 | ninguno |
-| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party, Loadout, Árbol de habilidades, Menú del jugador |
+| `OVERLAY` | Fondo **opaco** (`COLOR_BG` oscurecido un 20 %, alfa 1,0), sin borde, padding 24 | Tienda, Inventario, Party, Loadout, Árbol de habilidades, Menú del jugador, Opciones/Créditos/Confirmar del menú principal |
  
 ### `UIPanel` — marco decorativo (opt-in)
  
@@ -412,7 +432,7 @@ Un `PanelContainer` (y `UIPanel`) apila **todos** sus hijos en el mismo rectáng
 - `decorative_frame` y `corner_texture` tienen setter y reaplican estilo y redibujan en runtime. Los setters de `@export` corren **antes de `_ready()`**: protegerlos con `is_node_ready()`.
 - Para activarlo: inspector de la instancia, grupo «Marco decorativo (Spike 9)», marcar `Decorative Frame` y **guardar la escena**. Sin cambios de script. Si «no cambia nada», un `print` en `_ready()` distingue «el script no carga» de «el flag no está activo en esa instancia».
 - Tokens: `COLOR_FRAME_OUTER/FILLET/INNER`, `FRAME_OUTER/FILLET/INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING`, `FRAME_CORNER_TEXTURE_PATH`. Arte en `ui/design_system/assets/frames/`.
-- Activado en: panel narrativo, diálogo, tienda, inventario, Party, Loadout, árbol de habilidades y menú del jugador.
+- Activado en: panel narrativo, diálogo, tienda, inventario, Party, Loadout, árbol de habilidades, menú del jugador y subpaneles del menú principal.
 ### `UIButton` — modo solo icono (opt-in)
  
 | Opción | Efecto |
@@ -441,6 +461,13 @@ Patrón reutilizable: `[icono opcional] [nombre] [xN] [precio] [botón]`.
 - El relleno va anclado a izquierda y alto, y su ancho se ajusta con `offset_right` (un control con anclas opuestas distintas ignora `size`). Se recalcula al cambiar de tamaño la barra; el primer valor se pinta sin animar y cada refresco cancela el tween anterior.
 - Alto `RESOURCE_BAR_HEIGHT` (14 px); dos barras con 4 px de separación caben en una cabecera de 36 px. Para el recurso que se regenera (estamina) el ViewModel emite una razón propia (`resources`) agrupada por frame, no repinta la pantalla entera.
 - Barra fina (21): `UIResourceBar` fija `custom_minimum_size.y = 14` en su `_ready()`; una barra de 6 px se rebaja **después** de ese `_ready` (en el `_ready()` del padre, o con `bar.ready.connect(…, CONNECT_ONE_SHOT)` si la barra entra al árbol más tarde). Con `resource_type = "custom"` se asignan `custom_fill_color`/`custom_bg_color` antes de añadirla al árbol.
+
+### `TitleBackdrop` — fondo y título de pantalla completa
+
+- `Control` a pantalla completa (`mouse_filter = IGNORE`) con cuatro capas: `BaseRect` (`BG_BASE`), `BackgroundImage` (`TextureRect`, `expand_mode = IGNORE_SIZE`, `KEEP_ASPECT_COVERED`, oculta sin textura), `Scrim` (`COLOR_SCRIM`, solo visible con imagen) y `TitleLabel` (`FONT_SIZE_DISPLAY`, `COLOR_ACCENT`, contorno de legibilidad).
+- Exports: `background_texture`, `title_text` (por defecto «ATHELIA», marca: no se traduce), `show_title`, `title_top_fraction` (0,12). Los setters se protegen con `is_node_ready()`.
+- Hoy no hay arte propio: se ve el color base plano. Cuando exista, basta asignar la textura en el inspector de la instancia. Con una imagen real, el velo se calibra contra su luminosidad (ver «Texto claro sobre imagen sin contorno»).
+- No conoce pantallas ni sistemas. Lo usa MainMenu y lo usará GameOver (Spike 24).
 
 ### `UISlot` y overlay a pantalla completa
  
@@ -507,7 +534,9 @@ Reglas comunes:
  
 | Pantalla | ViewModel / View | Estado vigente |
 |----------|------------------|----------------|
-| MainMenu | `main_menu_viewmodel.gd` / `main_menu_screen.gd` | Main Scene. Pantalla única con sub-paneles (opciones, créditos, confirmar salida). No la instancia `SceneOrchestrator`. Ver «Caso especial». |
+| MainMenu | `main_menu_viewmodel.gd` / `main_menu_screen.gd` | Main Scene (`CanvasLayer`, `layer = 0`); no la instancia `SceneOrchestrator`. Layout A: `TitleBackdrop` y columna de `UIButton` `LG` (Nueva partida `PRIMARY`; Cargar, Opciones y Créditos `SECONDARY`; Salir `GHOST`) anclada al 40 % de la altura. Bajo «Cargar partida», una línea con la fecha del guardado (formateada con `MAIN_MENU_SAVE_DATE`) o «Sin partida guardada». Subpaneles: `OptionsPanel`, Créditos y Confirmar (`UIPanel` OVERLAY con marco, centrados por contenido, anchos 0,5 con tope 620 y 0,3 con 380–460) sobre un velo; la columna de botones se oculta mientras hay un subpanel. Foco inicial y de retorno (al botón que abrió el subpanel); en Confirmar empieza en Cancelar. Razones de `changed`: `main/options/credits/confirm_quit/transitioning/load_blocked/hidden`. Sin tiempo jugado (el contador del core no es fiable). Textos `MAIN_MENU_*` (`main_menu.csv`). Ver «Caso especial». |
+| OptionsPanel | `options_viewmodel.gd` / `options_panel.gd` (`class_name OptionsPanel`, `ui/options/`) | Ventana de opciones reutilizable (`UIPanel` OVERLAY con marco, ancho 0,5 con tope 620, alto por contenido). Pantalla completa e idioma como pares de `UIButton` segmentados (seleccionado `PRIMARY`). Persistencia en `user://settings.cfg` vía `GameSettings`. Sliders de volumen en la escena pero ocultos (`SHOW_VOLUME_SLIDERS = false`) hasta que exista el audio. Razones: `opened/fullscreen/language/volume/closed`. Emite `closed`; no se libera ni maneja Esc: lo hace quien la aloja (hoy `MainMenuScreen`). Textos `OPTIONS_*` (`options.csv`). |
+| TitleBackdrop | `title_backdrop.gd` (`class_name TitleBackdrop`, `ui/design_system/components/title_backdrop/`) | Componente del DS, sin ViewModel: color base, imagen cover opcional, velo (solo con imagen) y título. Lo usa MainMenu y lo usará GameOver. Ver «Design System». |
 | WorldObject | `world_object_panel_viewmodel.gd` / `world_object_interaction_panel.gd` | Panel piloto del patrón; el más simple. Vestigial en el camino jugable. |
 | Inventory | `inventory_viewmodel.gd` / `inventory_ui.gd` | `Backdrop` + `Frame` (`UIPanel` OVERLAY con marco, tope 1400×820). Tres columnas: equipo (6 `UISlot`), mochila (pestañas `UIButton` SM + rejilla de `UISlot` con pool, marca «E», desbordamiento con borde discontinuo) y detalle (`ItemDetailPanel` con modificadores y comparación) + bonos del equipo + estadísticas (valores base). Cabecera con oro, peso y huecos (`_compute_capacity()` → `BagCapacity`). Razones de `changed`: `opened/inventory/equipment/stats/selection/feedback/categories/closed`. Feedback decidido por el ViewModel en `FeedbackPopup` (se oculta solo). Esc cierra. Textos `INVENTORY_*` (`inventory.csv`). |
 | Party | `party_viewmodel.gd` / `party_ui.gd` | Mismo patrón de overlay que el inventario. Layout L3: por columna, equipo en 6 `UISlot`, mochila (pool según capacidad), cajetín de detalle (`ItemDetailPanel`, compacto bajo 700 px de marco) y cabecera con nombre, barras HP/estamina y huecos. View pasiva: el ViewModel entrega `ColumnData` (`BagEntry`/`EquipEntry`, recursos, atributos para el tooltip, selección y `ItemDetailData`), `StrategyOption` y `CompanionTab` ya traducidos. Clic en la mochila = seleccionar (selección por columna, se limpia al cambiar de pestaña). Arrastre: al slot de equipo (`request_equip_drop`) o mochila a mochila (`request_transfer`: 1 unidad, Mayús = pila; valida préstamo, apilado y hueco antes de mover). Un `quest_loan` solo puede estar en el jugador. Razones: `opened`, `player_column`, `companion_column`, `companion_changed`, `party_changed`, `resources`, `feedback`, `closed`. Pestañas solo con 2 o más compañeros. Textos `PARTY_*` (`party.csv`); el cajetín usa claves `INVENTORY_*`. |

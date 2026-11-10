@@ -13,7 +13,8 @@ ui/design_system/
 │   ├── ui_slot/       (ui_slot.gd + .tscn)        ← PanelContainer
 │   ├── ui_resource_bar/ (ui_resource_bar.gd + .tscn) ← Control
 │   ├── ui_radial_gauge/                           ← anillo de progreso (_draw())
-│   └── ui_combat_token/                           ← ficha de combate
+│   ├── ui_combat_token/                           ← ficha de combate
+│   └── title_backdrop/    (title_backdrop.gd + .tscn)  ← Control: fondo + título (Spike 23)
 ├── assets/
 │   ├── icons/icon_item_placeholder.png   ← silueta de bolsa 64×64 (se tiñe con COLOR_TEXT_MUTED)
 │   └── frames/frame_corner_64x64.png     ← esquinera por defecto (la de 96×96 es reserva: invadía el texto)
@@ -50,6 +51,8 @@ ui/design_system/
 **Marco decorativo:** `COLOR_FRAME_OUTER`, `COLOR_FRAME_FILLET`, `COLOR_FRAME_INNER`, `FRAME_OUTER_WIDTH`, `FRAME_FILLET_WIDTH`, `FRAME_INNER_WIDTH`, `FRAME_GAP`, `FRAME_MIN_PADDING` (= `SPACE_LG`, 16), `FRAME_CORNER_TEXTURE_PATH`.
  
 **Contorno de texto sobre imagen:** `TEXT_OUTLINE_SIZE`, `COLOR_TEXT_OUTLINE`. **Velo de combate:** `COMBAT_BACKGROUND_SCRIM_ALPHA` (0,2).
+
+**Pantalla de inicio (Spike 23):** `FONT_SIZE_DISPLAY` (64, título), `COLOR_SCRIM` (velo sobre la imagen de `TitleBackdrop`, solo con imagen) y `COLOR_MODAL_VEIL` (velo bajo los subpaneles del menú principal).
  
 ### Cómo añadir un token
  
@@ -95,6 +98,16 @@ Control                           ← script: ui_resource_bar.gd
 ```
 Inspector: `show_value` false, `show_max` false, `resource_type` `"health"`. La raíz es visible; `FillRect` va anclado a izquierda y alto y su ancho se fija con `offset_right`. Desde una View se usa `set_values()` (primer consumidor: Party); `bind()` accede al juego y queda para contextos sin MVVM.
  
+### `title_backdrop.tscn`
+```
+Control                           ← script: title_backdrop.gd (class_name TitleBackdrop), anclas FULL_RECT, mouse_filter IGNORE
+├── BaseRect (ColorRect, %)       ← BG_BASE
+├── BackgroundImage (TextureRect, %)  ← visible = false; expand IGNORE_SIZE, stretch KEEP_ASPECT_COVERED
+├── Scrim (ColorRect, %)          ← COLOR_SCRIM; visible = false (solo se muestra con imagen)
+└── TitleLabel (Label, %)         ← anclas arriba a todo el ancho, centrado
+```
+Fondo de pantalla completa con título. Exports: `background_texture` (sin textura se ve el color base plano; con textura, cover más velo), `title_text` («ATHELIA», marca: no se traduce), `show_title`, `title_top_fraction` (0,12). El título usa `FONT_SIZE_DISPLAY`, `COLOR_ACCENT` y el contorno de legibilidad. Sin conocimiento de pantallas ni sistemas. Lo usa la pantalla de inicio y lo usará Game Over.
+
 ## Tema global (`main_theme.tres`)
  
 Hoy **no está aplicado como tema del proyecto**: los componentes se estilan por código con `UITokens`. Aplicar tema y familias de fuentes queda fuera del hito. Si se aplica, sirve como fallback para nodos que no usen los componentes (los componentes lo sobrescriben con `add_theme_stylebox_override()`):
@@ -120,7 +133,7 @@ Hoy **no está aplicado como tema del proyecto**: los componentes se estilan por
 - Crear nodos `Button`/`Panel` «raw» en pantallas de juego nuevas.
 - Acceder a sistemas core desde componentes del Design System.
 - Definir un mismo valor en las dos familias de tokens: se usa un alias.
-Pantallas pendientes de migrar al Design System: menú del jugador, Loadout, árbol de habilidades y Game Over (Spikes 20-24, ver `estado_actual.md`). Tienda, inventario y Party ya migraron.
+Pantalla pendiente de migrar al Design System: Game Over (Spike 24, ver `estado_actual.md`). Tienda, inventario, Party, Loadout, árbol de habilidades, menú del jugador y pantalla de inicio ya migraron.
  
 ## Cómo crear un nuevo componente
  

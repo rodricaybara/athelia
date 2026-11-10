@@ -5,12 +5,15 @@ extends Node
 ##
 ## Razones de changed():
 ##   "main"          → mostrar panel principal, ocultar el resto
-##   "options"       → mostrar panel de opciones
-##   "credits"       → mostrar panel de créditos, iniciar scroll
-##   "confirm_quit"  → mostrar diálogo de confirmación de salida
+##   "options"       → mostrar el panel de opciones
+##   "credits"       → mostrar el panel de créditos
+##   "confirm_quit"  → mostrar la confirmación de salida
 ##   "transitioning" → deshabilitar botones (transición en curso)
-##   "load_blocked"  → no hay partida guardada, feedback visual
+##   "load_blocked"  → no hay partida guardada: refrescar la línea de estado
 ##   "hidden"        → GameState salió de MENU — ocultar la pantalla entera
+##
+## Spike 23: las opciones (idioma, pantalla completa, volúmenes) viven en
+## OptionsViewModel; aquí solo se aplica lo guardado al arrancar.
 
 signal changed(reason: String)
 
@@ -33,11 +36,16 @@ enum MenuState {
 
 var state: MenuState = MenuState.HIDDEN
 
-## ¿Existe una partida guardada? Determina si "Cargar Partida" está habilitado.
+## ¿Existe una partida guardada? Determina si "Cargar partida" está habilitado.
 var has_save: bool = false
 
 ## Metadata del save (timestamp, playtime_seconds). Vacío si no hay save.
 var save_info: Dictionary = {}
+
+## Fecha del save troceada en textos ya con ceros: { y, m, d, h, min }.
+## Vacío si no hay save o el timestamp no se entiende. La View la formatea con
+## una clave localizada (el orden día/mes/año depende del idioma).
+var save_date: Dictionary = {}
 
 # ============================================
 # REFERENCIAS
@@ -50,6 +58,10 @@ var _save_manager: SaveSystem = null
 # ============================================
 
 func _ready() -> void:
+	# Spike 23: lo guardado en user://settings.cfg se aplica al arrancar.
+	# Sin fichero no cambia nada.
+	GameSettings.apply_saved()
+
 	_save_manager = get_node_or_null("/root/SaveManager")
 	if not _save_manager:
 		push_warning("[MainMenuViewModel] SaveManager not found — load/save features disabled")
@@ -59,23 +71,15 @@ func _ready() -> void:
 	else:
 		push_error("[MainMenuViewModel] EventBus not found — no podrá reaccionar a cambios de estado")
 
-	print("[MainMenuViewModel] Initialized")
-
-	# Spike 7 — REENFOQUE FINAL: ExplorationController._quickload() ya no
-	# carga en caliente; marca la intención en SaveSystem (autoload,
-	# sobrevive a reload_current_scene()) y recarga la escena. Esta sesión
-	# recién arrancada consume ese flag una sola vez y dispara la carga real
-	# por el único camino que sabemos que funciona sin residuos de la
-	# partida anterior — el mismo request_load_game() de siempre, sin
-	# ninguna rama de lógica nueva.
+	# Spike 7: marca de quickload pendiente. F9 en partida está desestimado, pero
+	# la llamada se conserva sin cambios (inocua; limpieza pendiente).
 	if _save_manager and _save_manager.consume_pending_quickload():
 		call_deferred("request_load_game")
 
 
 ## Reacciona a cualquier cambio de GameState — incluidos los que NO originó
-## este propio menú (ej: volver desde CharacterCreation, o salir hacia
-## Exploration). Sin esto, el menú se queda "congelado" en TRANSITIONING
-## para siempre tras la primera vez que se abandona MENU.
+## este propio menú (volver desde CharacterCreation, derrota, salir a
+## Exploration). Sin esto, el menú se queda "congelado" en TRANSITIONING.
 func _on_game_state_changed(new_state: int) -> void:
 	if new_state == GameLoopSystem.GameState.MENU:
 		if state != MenuState.MAIN:
@@ -94,13 +98,11 @@ func open() -> void:
 	_refresh_save_state()
 	state = MenuState.MAIN
 	changed.emit("main")
-	print("[MainMenuViewModel] Opened → MAIN")
 
 
 func request_new_game() -> void:
 	if state == MenuState.TRANSITIONING:
 		return
-	print("[MainMenuViewModel] New game requested")
 	state = MenuState.TRANSITIONING
 	changed.emit("transitioning")
 	# Dar un frame para que la View deshabilite botones antes de cambiar escena
@@ -118,10 +120,8 @@ func request_load_game() -> void:
 	if state == MenuState.TRANSITIONING:
 		return
 	if not has_save:
-		print("[MainMenuViewModel] Load blocked — no save found")
 		changed.emit("load_blocked")
 		return
-	print("[MainMenuViewModel] Loading game...")
 	state = MenuState.TRANSITIONING
 	changed.emit("transitioning")
 	await get_tree().process_frame
@@ -130,11 +130,7 @@ func request_load_game() -> void:
 		if ok:
 			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 			if game_loop:
-				# Spike 7 — centralizado en GameLoopSystem.enter_post_load_state():
-				# decide entre volver a la escena narrativa pendiente o a
-				# EXPLORATION. Mismo método que usa ahora
-				# ExplorationController._quickload(), para no duplicar este
-				# criterio en cada punto de carga.
+				# Decide entre volver a la escena narrativa pendiente o a EXPLORATION.
 				game_loop.enter_post_load_state(_save_manager)
 			else:
 				push_error("[MainMenuViewModel] GameLoop not found")
@@ -155,7 +151,6 @@ func request_options() -> void:
 		return
 	state = MenuState.OPTIONS
 	changed.emit("options")
-	print("[MainMenuViewModel] → OPTIONS")
 
 
 func request_credits() -> void:
@@ -163,7 +158,6 @@ func request_credits() -> void:
 		return
 	state = MenuState.CREDITS
 	changed.emit("credits")
-	print("[MainMenuViewModel] → CREDITS")
 
 
 func request_quit() -> void:
@@ -171,21 +165,18 @@ func request_quit() -> void:
 		return
 	state = MenuState.CONFIRM_QUIT
 	changed.emit("confirm_quit")
-	print("[MainMenuViewModel] → CONFIRM_QUIT")
 
 
 func confirm_quit() -> void:
-	print("[MainMenuViewModel] Quitting application")
 	get_tree().quit()
 
 
 ## Vuelve al panel principal desde cualquier sub-panel
 func request_back() -> void:
-	if state == MenuState.TRANSITIONING:
+	if state == MenuState.TRANSITIONING or state == MenuState.HIDDEN:
 		return
 	state = MenuState.MAIN
 	changed.emit("main")
-	print("[MainMenuViewModel] → MAIN (back)")
 
 
 # ============================================
@@ -196,7 +187,27 @@ func _refresh_save_state() -> void:
 	if not _save_manager:
 		has_save = false
 		save_info = {}
+		save_date = {}
 		return
 	has_save = _save_manager.has_save("quicksave")
 	save_info = _save_manager.get_save_info("quicksave") if has_save else {}
-	print("[MainMenuViewModel] Save state — has_save: %s" % has_save)
+	save_date = _parse_save_date(str(save_info.get("timestamp", "")))
+
+
+## "2026-11-01T22:30:54" → { y: "2026", m: "11", d: "01", h: "22", min: "30" }.
+## Devuelve {} si el formato no es el esperado.
+func _parse_save_date(timestamp: String) -> Dictionary:
+	var halves: PackedStringArray = timestamp.split("T")
+	if halves.size() != 2:
+		return {}
+	var date_parts: PackedStringArray = halves[0].split("-")
+	var time_parts: PackedStringArray = halves[1].split(":")
+	if date_parts.size() != 3 or time_parts.size() < 2:
+		return {}
+	return {
+		"y": date_parts[0],
+		"m": date_parts[1],
+		"d": date_parts[2],
+		"h": time_parts[0],
+		"min": time_parts[1],
+	}

@@ -1,90 +1,137 @@
 class_name MainMenuScreen
 extends CanvasLayer
 
-## MainMenuScreen — View del menú principal
-## Sigue el contrato MVVM: nunca accede a sistemas core directamente.
-## Toda lógica pasa por MainMenuViewModel.
+## MainMenuScreen — View del menú principal (Spike 23)
+## Contrato MVVM: nunca accede a sistemas core ni a singletons de configuración.
+## Toda lógica pasa por MainMenuViewModel; las opciones, por OptionsPanel.
+##
+## Es la Main Scene: no se libera nunca; el ViewModel la oculta/muestra según
+## GameState (razones "hidden" / "main").
+
+const PANEL_WIDTH_FRACTION: float = 0.5
+const PANEL_MAX_WIDTH: float = 620.0
+const CONFIRM_MIN_WIDTH: float = 380.0
+const CONFIRM_MAX_WIDTH: float = 460.0
+const CREDITS_HEIGHT_FRACTION: float = 0.28
+const CREDITS_MAX_HEIGHT: float = 360.0
 
 # ============================================
-# NODOS — @onready desde el .tscn
+# NODOS
 # ============================================
 
-@onready var main_panel: VBoxContainer   = %MainPanel
-@onready var btn_new_game: Button        = %BtnNewGame
-@onready var btn_load_game: Button       = %BtnLoadGame
-@onready var btn_options: Button         = %BtnOptions
-@onready var btn_credits: Button         = %BtnCredits
-@onready var btn_quit: Button            = %BtnQuit
+@onready var button_column: VBoxContainer = %ButtonColumn
+@onready var new_game_button: Button = %NewGameButton
+@onready var load_game_button: Button = %LoadGameButton
+@onready var load_info_label: Label = %LoadInfoLabel
+@onready var options_button: Button = %OptionsButton
+@onready var credits_button: Button = %CreditsButton
+@onready var quit_button: Button = %QuitButton
 
-@onready var options_panel: PanelContainer  = %OptionsPanel
-@onready var lbl_options_title: Label       = %LblOptionsTitle
-@onready var lbl_music_vol: Label           = %LblMusicVol
-@onready var slider_music_vol: HSlider      = %SliderMusicVol
-@onready var lbl_sfx_vol: Label             = %LblSfxVol
-@onready var slider_sfx_vol: HSlider        = %SliderSfxVol
-@onready var lbl_fullscreen: Label          = %LblFullscreen
-@onready var chk_fullscreen: CheckButton    = %ChkFullscreen
-@onready var lbl_language: Label            = %LblLanguage
-@onready var opt_language: OptionButton     = %OptLanguage
-@onready var btn_options_back: Button       = %BtnOptionsBack
+@onready var modal_veil: ColorRect = %ModalVeil
+@onready var options_panel: OptionsPanel = %OptionsPanel
 
-@onready var credits_panel: PanelContainer  = %CreditsPanel
-@onready var lbl_credits_title: Label       = %LblCreditsTitle
-@onready var credits_label: Label           = %CreditsLabel
-@onready var btn_credits_back: Button       = %BtnCreditsBack
+@onready var credits_panel: PanelContainer = %CreditsPanel
+@onready var credits_title: Label = %CreditsTitle
+@onready var credits_divider: ColorRect = %CreditsDivider
+@onready var credits_scroll: ScrollContainer = %CreditsScroll
+@onready var credits_body: Label = %CreditsBody
+@onready var credits_back_button: Button = %CreditsBackButton
 
-@onready var confirm_quit_panel: PanelContainer = %ConfirmQuitPanel
-@onready var lbl_confirm_text: Label            = %LblConfirmText
-@onready var btn_confirm_yes: Button            = %BtnConfirmYes
-@onready var btn_confirm_no: Button             = %BtnConfirmNo
+@onready var confirm_panel: PanelContainer = %ConfirmPanel
+@onready var confirm_text: Label = %ConfirmText
+@onready var confirm_yes_button: Button = %ConfirmYesButton
+@onready var confirm_no_button: Button = %ConfirmNoButton
 
 # ============================================
-# VIEWMODEL
+# VIEWMODEL Y ESTADO DE VISTA
 # ============================================
 
 var _vm: MainMenuViewModel = null
 
-# Timer para feedback temporal de "load_blocked"
-var _feedback_timer: SceneTreeTimer = null
+## Botón al que vuelve el foco cuando se regresa al panel principal.
+var _return_focus: Button = null
 
 # ============================================
 # CICLO DE VIDA
 # ============================================
 
 func _ready() -> void:
-	# Crear ViewModel como hijo
+	_return_focus = new_game_button
+
+	# ViewModel como hijo. Su _ready aplica lo guardado y puede encolar la carga
+	# pendiente (Spike 7); el open() de más abajo se ejecuta ANTES de esa carga.
 	_vm = MainMenuViewModel.new()
 	_vm.name = "ViewModel"
 	add_child(_vm)
 	_vm.changed.connect(_on_vm_changed)
 
-	# Conectar botones del panel principal
-	btn_new_game.pressed.connect(func(): _vm.request_new_game())
-	btn_load_game.pressed.connect(func(): _vm.request_load_game())
-	btn_options.pressed.connect(func(): _vm.request_options())
-	btn_credits.pressed.connect(func(): _vm.request_credits())
-	btn_quit.pressed.connect(func(): _vm.request_quit())
+	new_game_button.pressed.connect(_on_new_game_pressed)
+	load_game_button.pressed.connect(_on_load_game_pressed)
+	options_button.pressed.connect(_on_options_pressed)
+	credits_button.pressed.connect(_on_credits_pressed)
+	quit_button.pressed.connect(_on_quit_pressed)
 
-	# Conectar botones de sub-paneles
-	btn_options_back.pressed.connect(func(): _vm.request_back())
-	btn_credits_back.pressed.connect(func(): _vm.request_back())
-	btn_confirm_yes.pressed.connect(func(): _vm.confirm_quit())
-	btn_confirm_no.pressed.connect(func(): _vm.request_back())
+	credits_back_button.pressed.connect(func(): _vm.request_back())
+	confirm_yes_button.pressed.connect(func(): _vm.confirm_quit())
+	confirm_no_button.pressed.connect(func(): _vm.request_back())
+	options_panel.closed.connect(func(): _vm.request_back())
 
-	# Conectar opciones
-	slider_music_vol.value_changed.connect(_on_music_vol_changed)
-	slider_sfx_vol.value_changed.connect(_on_sfx_vol_changed)
-	chk_fullscreen.toggled.connect(_on_fullscreen_toggled)
-	opt_language.item_selected.connect(_on_language_selected)
+	get_viewport().size_changed.connect(_layout)
 
-	# Inicializar textos estáticos
-	_setup_static_text()
+	_apply_static_style()
+	_render_texts()
+	_layout()
 
-	# Inicializar opciones con valores actuales del sistema
-	_setup_options_initial_values()
-
-	# Abrir el menú
 	_vm.open()
+
+
+func _notification(what: int) -> void:
+	# Cambio de idioma en caliente: se retraducen TODOS los textos, también los
+	# de los paneles ocultos.
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _vm != null:
+		_render_texts()
+
+
+## Esc = Volver, solo en los sub-paneles. En la principal, oculta o en
+## transición no hace nada y no consume el evento.
+func _input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	match _vm.state:
+		MainMenuViewModel.MenuState.OPTIONS, \
+		MainMenuViewModel.MenuState.CREDITS, \
+		MainMenuViewModel.MenuState.CONFIRM_QUIT:
+			_vm.request_back()
+			get_viewport().set_input_as_handled()
+
+
+# ============================================
+# BOTONES DEL PANEL PRINCIPAL
+# ============================================
+
+func _on_new_game_pressed() -> void:
+	_return_focus = new_game_button
+	_vm.request_new_game()
+
+
+func _on_load_game_pressed() -> void:
+	_return_focus = load_game_button
+	_vm.request_load_game()
+
+
+func _on_options_pressed() -> void:
+	_return_focus = options_button
+	_vm.request_options()
+
+
+func _on_credits_pressed() -> void:
+	_return_focus = credits_button
+	_vm.request_credits()
+
+
+func _on_quit_pressed() -> void:
+	_return_focus = quit_button
+	_vm.request_quit()
 
 
 # ============================================
@@ -117,42 +164,36 @@ func _on_vm_changed(reason: String) -> void:
 
 func _render_main() -> void:
 	visible = true
-	main_panel.visible      = true
-	options_panel.visible   = false
-	credits_panel.visible   = false
-	confirm_quit_panel.visible = false
+	button_column.visible = true
+	modal_veil.visible = false
+	options_panel.visible = false
+	credits_panel.visible = false
+	confirm_panel.visible = false
+
 	_set_main_buttons_enabled(true)
+	_render_load_info()
 
-	# Habilitar/deshabilitar "Cargar Partida" según save existente
-	btn_load_game.disabled = not _vm.has_save
-
-	# Mostrar timestamp del save en el botón si existe
-	if _vm.has_save and not _vm.save_info.is_empty():
-		var timestamp: String = _vm.save_info.get("timestamp", "")
-		btn_load_game.text = tr("MENU_LOAD_GAME") + "\n" + timestamp
-	else:
-		btn_load_game.text = tr("MENU_LOAD_GAME")
+	var target: Button = _return_focus
+	if target == null or target.disabled:
+		target = new_game_button
+	target.call_deferred("grab_focus")
 
 
 func _render_options() -> void:
-	main_panel.visible         = false
-	options_panel.visible      = true
-	credits_panel.visible      = false
-	confirm_quit_panel.visible = false
+	_enter_subscreen(options_panel)
+	options_panel.open()
+	options_panel.focus_first()
 
 
 func _render_credits() -> void:
-	main_panel.visible         = false
-	options_panel.visible      = false
-	credits_panel.visible      = true
-	confirm_quit_panel.visible = false
+	_enter_subscreen(credits_panel)
+	credits_back_button.grab_focus()
 
 
 func _render_confirm_quit() -> void:
-	options_panel.visible      = false
-	credits_panel.visible      = false
-	confirm_quit_panel.visible = true
-	_set_main_buttons_enabled(false)
+	_enter_subscreen(confirm_panel)
+	# Foco en Cancelar, no en la acción destructiva.
+	confirm_no_button.grab_focus()
 
 
 func _render_transitioning() -> void:
@@ -164,109 +205,96 @@ func _render_hidden() -> void:
 
 
 func _render_load_blocked() -> void:
-	btn_load_game.disabled = true
-	btn_load_game.text = tr("MENU_NO_SAVE_FOUND")
-
-	if _feedback_timer and is_instance_valid(_feedback_timer):
-		_feedback_timer.timeout.disconnect(_restore_load_button)
-
-	_feedback_timer = get_tree().create_timer(2.0)
-	_feedback_timer.timeout.connect(_restore_load_button)
+	load_game_button.disabled = true
+	_render_load_info()
 
 
-func _restore_load_button() -> void:
-	btn_load_game.disabled = true
-	btn_load_game.text = tr("MENU_LOAD_GAME")
+## Oculta la columna de botones (así no hay solape ni foco por detrás), pone el
+## velo y muestra solo el panel indicado.
+func _enter_subscreen(panel: Control) -> void:
+	button_column.visible = false
+	modal_veil.visible = true
+	options_panel.visible = panel == options_panel
+	credits_panel.visible = panel == credits_panel
+	confirm_panel.visible = panel == confirm_panel
+	_layout()
 
 
 # ============================================
-# SETUP INICIAL
+# TEXTOS Y ESTILO
 # ============================================
 
-func _setup_static_text() -> void:
-	# Panel principal
-	btn_new_game.text  = tr("MENU_NEW_GAME")
-	btn_load_game.text = tr("MENU_LOAD_GAME")
-	btn_options.text   = tr("MENU_OPTIONS")
-	btn_credits.text   = tr("MENU_CREDITS")
-	btn_quit.text      = tr("MENU_QUIT")
+func _render_texts() -> void:
+	new_game_button.text = tr("MAIN_MENU_NEW_GAME")
+	load_game_button.text = tr("MAIN_MENU_LOAD_GAME")
+	options_button.text = tr("MAIN_MENU_OPTIONS")
+	credits_button.text = tr("MAIN_MENU_CREDITS")
+	quit_button.text = tr("MAIN_MENU_QUIT")
+	_render_load_info()
 
-	# Panel opciones
-	lbl_options_title.text = tr("MENU_OPTIONS_TITLE")
-	lbl_music_vol.text     = tr("MENU_MUSIC_VOL")
-	lbl_sfx_vol.text       = tr("MENU_SFX_VOL")
-	lbl_fullscreen.text    = tr("MENU_FULLSCREEN")
-	lbl_language.text      = tr("MENU_LANGUAGE")
-	btn_options_back.text  = tr("MENU_BACK")
+	credits_title.text = tr("MAIN_MENU_CREDITS_TITLE")
+	credits_body.text = tr("MAIN_MENU_CREDITS_BODY")
+	credits_back_button.text = tr("MAIN_MENU_CREDITS_BACK")
 
-	# Panel créditos
-	lbl_credits_title.text = tr("MENU_CREDITS_TITLE")
-	credits_label.text     = tr("CREDITS_BODY")
-	btn_credits_back.text  = tr("MENU_BACK")
-
-	# Panel confirmación salida
-	lbl_confirm_text.text  = tr("MENU_CONFIRM_QUIT_TEXT")
-	btn_confirm_yes.text   = tr("MENU_CONFIRM_YES")
-	btn_confirm_no.text    = tr("MENU_CONFIRM_NO")
+	confirm_text.text = tr("MAIN_MENU_CONFIRM_TEXT")
+	confirm_yes_button.text = tr("MAIN_MENU_CONFIRM_YES")
+	confirm_no_button.text = tr("MAIN_MENU_CONFIRM_NO")
 
 
-func _setup_options_initial_values() -> void:
-	# Volumen música
-	var music_bus: int = AudioServer.get_bus_index("Music")
-	if music_bus >= 0:
-		slider_music_vol.value = db_to_linear(AudioServer.get_bus_volume_db(music_bus))
+## Línea bajo "Cargar partida": fecha del guardado o el motivo del botón apagado.
+func _render_load_info() -> void:
+	if _vm != null and _vm.has_save and not _vm.save_date.is_empty():
+		load_info_label.text = tr("MAIN_MENU_SAVE_DATE").format(_vm.save_date)
+	elif _vm != null and _vm.has_save:
+		load_info_label.text = ""
 	else:
-		slider_music_vol.value = 1.0
+		load_info_label.text = tr("MAIN_MENU_NO_SAVE")
 
-	# Volumen efectos
-	var sfx_bus: int = AudioServer.get_bus_index("SFX")
-	if sfx_bus >= 0:
-		slider_sfx_vol.value = db_to_linear(AudioServer.get_bus_volume_db(sfx_bus))
-	else:
-		slider_sfx_vol.value = 1.0
 
-	# Pantalla completa
-	chk_fullscreen.button_pressed = \
-		DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+func _apply_static_style() -> void:
+	modal_veil.color = UITokens.COLOR_MODAL_VEIL
 
-	# Idioma
-	opt_language.clear()
-	opt_language.add_item("Español", 0)
-	opt_language.add_item("English", 1)
-	var locale: String = TranslationServer.get_locale()
-	opt_language.selected = 1 if locale.begins_with("en") else 0
+	load_info_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_SM)
+	load_info_label.add_theme_color_override("font_color", UITokens.COLOR_TEXT_MUTED)
+
+	credits_title.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_TITLE)
+	credits_title.add_theme_color_override("font_color", UITokens.COLOR_TEXT)
+	credits_divider.color = UITokens.BORDER_DEFAULT
+	credits_body.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_LG)
+	credits_body.add_theme_color_override("font_color", UITokens.COLOR_TEXT)
+
+	confirm_text.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_XL)
+	confirm_text.add_theme_color_override("font_color", UITokens.COLOR_TEXT)
 
 
 # ============================================
-# CALLBACKS DE OPCIONES
+# LAYOUT
 # ============================================
 
-func _on_music_vol_changed(value: float) -> void:
-	var music_bus: int = AudioServer.get_bus_index("Music")
-	if music_bus >= 0:
-		AudioServer.set_bus_volume_db(music_bus, linear_to_db(value))
+## Anchos y altos por fracción de la pantalla (sin estiramiento). Los paneles
+## se centran con su tamaño mínimo. Las Opciones se colocan solas.
+func _layout() -> void:
+	var screen: Vector2 = get_viewport().get_visible_rect().size
+
+	credits_panel.custom_minimum_size.x = minf(screen.x * PANEL_WIDTH_FRACTION, PANEL_MAX_WIDTH)
+	credits_scroll.custom_minimum_size.y = minf(screen.y * CREDITS_HEIGHT_FRACTION, CREDITS_MAX_HEIGHT)
+	confirm_panel.custom_minimum_size.x = clampf(screen.x * 0.3, CONFIRM_MIN_WIDTH, CONFIRM_MAX_WIDTH)
+
+	for panel: PanelContainer in [credits_panel, confirm_panel]:
+		_center_panel(panel)
 
 
-func _on_sfx_vol_changed(value: float) -> void:
-	var sfx_bus: int = AudioServer.get_bus_index("SFX")
-	if sfx_bus >= 0:
-		AudioServer.set_bus_volume_db(sfx_bus, linear_to_db(value))
-
-
-func _on_fullscreen_toggled(pressed: bool) -> void:
-	if pressed:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	else:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-
-
-func _on_language_selected(index: int) -> void:
-	match index:
-		0: TranslationServer.set_locale("es")
-		1: TranslationServer.set_locale("en")
-	# Refrescar todos los textos al cambiar idioma
-	_setup_static_text()
-	_render_main()
+## Centra un panel por su tamaño mínimo: anclas al centro, offsets a 0 y
+## crecimiento hacia ambos lados. El tamaño sigue al contenido en cada cambio,
+## sin congelar offsets calculados con un mínimo provisional.
+func _center_panel(panel: Control) -> void:
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 0.0
+	panel.offset_bottom = 0.0
 
 
 # ============================================
@@ -274,8 +302,8 @@ func _on_language_selected(index: int) -> void:
 # ============================================
 
 func _set_main_buttons_enabled(enabled: bool) -> void:
-	btn_new_game.disabled  = not enabled
-	btn_load_game.disabled = not enabled or not _vm.has_save
-	btn_options.disabled   = not enabled
-	btn_credits.disabled   = not enabled
-	btn_quit.disabled      = not enabled
+	new_game_button.disabled = not enabled
+	load_game_button.disabled = not enabled or not _vm.has_save
+	options_button.disabled = not enabled
+	credits_button.disabled = not enabled
+	quit_button.disabled = not enabled

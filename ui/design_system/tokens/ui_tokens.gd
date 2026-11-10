@@ -212,6 +212,7 @@ const FONT_SIZE_MD      := 14
 const FONT_SIZE_LG      := 16
 const FONT_SIZE_XL      := 20
 const FONT_SIZE_TITLE   := 24
+const FONT_SIZE_DISPLAY := 64  # Spike 23: título de la pantalla de inicio
 
 
 # ============================================================
@@ -328,6 +329,14 @@ const COMBAT_BACKGROUND_SCRIM_ALPHA: float = 0.2
 ## log de combate). outline_size de Godot = grosor total del trazo en px.
 const TEXT_OUTLINE_SIZE: int = 4
 const COLOR_TEXT_OUTLINE: Color = COLOR_BG
+
+# ============================================
+# pantalla de inicio — fondo y título (Spike 23)
+# ============================================
+## Velo sobre la imagen de TitleBackdrop (solo con imagen) para legibilidad.
+const COLOR_SCRIM: Color = Color("#111009", 0.55)
+## Velo bajo los sub-paneles del menú principal (Opciones, Créditos, Confirmar).
+const COLOR_MODAL_VEIL: Color = Color("#111009", 0.8)
 
 # ============================================
 # marco decorativo de ventana — UIPanel.decorative_frame (Spike 9)
