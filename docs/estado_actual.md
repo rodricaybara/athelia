@@ -1,6 +1,6 @@
 # Athelia — Estado actual (hito de rediseño de interfaces cerrado)
  
-*Actualizado: 2026-11-14, tras el cierre de IA-0a (IA de combate). Hito de interfaces cerrado el 2026-11-11.*
+*Actualizado: 2026-11-14, tras el cierre de IA-0a (IA de combate).*
 Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`. Resumen del hito: `docs/cierre_hito_rediseno_interfaces.md`.
  
 ## Spikes del hito
@@ -24,20 +24,18 @@ Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_archit
  
 **El hito está terminado:** las ocho pantallas usan el Design System y cumplen el contrato de `athelia_ui_architecture.md`. Lo que sigue son spikes independientes, sin orden fijado.
  
-## IA de combate (fase IA-0, prerrequisitos de motor)
+## IA de combate
 
-Plan: `docs/ia_combate_ia0_plan.md`; especificación: `docs/ia_combate_spec_v1_7_1.md`. Historia: `athelia_historial_spikes.md`.
+Spec vigente: `docs/ia_combate_spec_v1_7_1.md`. Prerrequisitos de motor: `docs/ia_combate_ia0_plan.md`. Fase 0: `docs/ia_combate_fase0.md`.
 
-| Spike | Contenido | Estado |
+| Fase | Contenido | Estado |
 |---|---|---|
-| IA-0a | Robustez de acciones y estado de combate | cerrado (2026-11-14), `docs/ia_combate_ia0a_informe.md` |
-| IA-0b | Combate por turnos puro (regeneración de estamina, cooldowns en rondas, HUD desde `ResourceSystem`) | siguiente |
-| IA-0c | Estimaciones y candidatas de `Combat` (`estimate_damage`, `get_candidates`, RNG inyectable) | pendiente (tras 0b) |
-| IA-0d | Datos (vida derivada, skills de enemigos y de Mira, `focus`, borrado de `_bak`) | pendiente (puede ir con 0c) |
-
-Movido desde IA-0a: la resolución del fin de combate en un solo punto (`_evaluate_outcome()`, tarea 5d) pasa a IA-4; la lectura de las skills de los enemigos desde `CharacterDefinition.skills` (tarea 7) pasa a IA-0d.
-
-Observaciones abiertas (sin spike): `armor_rating` 12 del jugador y de Mira reduce todo daño enemigo (4,7–6,6) al mínimo de 1,0 (IA-5); `Skills.can_use` no comprueba `is_unlocked`; el jugador no tiene registrada `skill.attack.stunning_blow` aunque la tecla 3 apunta a ella; `combat_hud.gd` emite `combat_action_requested` sin pasar por `PlayerCombatController`; no existe `INVALID_TARGET` (un fallo colgaría el turno de una IA sin reintento).
+| Fase 0 | Código real y 7 decisiones de diseño | cerrada (2026-11-11) |
+| IA-0a | Robustez de acciones y estado de combate | **cerrada** (2026-11-14), `docs/ia_combate_ia0a_informe.md` |
+| IA-0b | Combate por turnos: regeneración y cooldowns por ronda, HUD desde `ResourceSystem`, iniciativa determinista, retardos anulables | siguiente |
+| IA-0c | Estimaciones y candidatas de `Combat`, RNG inyectable, skills `SELF`/`RESTORE`/`FLEE` | pendiente |
+| IA-0d | Datos: PV derivados, skills de enemigos y de Mira, `behavior_profile_id` (decidir antes la constitución de los enemigos: números declarados o los jugados) | pendiente |
+| IA-1 a IA-5 | Contratos, evaluador, órdenes de Mira, moral y huida (incluye `_evaluate_outcome()` y `combat_result_ready`), ajuste | pendiente |
 
 ## Alcance de lo pendiente
  
@@ -48,12 +46,13 @@ Observaciones abiertas (sin spike): `armor_rating` 12 del jugador y de Mira redu
 ## Pendientes sin spike asignado
  
 **Motor**
-- Combate (IA-0a): sin probar `DISARMED` del jugador (hoy consume el turno) ni `Combat._last_attacker` con datos durante el combate; los fallos de acción de enemigos y companions no tienen gestor (el turno puede quedar a la espera) hasta IA-1.
+- IA de combate (IA-0a): `DISARMED` del jugador sin probar (hoy consume el turno); `Combat.get_last_attacker()` solo comprobado vacío al terminar; `Skills.can_use` no comprueba `is_unlocked`; el jugador no tiene registrada `skill.attack.stunning_blow` aunque la tecla 3 apunta a ella (da `SKILL_NOT_FOUND`); sin `INVALID_TARGET` (un enemigo que apunte a alguien a 0 PV completa su turno sin daño); los fallos de acción de enemigos y companions no tienen gestor (lo resuelve la IA desde IA-1); el HUD (`combat_hud.gd`) emite `combat_action_requested` sin pasar por el controlador (solo cuenta la recuperación de `GameLoop`).
+- Equilibrio de combate (IA-5): `armor_rating = 12` del jugador y de Mira reduce todo daño enemigo (4,7–6,6) al mínimo de 1,0; los combates duran 12–22 rondas y los enemigos no amenazan. Condiciona cualquier estimación de amenaza.
 - Combate/Loadout (replantear con el combate): `skill.combat.defend`/`flee` sin `.tres`; ids hardcodeados en el controlador (`combat_defense` → defend, `combat_scape` → flee, `SPECIAL_ACTIONS`); sin skill COMBAT con tag `escape`; el HUD muestra vacíos los slots de Defensa y Huida con el loadout actual (la tarjeta de Huida del Loadout dice «Acción de combate»); preselección de Defender/Esquiva/Huida; el combate solo lee el loadout del jugador (`PLAYER_ID`); `SLOT_KEYBIND_LABEL` vive en `CombatHudViewModel` (moverlo a un sitio compartido).
 - Una skill aprendida con requisitos no cumplidos se puede asignar y sale atenuada en el HUD; la lista del Loadout no muestra disponibilidad.
 - `fireball` (tags `magic`, `ranged`) no es asignable a ningún slot.
 - Teclas F y G de consumibles sin acción en el InputMap (la etiqueta se muestra igualmente).
-- `CombatLootSpawner.spawn_pending_loot()` solo se llama desde `exploration_test.gd` (escena de prueba) y `combat_loot_bag_spawned` solo lo escucha esa misma escena: el botín no se materializa en producción. Decidir dónde se llama tras la victoria (victoria → escena narrativa → exploración) y quién crea la bolsa visible.
+- `CombatLootSpawner.spawn_pending_loot()` solo se llama desde `scenes/exploration/exploration_test.gd`, y `combat_loot_bag_spawned` solo lo escucha esa escena de prueba: el botín no aparece en producción ni hay quién cree la bolsa visible. Decidir dónde se llama en el flujo real (al volver a exploración tras la escena de victoria) y quién la crea. No depende de la IA de combate.
 - `ItemCharacterIntegration` es código muerto (el autoload `Bridge` es `item_character_bridge.gd`).
 - `PartyManager._register_in_systems()` conserva un acceso privado (`_entity_skills.get(...).keys()`): falta un listador público en `SkillSystem`.
 - `equip_item` ignora el slot de destino; motivos de `equip_failed`/`item_use_failed` en texto libre en inglés (hace falta código de motivo).
@@ -95,7 +94,7 @@ Observaciones abiertas (sin spike): `armor_rating` 12 del jugador y de Mira redu
 - `combat_hud.gd` y `combat_arena_panel.gd` acceden a `Characters`, `Inventory` y `EventBus` directamente (UI de combate, fuera del hito).
 **Limpieza (barrido final)**
 - Candidatos a borrar: `exploration_tutorial`, `exploration_test`, `exploration_test_bak` (+ su `StateDebugLabel`), `exploration_telmori_village` (+ líneas comentadas de `SCENE_EXPLORATION`), `player.gd`/`player.tscn` (bloqueado por `test/test_shop_ui.gd`), `combat_test.tscn`/`combat_hud.tscn` si se deja de usar.
-- Ficheros `*_bak`: `core/combat/combat_system_bak.gd`, `enemy_ai_backup.gd`, `defense_module_bak.gd`, `scenes/player/player_combat_controller_bak.gd`, `ui/entity_animation_controller_bak.gd` (los de combate, en IA-0d; ninguno está referenciado en `.tscn`, `.tres` ni `project.godot`).
+- Ficheros `*_bak`: `core/combat/combat_system_bak.gd`, `scenes/player/player_combat_controller_bak.gd`, `ui/entity_animation_controller_bak.gd` (los dos primeros emiten la señal antigua; confirmar y borrar). `scenes/combat/combat_test.gd` conecta `Combat.combat_action_executed`, que no existe.
 - `ui/dialogue/dialogue_panel_test.gd` (fichero de prueba en carpeta de producción).
 - `Interactable` vestigial; su camino físico nunca se validó y ya no se va a validar.
 - `SceneOrchestrator.open_loadout()` y `close_skill_tree()` sin llamadores (comentarios ya actualizados; estudiar su eliminación).

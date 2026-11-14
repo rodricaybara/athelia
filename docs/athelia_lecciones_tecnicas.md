@@ -109,16 +109,16 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Limpiar un interactuable de reconexión se engancha a `narrative_flag_set`, no a `narrative_scene_closed`:** una escena que encadena a otra por `next_scene_id` no cierra el panel ni emite el cierre con su `scene_id` (G3C).
 - **`NarrativeSceneViewModel` y `ExplorationController` pre-registran `Characters`/`Resources` para enemigos, nunca `Skills`:** no asumir que «la entidad ya está registrada» cubre los tres registros (G5).
 - **Una escena de prueba nueva usa nombres de `.gd` y `.tscn` distintos a los de producción** (`combat_production_scene.gd`, no `combat_test_scene.gd`) (G5).
+- **Todo lo que libere recursos al acabar un combate se difiere (`call_deferred`):** `character_died` → `GameLoop` → `end_combat()` puede dispararse a mitad de una acción y `Combat` sigue leyendo al objetivo y al atacante; dar de baja en el mismo momento dejó `Resources` y `Characters` sin la entidad (IA-0a).
+- **Un `await` después de `combat_ended` no es fiable:** `SceneOrchestrator` hace `queue_free()` de `CombatScene` en esa misma emisión y la corrutina de un nodo liberado no continúa; una llamada diferida a una función estática no depende de la escena (IA-0a).
+- **El flujo de una petición del jugador es síncrono** (petición → fase → ejecución → posible fallo → recuperación, todo dentro del `emit_signal`): el controlador apaga el input **antes** de emitir, porque la recuperación lo reactiva dentro de esa llamada (IA-0a).
+- **Las señales que `Combat` reenvía se filtran por estado de juego:** `skill_failed` también salta con las skills de exploración (IA-0a).
+- **Una guarda que sale si «ya está en el estado» no puede ser la que cambia ese estado:** `_incapacitate_player()` salía siempre porque el jugador ya estaba a 0 PV y sus señales no se emitían nunca; la guarda usa un indicador por combate (IA-0a).
+- **La estamina se regenera en tiempo real:** en un combate por turnos el resultado de una pulsación depende del reloj (la misma acción falló y segundos después funcionó). Es el motivo de IA-0b (IA-0a).
 - **Un `Skill not found for entity` al terminar combate** significa que `register_entity_skills()` recibió una lista distinta a `list_known_skills()` (S3B).
 - **Una cadena multi-escena cortada antes de tiempo se delata por el `scene_id` de `narrative_scene_closed` en el log** (G3D).
 - **Dos sistemas narrativos distintos son fáciles de confundir:** `narrative_event_id` dispara `NarrativeSystem.apply_event()`, no `enter_narrative_scene()` (G3B).
 - **Un modificador multiplicativo de combate y un mini-acertijo de objeto sobre objeto se descartaron explícitamente** por falta de un segundo caso real (G3C, G3D).
-- **Todo lo que libere recursos al acabar un combate se difiere.** `character_died` → `GameLoop._check_combat_conditions()` → `end_combat()` puede dispararse a mitad de una acción, y `Combat` sigue leyendo al objetivo y al atacante (y emite `combat_action_executed`) después. Dar de baja a los enemigos dentro del mismo `combat_ended` dejó `Resources` y `Characters` sin la entidad (error en `resource_system.gd`, aviso en `combat_arena_viewmodel.gd`) (IA-0a).
-- **`await` tras `combat_ended` no es fiable:** `SceneOrchestrator` hace `queue_free()` de `CombatScene` en esa misma emisión y la corrutina de un nodo liberado no continúa. Una llamada diferida a una función estática (`EntityLifecycle.unregister_everywhere.call_deferred(id)`) no depende de la escena (IA-0a).
-- **El flujo de una petición del jugador es síncrono** (petición → fase → ejecución → fallo → recuperación, todo dentro de `emit_signal`): quien emite apaga su input **antes**; una recuperación lo reactiva dentro de la misma emisión y apagarlo después lo deja bloqueado con la fase ya en `PLAYER_ACTION_SELECT` (IA-0a).
-- **Una guarda que comprueba el estado que acaba de cambiar sale siempre:** `_incapacitate_player()` comprobaba «HP ≤ 0» con el jugador ya a 0 y nunca emitía `player_incapacitated`; un indicador por combate lo corrige. Una señal sin oyente no avisa de nada: se delata porque en el log «no ocurre» el efecto (IA-0a).
-- **Una señal que `Combat` reenvía se filtra por estado, y cada evento tiene un único dueño:** `Skills.skill_failed` también salta fuera de combate, y si dos sitios emiten el mismo fallo (`Skills` y `Combat`) sale dos veces (IA-0a).
-- **La regeneración en tiempo real no encaja con un combate por turnos:** la misma pulsación falló por falta de aguante y segundos después funcionó. Lo resuelve IA-0b (IA-0a).
 ---
  
 ## UI y Design System (solo lo no cubierto en ui_architecture)
@@ -191,6 +191,8 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
  
 - **Cuando una spec da una hipótesis como causa, reproducir antes de arreglar** (16c) (S19). Las cifras de una spec se comprueban contra el árbol de nodos real (S15).
 - **Una línea que falta en el Output delata un bug:** comparar el Output con la secuencia esperada, no solo buscar errores (S19).
+- **Los parches «buscar → sustituir» usan anclas de una sola línea:** las de varias líneas fallan con tabuladores y finales de línea de Windows, y un ancla mal aplicada puede borrar otra línea sin aviso (IA-0a).
+- **Para renombrar una señal, buscar `emit_signal("x"`, `x.emit(` y `x.connect(` por separado:** el HUD de combate emitía con `.emit({` y la primera búsqueda no lo vio (IA-0a).
 - **Los parches «buscar → sustituir» comprueban que el ancla aparece exactamente una vez y no asumen la sangría;** en funciones largas, vigilar las comas al añadir claves a un diccionario. Mismo criterio para parchear documentación (S18, S19, S16).
 - **Un script de PowerShell 5.1 sin BOM corrompe los acentos literales:** escribirlos con `[char]0xE9` o mantener el script en ASCII; los CSV se leen y escriben como UTF-8 conservando BOM y saltos de línea (S15).
 - **`Select-String` no distingue mayúsculas por defecto:** `Items\.` casa con `bag_items.`; para auditar el contrato MVVM usar `-CaseSensitive` (S17).
@@ -213,9 +215,6 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Tras aplicar un parche, comprobar con `Select-String` que su identificador nuevo está en el fichero antes de probar:** una prueba «ok» no demuestra que el cambio estuviera aplicado (el `_recover_if_transition_rejected()` del menú) (S24).
 - **Un patrón de auditoría amplio (`Label.new`) da falsos positivos en listas dinámicas:** el que cuenta es `Color\(|modulate`; los ficheros `*_test*` y `*_bak*` se filtran por nombre, no solo por carpeta (S24).
 - **Un informe puede listar como pendiente algo que ya no existe** (`DebugPartyTool`): comprobar antes de planificar su retirada (S24).
-- **Anclas de una sola línea.** Las de varias líneas fallan con tabuladores y finales de línea de Windows, y un ancla mal aplicada puede sustituir otra instrucción sin avisar: la línea que emitía la petición del jugador acabó convertida en un comentario y el juego dejó de responder, sin error. Tras aplicar, `Select-String` del identificador nuevo **y** de la línea que debía seguir ahí (IA-0a).
-- **Los `Select-String -Recurse` se lanzan desde la raíz del proyecto:** desde `Documents` recorren también las copias (`athelia_exp`, `spike-7-days`) y dan resultados de ficheros que no son los que se ejecutan; comprobar el prefijo de ruta de cada resultado (IA-0a).
-- **Para saber si un fallo lo causa un cambio propio, se desactiva el cambio y se repite (A/B):** el loot no aparecía ni con la baja de enemigos ni sin ella, así que no era una regresión (IA-0a).
 ---
  
 ## Convenciones de ficheros

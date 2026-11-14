@@ -10,6 +10,8 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 
 ## IA-0a — Robustez de acciones y estado de combate
 
+**Estado: cerrada el 2026-11-14** (`docs/ia_combate_ia0a_informe.md`). Cambios respecto a lo previsto: la tarea 5d (`_evaluate_outcome()`) pasa a **IA-4**; de la tarea 7 solo se aplicó `Skills.has_entity` (la lectura de skills desde `CharacterDefinition.skills` pasa a **IA-0d**); se añadieron 5c (`get_last_attacker`), `Combat` deja de emitir dos veces el fallo de una skill y la baja de enemigos se difiere.
+
 | # | Tarea | Ficheros |
 |---|---|---|
 | 1 | Corregir la guarda de `_incapacitate_player()`, que sale siempre porque el jugador ya está a 0 PV. Debe emitir `player_incapacitated` y poner `flag.player_downed` una sola vez | `game_loop_system.gd` |
