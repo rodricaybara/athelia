@@ -88,7 +88,7 @@ func _register_enemy(enemy_id: String) -> void:
 	if not Skills._entity_skills.has(enemy_id):
 		Skills.register_entity_skills(enemy_id, ["skill.enemy.basic_attack"])
 
-	# set() ANTES de add_child(): igual que UISlot.setup(), para que
+	# set() ANTES de add_child(): para que
 	# EnemyAI._ready() vea enemy_id/attack_skill_id ya asignados en vez
 	# del valor por defecto del script.
 	var ai := Node.new()

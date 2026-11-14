@@ -59,7 +59,8 @@ func _decide_and_act() -> void:
 	print("[CompanionAI] %s → %s on %s" % [
 		companion_id, skill_id, target if not target.is_empty() else "SELF"
 	])
-	EventBus.emit_signal("player_action_requested", action_data)
+	action_data["request_id"] = Combat.next_request_id()
+	EventBus.emit_signal("combat_action_requested", action_data)
 
 
 # ============================================

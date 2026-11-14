@@ -26,6 +26,11 @@ extends Node
 
 @onready var game_loop: GameLoopSystem = get_node("/root/GameLoop")
 
+## Ids de todos los enemigos que esta escena ha registrado (roster inicial y
+## refuerzos). Se da de baja a todos al acabar el combate: en `combat_ended`
+## GameLoop ya ha vaciado `participants`, así que no se pueden leer de allí.
+var _enemy_ids: Array[String] = []
+
 
 func _ready() -> void:
 	_spawn_player_combat_controller()
@@ -63,13 +68,15 @@ func _spawn_enemy_ai(enemy_id: String) -> void:
 	# NUNCA Skills — falso supuesto mío al asumir "ya está todo
 	# registrado". Mismo guard que ya uso para refuerzos, aplicado aquí
 	# también.
-	if not Skills._entity_skills.has(enemy_id):
+	if not _enemy_ids.has(enemy_id):
+		_enemy_ids.append(enemy_id)
+	if not Skills.has_entity(enemy_id):
 		Skills.register_entity_skills(enemy_id, ["skill.enemy.basic_attack"])
 
 	var ai := Node.new()
 	ai.set_script(preload("res://core/combat/enemy_ai.gd"))
 	ai.name = "EnemyAI_%s" % enemy_id
-	# set() ANTES de add_child(): mismo criterio que UISlot.setup() y
+	# set() ANTES de add_child(): mismo criterio que en
 	# el fix ya aplicado en combat_arena_test_scene.gd — evita que
 	# EnemyAI._ready() vea el valor por defecto del script.
 	ai.set("enemy_id", enemy_id)
@@ -99,5 +106,16 @@ func _on_reinforcement_spawned(enemy_id: String, definition_id: String) -> void:
 	_spawn_enemy_ai(enemy_id)
 
 
+## Los demás oyentes de combat_ended (victoria, loot, narrativa) se ejecutan
+## dentro de esta misma emisión y leen los datos de los enemigos: la baja se
+## se difiere hasta que termine la acción en curso: end_combat() puede dispararse a
+## mitad de una acción (character_died) y Combat sigue leyendo al objetivo y al atacante.
 func _on_combat_ended(_result: String) -> void:
+	print("[CombatProductionScene] Baja de %d enemigos al acabar el combate" % _enemy_ids.size())
+	for enemy_id in _enemy_ids:
+		# Si un combate nuevo ya reutiliza este id, no se le quita el registro.
+		if game_loop.is_in_combat() and game_loop.participants.has(enemy_id):
+			continue
+		EntityLifecycle.unregister_everywhere.call_deferred(enemy_id)
+	_enemy_ids.clear()
 	queue_free()

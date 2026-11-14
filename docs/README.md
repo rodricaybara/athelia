@@ -106,7 +106,7 @@ Control                           ← script: title_backdrop.gd (class_name Titl
 ├── Scrim (ColorRect, %)          ← COLOR_SCRIM; visible = false (solo se muestra con imagen)
 └── TitleLabel (Label, %)         ← anclas arriba a todo el ancho, centrado
 ```
-Fondo de pantalla completa con título. Exports: `background_texture` (sin textura se ve el color base plano; con textura, cover más velo), `title_text` («ATHELIA», marca: no se traduce), `show_title`, `title_top_fraction` (0,12). El título usa `FONT_SIZE_DISPLAY`, `COLOR_ACCENT` y el contorno de legibilidad. Sin conocimiento de pantallas ni sistemas. Lo usa la pantalla de inicio y lo usará Game Over.
+Fondo de pantalla completa con título. Exports: `background_texture` (sin textura se ve el color base plano; con textura, cover más velo), `title_text` («ATHELIA», marca: no se traduce), `show_title`, `title_top_fraction` (0,12), `title_tone` (`ACCENT` por defecto o `DANGER`). El título usa `FONT_SIZE_DISPLAY`, `COLOR_ACCENT` (o `COLOR_DANGER_SOFT`) y el contorno de legibilidad. Sin conocimiento de pantallas ni sistemas. Lo usan la pantalla de inicio y Game Over. Sus hijos ignoran el ratón: bloquear clics se hace con `mouse_filter = STOP` en la instancia.
 
 ## Tema global (`main_theme.tres`)
  
@@ -133,7 +133,7 @@ Hoy **no está aplicado como tema del proyecto**: los componentes se estilan por
 - Crear nodos `Button`/`Panel` «raw» en pantallas de juego nuevas.
 - Acceder a sistemas core desde componentes del Design System.
 - Definir un mismo valor en las dos familias de tokens: se usa un alias.
-Pantalla pendiente de migrar al Design System: Game Over (Spike 24, ver `estado_actual.md`). Tienda, inventario, Party, Loadout, árbol de habilidades, menú del jugador y pantalla de inicio ya migraron.
+Pantallas del hito migradas al Design System: tienda, inventario, Party, Loadout, árbol de habilidades, menú del jugador, pantalla de inicio y Game Over. Quedan fuera del hito Character Creation, el HUD de exploración, el combate, la narrativa y el panel de objetos del mundo (ver `estado_actual.md`).`
  
 ## Cómo crear un nuevo componente
  

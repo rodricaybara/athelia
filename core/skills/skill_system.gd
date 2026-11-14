@@ -231,19 +231,19 @@ func can_use(entity_id: String, skill_id: String) -> bool:
 func request_use(entity_id: String, skill_id: String) -> bool:
 	var instance = get_skill_instance(entity_id, skill_id)
 	if not instance:
-		skill_failed.emit(entity_id, skill_id, "Skill not found")
+		skill_failed.emit(entity_id, skill_id, "SKILL_NOT_FOUND")
 		return false
 	
 	# Verificar cooldown
 	if instance.is_on_cooldown():
-		skill_failed.emit(entity_id, skill_id, "On cooldown")
+		skill_failed.emit(entity_id, skill_id, "ON_COOLDOWN")
 		return false
 	
 	# Aplicar coste
 	var cost_bundle = instance.definition.get_cost_bundle()
 	if not cost_bundle.is_empty():
 		if not resource_system.apply_cost(entity_id, cost_bundle):
-			skill_failed.emit(entity_id, skill_id, "Insufficient resources")
+			skill_failed.emit(entity_id, skill_id, "INSUFFICIENT_RESOURCES")
 			return false
 	
 	# Iniciar cooldown

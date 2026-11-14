@@ -1,12 +1,12 @@
 # Plan del hito de rediseño de interfaces — Spikes 14-24
 
-**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-10 (cierre del Spike 23; spec del 24 preparada)
+**Fecha:** 2026-10-03 · **Última actualización:** 2026-11-11 (cierre del Spike 24 y del hito)
 **Alcance:** Rehacer y homogeneizar el estilo de 8 pantallas de Athelia (tienda,
 inventario, party, Loadout, árbol de habilidades, menú del jugador, pantalla de
 inicio y Game Over), más un spike previo de motor (reinicio de sesión) y uno de
 cimientos del Design System. Es el resultado de la Fase 0 de comprobación de
 código sobre las 8 pantallas, el Design System y el orquestador. **Los Spikes 14, 15,
-16 (A y B), 16c, 17, 18, 19a, 19b, 20, 21, 22 y 23 están cerrados y validados en partida real** (informes en
+16 (A y B), 16c, 17, 18, 19a, 19b, 20, 21, 22, 23 y 24 están cerrados y validados en partida real; el hito está CERRADO (2026-11-11, resumen en `docs/cierre_hito_rediseno_interfaces.md`)** (informes en
 `docs/spike_14_reinicio_sesion.md`, `docs/spike_15_cimientos_design_system.md`,
 `docs/spike_16_tienda.md`, `docs/spike_17_inventario_mvvm.md` y
 `docs/spike_18_inventario_rediseno.md`, `docs/spike_19_party.md` y
@@ -33,7 +33,7 @@ narrativa del inventario, pendientes tras el 17, se validaron en el 18.
 | 21 | Árbol de habilidades — **cerrado** (21a y 21b) | Medio-alto | 15 |
 | 22 | Menú del jugador — **cerrado** | Medio | 18, 20, 21 |
 | 23 | Pantalla de inicio — **cerrado** | Bajo | 15 |
-| 24 | Game Over: rediseño visual | Bajo | 14, 15, 23 |
+| 24 | Game Over: rediseño visual y cierre del hito — **cerrado** | Bajo | 14, 15, 23 |
 
 - **14 y 15 están cerrados:** perder un combate lleva al menú principal con la
   sesión reiniciada, y el Design System está listo (tokens fusionados, `UIPanel`
@@ -670,7 +670,7 @@ desde Character Creation y tras una derrota.
 - **Character Creation** (pantalla gris sin estilo, tamaños fijos): fuera del hito, para el barrido de §8.
 - Borrar `localization/menus.csv.bak`.
 
-### Spike 24 — Game Over: rediseño visual
+### Spike 24 — Game Over: rediseño visual — CERRADO (2026-11-11)
 
 **Alcance:** `UIPanel` + tokens + arte del estilo decidido en el spike 23;
 textos localizados (ya existen desde el spike 14); foco inicial en el botón.
@@ -682,6 +682,14 @@ anterior: resolverlo en la maqueta. La View ya delega en `GameOverViewModel`.
 cambia.
 
 **Spec y prompt:** `spike_24_game_over_spec.md`, `prompt_spike_24.md` (preparados tras el 23). Además del rediseño, incluye la **limpieza de cierre del hito**: `DebugPartyTool` (aún en `project.godot`), trazas `[DBG]`/`[DIAG]`, `menus.csv.bak`, comentarios obsoletos y, según decida Fernando, la etiqueta de depuración del HUD de exploración y el atasco de `TRANSITIONING` del menú principal; auditoría global de contrato de `ui/` y documentación final. Decisiones abiertas G1-G9. El código actual del Game Over no se ha visto (el paquete es anterior al Spike 14).
+
+**Cierre:** informe en `docs/spike_24_game_over.md`; resumen del hito en `docs/cierre_hito_rediseno_interfaces.md`. Decisiones: layout A (título arriba, mensaje y botón centrados), `TitleBackdrop` opaco con `STOP` en la instancia (el componente ignora el ratón), título «GAME OVER» en `COLOR_DANGER_SOFT` mediante `title_tone` (parche aditivo, por defecto `ACCENT`), botón único `LG` con ancho = máx(280, 0,2 × viewport), foco inicial, `title_top_fraction = 0.28`. `game_over.csv` (3 claves); salen de `menus.csv` las `GAMEOVER_*`. `GameOverViewModel` y core sin cambios de comportamiento.
+
+**Limpieza de cierre (G8 a, b, d, e, f, h):** trazas `[DBG]` y dos `[DIAG]`, `StateDebugLabel` (script y tres escenas), 5 `.bak` y 4 `.tmp`, comentarios obsoletos (dos de core, solo texto), literales muertos de `inventory_ui.tscn` y `party_ui.tscn`, y `_recover_if_transition_rejected()` en `MainMenuViewModel` (arreglo del `TRANSITIONING` atascado). Quedan fuera (c) el duplicado de `damage_number.tscn` y (g) `dialogue_panel_test.gd`.
+
+**Hallazgos de la Fase 0:** `DebugPartyTool` ya no existía (el informe del 20 y `estado_actual.md` lo daban por presente); había 5 `.bak` y 4 `.tmp`; un solo camino de derrota en `GameLoop`; el HUD de exploración seguía vivo tras el Game Over; `enter_character_creation()` y `enter_post_load_state()` ignoran el `bool` de `request_state_change()`.
+
+**Pendientes:** derrota en combate lanzado desde narrativa y con 0 o 2 compañeros sin validar en partida; legibilidad del velo con arte real; ficheros candidatos a retirar (`dialogue_panel_test.gd`, `combat_system_bak.gd`, `entity_animation_controller_bak.gd`, `exploration_test_bak.tscn`, duplicado de `damage_number.tscn`, `athelia_estructura_proyecto_actualizado.md`); auditoría fuera de las ocho pantallas (combate, narrativa, `dialogue_panel.tscn:30`, `loading_screen.tscn:25`, panel de objetos del mundo, `interactive_scene_view.gd:78`).
 
 ---
 
@@ -808,7 +816,7 @@ de 20 ítems, arrastre a slot de equipo— quedó validado en el Spike 18.)_
 - Idioma inglés de lo tocado en el Spike 15 y comando de columnas de los `.csv`
   tras los cambios: sin confirmar.
 
-## 8. Fuera del hito (barrido opcional tras el spike 24)
+## 8. Fuera del hito (barrido opcional posterior; el hito está cerrado)
 
 CharacterCreation (usa `UIPanel`, 6 offsets fijos, y es el paso entre la
 pantalla de inicio y el juego), HUD de exploración, combate (`UICombatToken`

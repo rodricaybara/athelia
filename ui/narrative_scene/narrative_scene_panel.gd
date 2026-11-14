@@ -55,15 +55,10 @@ func _ready() -> void:
 	add_child(_vm)
 	_vm.changed.connect(_on_vm_changed)
 
-func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed:
-		print("[DIAG] _input recibido — botón: %s, posición: %s" % [event.button_index, event.position])
-
 ## API pública — llamada desde SceneOrchestrator.
 func open(scene_id: String) -> void:
 	visible = true
 	_vm.open(scene_id)
-
 
 ## Mejoras post-Spike 3, Grupo 1 — expone el scene_id de la escena narrativa
 ## actualmente mostrada, o "" si no hay ninguna (_vm.current_node null).
@@ -162,9 +157,7 @@ func _instantiate_option_button(option: NarrativeSceneOption) -> Button:
 	var button_scene: PackedScene = preload(UI_BUTTON_SCENE)
 	var button: Button = button_scene.instantiate()
 	button.text = tr(option.text_key)
-	button.pressed.connect(func():
-		print("[DIAG] Button pressed: %s" % option.option_id)
-		_vm.request_option(option.option_id))
+	button.pressed.connect(func(): _vm.request_option(option.option_id))
 	return button
 
 

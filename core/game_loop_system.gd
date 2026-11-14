@@ -89,6 +89,12 @@ var _companion_turn_index: int = 0
 ## huérfanas de un actor que no es el que realmente tiene el turno.
 var _current_acting_entity: String = ""
 
+## request_id de la acción en curso (-1 = ninguna). Sirve para descartar respuestas ajenas.
+var _pending_request_id: int = -1
+
+## El jugador ya se anunció como caído en este combate (guarda de _incapacitate_player).
+var _player_downed_announced: bool = false
+
 ## Spike 2, punto 6 — moral de grupo y refuerzos cronometrados. Todo nulo/en
 ## reposo si start_combat() no recibió un CombatEncounterDefinition — cero
 ## comportamiento nuevo para combates que no lo usan.
@@ -129,7 +135,8 @@ func _ready():
 		EventBus.player_action_completed.connect(_on_player_action_completed)
 		EventBus.combat_action_completed.connect(_on_combat_action_completed)
 		EventBus.character_died.connect(_on_character_died)
-		EventBus.player_action_requested.connect(_on_player_action_requested)
+		EventBus.combat_action_requested.connect(_on_combat_action_requested)
+		EventBus.combat_action_failed.connect(_on_combat_action_failed)
 		EventBus.companion_action_completed.connect(_on_companion_action_completed)
 	else:
 		push_error("[GameLoopSystem] EventBus not found!")
@@ -267,6 +274,8 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 	_reinforcement_countdown_active = false
 	_current_encounter = encounter
 	_pending_victory_scene_id = victory_scene_id
+	_pending_request_id = -1
+	_player_downed_announced = false
  
 	if _current_encounter:
 		if _current_encounter.morale_threshold_pct > 0.0:
@@ -325,6 +334,9 @@ func end_combat(result: String) -> void:
 	_reinforcement_countdown_active = false
 	_reinforcement_rounds_elapsed = 0
 	_reinforcement_spawned = false
+
+	_pending_request_id = -1
+	_player_downed_announced = false
 
 	EventBus.emit_signal("combat_ended", result)
 	_pending_victory_scene_id = ""
@@ -748,7 +760,17 @@ func end_player_turn_from_special_action() -> void:
 		_end_player_turn()
 
 
-func _on_player_action_requested(action_data: Dictionary) -> void:
+## ¿La respuesta corresponde a la petición en curso? Una respuesta sin request_id
+## (acciones especiales, saltos de turno) se acepta; una con un id ajeno se descarta.
+func _is_current_request(result: Dictionary) -> bool:
+	var rid: int = int(result.get("request_id", -1))
+	if rid == -1 or _pending_request_id == -1 or rid == _pending_request_id:
+		return true
+	push_warning("[GameLoopSystem] Respuesta ignorada: request_id %d no coincide con %d" % [rid, _pending_request_id])
+	return false
+
+
+func _on_combat_action_requested(action_data: Dictionary) -> void:
 	var actor: String = action_data.get("actor", "")
 
 	# Companions usan la misma señal — rutar a la fase correcta
@@ -775,11 +797,14 @@ func _on_player_action_requested(action_data: Dictionary) -> void:
 			return
 		print("[GameLoopSystem] Enemy action received: %s from %s" % [action_data.get("skill_id", "unknown"), actor])
 
+	_pending_request_id = int(action_data.get("request_id", -1))
 	EventBus.emit_signal("execute_combat_action", action_data)
 
 
-func _on_player_action_completed(_result: Dictionary) -> void:
+func _on_player_action_completed(result: Dictionary) -> void:
 	if current_phase != TurnPhase.PLAYER_ACTION_RESOLVE:
+		return
+	if not _is_current_request(result):
 		return
 
 	print("[GameLoopSystem] Player action completed")
@@ -788,9 +813,33 @@ func _on_player_action_completed(_result: Dictionary) -> void:
 		_end_player_turn()
 
 
+## Callback: una acción pedida no pudo ejecutarse (código de motivo, spec 6).
+## Solo gestiona al jugador: devuelve la fase a PLAYER_ACTION_SELECT para que pueda
+## elegir otra acción. Los fallos de enemigos y companions los gestionará la IA
+## (reintento con candidatas nuevas, IA-1 en adelante).
+func _on_combat_action_failed(actor_id: String, reason: String, request_id: int) -> void:
+	if not is_in_combat():
+		return
+	if not _is_current_request({"request_id": request_id}):
+		return
+	# DISARMED consume el turno: lo cierra combat_action_completed.
+	if reason == "DISARMED":
+		return
+	if actor_id != PLAYER_ID:
+		push_warning("[GameLoopSystem] Fallo de acción de '%s' (%s): nadie lo gestiona todavía, el turno puede quedar a la espera" % [actor_id, reason])
+		return
+	if current_phase != TurnPhase.PLAYER_ACTION_RESOLVE:
+		return
+	print("[GameLoopSystem] Player action failed (%s) — back to PLAYER_ACTION_SELECT" % reason)
+	_pending_request_id = -1
+	_transition_to_phase(TurnPhase.PLAYER_ACTION_SELECT)
+
+
 ## Callback: acción de combate completada (jugador, companion o enemigo)
 func _on_combat_action_completed(result: Dictionary) -> void:
 	var actor: String = result.get("actor", "")
+	if not _is_current_request(result):
+		return
  
 	if current_phase == TurnPhase.COMPANION_ACTION_RESOLVE:
 		if actor != _current_acting_entity:
@@ -881,7 +930,7 @@ func _check_combat_conditions() -> bool:
 
 	# ── Jugador a 0 HP ────────────────────────────────────────────────────────
 	var player_hp: float = Resources.get_resource_amount(PLAYER_ID, "health")
-	if player_hp <= 0 and not _is_player_incapacitated():
+	if player_hp <= 0 and not _player_downed_announced:
 		_incapacitate_player()
 		# Si hay companions activos → last stand, el combate continúa
 		var party: Node = get_node_or_null("/root/Party")
@@ -910,8 +959,9 @@ func _check_combat_conditions() -> bool:
 ## Marca al jugador como incapacitado sin usar PartyManager
 ## (el jugador no es un companion, tiene su propio estado).
 func _incapacitate_player() -> void:
-	if _is_player_incapacitated():
-		return  # Ya incapacitado, ignorar
+	if _player_downed_announced:
+		return  # Ya anunciado en este combate
+	_player_downed_announced = true
 	print("[GameLoopSystem] 💀 Player incapacitated — last stand begins")
 	Narrative.set_flag("flag.player_downed")
 	EventBus.player_incapacitated.emit()
@@ -989,7 +1039,7 @@ func _can_transition(from: TurnPhase, to: TurnPhase) -> bool:
 		TurnPhase.ROUND_START:              [TurnPhase.PLAYER_TURN_START],
 		TurnPhase.PLAYER_TURN_START:        [TurnPhase.PLAYER_ACTION_SELECT, TurnPhase.PLAYER_INCAPACITATED],
 		TurnPhase.PLAYER_ACTION_SELECT:     [TurnPhase.PLAYER_ACTION_RESOLVE],
-		TurnPhase.PLAYER_ACTION_RESOLVE:    [TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
+		TurnPhase.PLAYER_ACTION_RESOLVE:    [TurnPhase.PLAYER_ACTION_SELECT, TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
 		TurnPhase.PLAYER_INCAPACITATED:     [TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
 		TurnPhase.COMPANION_ACTION_RESOLVE: [TurnPhase.COMPANION_ACTION_RESOLVE, TurnPhase.ENEMY_TURN_START],
 		TurnPhase.ENEMY_TURN_START:         [TurnPhase.ENEMY_ACTION_RESOLVE],

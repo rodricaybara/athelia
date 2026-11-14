@@ -8,18 +8,18 @@ id = "companion_mira"
 name_key = "character_companion_mira_name"
 description_key = "character_companion_mira_desc"
 base_attributes = {
-"charisma": 12,
-"constitution": 10,
+"charisma": 15,
+"constitution": 15,
 "dexterity": 14,
-"intelligence": 11,
-"strength": 10,
-"wisdom": 11
+"intelligence": 16,
+"strength": 15,
+"wisdom": 16
 }
 starting_resources = {
 "focus": 0,
 "gold": 0,
 "health": 28,
-"stamina": 22
+"stamina": 30
 }
 skills = Array[String](["skill.attack.light", "skill.combat.dodge", "skill.exploration.perception", "skill.exploration.track", "skill.exploration.search", "skill.exploration.stealth"])
 starting_skill_values = {

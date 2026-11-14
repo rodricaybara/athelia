@@ -109,7 +109,9 @@ func request_new_game() -> void:
 	await get_tree().process_frame
 	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 	if game_loop:
+		var state_before: int = game_loop.current_game_state
 		game_loop.enter_character_creation()
+		_recover_if_transition_rejected(game_loop, state_before)
 	else:
 		push_error("[MainMenuViewModel] GameLoop not found")
 		state = MenuState.MAIN
@@ -131,7 +133,9 @@ func request_load_game() -> void:
 			var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 			if game_loop:
 				# Decide entre volver a la escena narrativa pendiente o a EXPLORATION.
+				var state_before: int = game_loop.current_game_state
 				game_loop.enter_post_load_state(_save_manager)
+				_recover_if_transition_rejected(game_loop, state_before)
 			else:
 				push_error("[MainMenuViewModel] GameLoop not found")
 				state = MenuState.MAIN
@@ -144,6 +148,19 @@ func request_load_game() -> void:
 		push_error("[MainMenuViewModel] SaveManager not found")
 		state = MenuState.MAIN
 		changed.emit("main")
+
+
+## Si GameLoop rechazó la transición (su estado no cambió), el menú se
+## quedaría en TRANSITIONING para siempre: vuelve a MAIN. Mismo patrón que
+## GameOverViewModel (Spike 14).
+func _recover_if_transition_rejected(game_loop: GameLoopSystem, state_before: int) -> void:
+	if game_loop.current_game_state != state_before:
+		return
+	if state != MenuState.TRANSITIONING:
+		return
+	push_error("[MainMenuViewModel] La transición fue rechazada — volviendo al menú")
+	state = MenuState.MAIN
+	changed.emit("main")
 
 
 func request_options() -> void:

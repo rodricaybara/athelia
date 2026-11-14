@@ -7,7 +7,6 @@ extends CanvasLayer
 @onready var hp_label: Label = $ResourcesPanel/HP
 @onready var stamina_label: Label = $ResourcesPanel/Stamina
 @onready var gold_label: Label = $ResourcesPanel/Gold
-@onready var state_debug_label: Label = $StateDebugLabel
 
 func _ready() -> void:
 	if interact_prompt:
@@ -94,9 +93,6 @@ func _refresh_resources() -> void:
 
 
 func _on_game_state_changed(new_state: int) -> void:
-	if state_debug_label:
-		state_debug_label.text = "%s | paused=%s" % [GameLoopSystem.GameState.keys()[new_state], get_tree().paused]
-	
 	if new_state == GameLoopSystem.GameState.EXPLORATION:
 		_refresh_resources()
 

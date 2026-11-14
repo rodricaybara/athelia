@@ -95,6 +95,11 @@ func _get_backup_path(slot_id: String) -> String:
 
 ## Guarda el juego en un slot
 func save_game(slot_id: String = "quicksave") -> bool:
+	# Spec v1.7.1 (D7): solo se guarda en savepoints, nunca a mitad de combate.
+	if GameLoop.is_in_combat():
+		push_warning("[SaveSystem] Guardado rechazado: hay un combate en curso (slot '%s')" % slot_id)
+		save_failed.emit(slot_id, "IN_COMBAT")
+		return false
 	save_started.emit(slot_id)
 	print("[SaveSystem] Saving game to slot: %s" % slot_id)
 

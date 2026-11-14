@@ -51,15 +51,6 @@ text = "ST: --"
 layout_mode = 2
 text = "G: --"
 
-[node name="StateDebugLabel" type="Label" parent="ExplorationHUD" unique_id=1424664735]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -117.0
-offset_bottom = 23.0
-grow_horizontal = 0
-text = "EXPLORATION"
-
 [node name="World" type="Node2D" parent="." unique_id=422448676]
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=812344907 groups=["player"]]

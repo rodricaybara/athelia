@@ -30,6 +30,15 @@ extends Control
 		if is_node_ready():
 			_apply()
 
+enum TitleTone { ACCENT, DANGER }
+
+## Color del título: ACCENT (por defecto, pantalla de inicio) o DANGER (Game Over).
+@export var title_tone: TitleTone = TitleTone.ACCENT:
+	set(value):
+		title_tone = value
+		if is_node_ready():
+			_apply_title_color()
+
 ## Posición vertical del título como fracción de la altura.
 @export_range(0.0, 0.5, 0.01) var title_top_fraction: float = 0.12:
 	set(value):
@@ -48,7 +57,7 @@ func _ready() -> void:
 	scrim.color = UITokens.COLOR_SCRIM
 
 	title_label.add_theme_font_size_override("font_size", UITokens.FONT_SIZE_DISPLAY)
-	title_label.add_theme_color_override("font_color", UITokens.COLOR_ACCENT)
+	_apply_title_color()
 	title_label.add_theme_color_override("font_outline_color", UITokens.COLOR_TEXT_OUTLINE)
 	title_label.add_theme_constant_override("outline_size", UITokens.TEXT_OUTLINE_SIZE)
 
@@ -64,6 +73,11 @@ func _apply() -> void:
 	title_label.text = title_text
 	title_label.visible = show_title
 	_update_title_position()
+
+
+func _apply_title_color() -> void:
+	var color: Color = UITokens.COLOR_DANGER_SOFT if title_tone == TitleTone.DANGER else UITokens.COLOR_ACCENT
+	title_label.add_theme_color_override("font_color", color)
 
 
 func _update_title_position() -> void:

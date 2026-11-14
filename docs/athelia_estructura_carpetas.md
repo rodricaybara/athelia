@@ -201,10 +201,11 @@ athelia/
 │   ├── player_menu.csv              # PLAYER_MENU_* (14 claves)
 │   ├── main_menu.csv                # MAIN_MENU_* (13 claves; pantalla de inicio)
 │   ├── options.csv                  # OPTIONS_* (8 claves; OptionsPanel)
+│   ├── game_over.csv                # GAME_OVER_* (3 claves; GameOverUI)
 │   ├── items.csv
 │   ├── items_telmori.csv
 │   ├── world_objects.csv
-│   ├── menus.csv                    # LOADING_LABEL + GAMEOVER_* (las claves del menú principal pasaron a `main_menu.csv` en el Spike 23)  (columnas id,es,en)
+│   ├── menus.csv                    # LOADING_LABEL (las claves del menú principal pasaron a `main_menu.csv` en el 23 y las de Game Over a `game_over.csv` en el 24)  (columnas id,es,en)
 │   ├── character_creation.csv
 │   ├── narrative_scenes.csv
 │   ├── narrative_scenes_telmori.csv
@@ -257,7 +258,7 @@ athelia/
     │
     ├── character_creation/          # viewmodel + screen + tscn
     ├── dialogue/                    # viewmodel, panel (.gd/.tscn), dialogue_panel_test, option_button.tscn
-    ├── gameover/                    # game_over_viewmodel.gd, game_over_ui.gd / .tscn
+    ├── gameover/                    # game_over_viewmodel.gd, game_over_ui.gd / .tscn (TitleBackdrop + UIButton LG)
     ├── interactive_scene/           # interactive_scene_viewmodel.gd, interactive_scene_view.gd (vista permanente, capa -1)
     ├── inventory/
     │   ├── inventory_viewmodel.gd
@@ -297,7 +298,7 @@ athelia/
         │   ├── ui_resource_bar/
         │   ├── ui_radial_gauge/     # anillo de progreso (_draw())
         │   ├── ui_combat_token/     # ficha de combate (3 scripts helper sin class_name)
-        │   └── title_backdrop/      # title_backdrop.gd / .tscn: fondo + título (Spike 23; lo usa MainMenu y lo usará GameOver)
+        │   └── title_backdrop/      # title_backdrop.gd / .tscn: fondo + título (Spike 23; lo usan MainMenu y GameOver; title_tone ACCENT/DANGER desde el 24)
         ├── assets/
         │   ├── icons/icon_item_placeholder.png   # silueta 64×64, se tiñe con COLOR_TEXT_MUTED
         │   └── frames/frame_corner_64x64.png     # en uso (96×96 de reserva)

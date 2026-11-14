@@ -17,7 +17,7 @@ extends Node
 ## - Controlar turnos (eso es GameLoopSystem)
 ##
 ## Arquitectura:
-## - Event-driven: emite player_action_requested
+## - Event-driven: emite combat_action_requested
 ## - Reactivo: escucha turn_phase_changed para habilitar/deshabilitar UI
 ##
 ## InputMap esperado (Project Settings → Input Map):
@@ -184,6 +184,10 @@ func _request_skill_use(skill_id: String) -> void:
 		_request_special_action(skill_id)
 		return
 
+	if not Skills.has_skill(player_id, skill_id) or not Skills.can_use(player_id, skill_id):
+		print("[PlayerCombatController] Cannot use skill: %s no está disponible (no registrada, en cooldown o sin recursos)" % skill_id)
+		return
+
 	var skill_def = Skills.get_skill_definition(skill_id)
 	var needs_target: bool = true
 	if skill_def and skill_def.target_type in ["AREA", "MULTI_ENEMY"]:
@@ -201,9 +205,11 @@ func _request_skill_use(skill_id: String) -> void:
 		"target":  current_target
 	}
 
-	EventBus.emit_signal("player_action_requested", action_data)
+	action_data["request_id"] = Combat.next_request_id()
+	# El flujo es síncrono: si la acción falla, GameLoop vuelve a PLAYER_ACTION_SELECT y
+# reactiva el input DENTRO de esta emisión. Por eso se apaga antes, no después.
 	_set_input_enabled(false)
-
+	EventBus.emit_signal("combat_action_requested", action_data)
 
 func _request_special_action(skill_id: String) -> void:
 	print("[PlayerCombatController] Requesting special action: %s" % skill_id)

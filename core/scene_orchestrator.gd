@@ -490,8 +490,8 @@ func open_skill_tree(entity_id: String = "player") -> void:
 	print("[SceneOrchestrator] SkillTree overlay shown for entity: %s" % entity_id)
 
 ## Cierra el árbol de habilidades si está abierto.
-## Llamado desde el botón de cierre de SkillTreeScreen vía EventBus
-## o directamente desde ExplorationHUD.
+## Sin llamadores desde el Spike 21: SkillTreeScreen emite `closed` y el
+## orquestador lo gestiona en open_skill_tree(). Pendiente de retirar.
 func close_skill_tree() -> void:
 	if _current_overlay and is_instance_valid(_current_overlay) \
 			and _current_overlay is SkillTreeScreen:
@@ -532,7 +532,8 @@ func open_player_menu() -> void:
 
 ## Abre la pantalla de loadout para un personaje concreto.
 ## Solo válido en EXPLORATION.
-## Llamado desde PlayerMenuViewModel.request_open_loadout().
+## Sin llamadores desde el Spike 22: el menú del jugador abre Loadout como
+## subpantalla propia (PlayerMenuScreen._open_subscreen). Pendiente de retirar.
 func open_loadout(character_id: String) -> void:
 	var game_loop := get_node_or_null("/root/GameLoop") as GameLoopSystem
 	if not game_loop:

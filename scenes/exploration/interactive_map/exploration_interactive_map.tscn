@@ -45,15 +45,6 @@ text = "ST: --"
 layout_mode = 2
 text = "G: --"
 
-[node name="StateDebugLabel" type="Label" parent="ExplorationHUD" unique_id=675995909]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -117.0
-offset_bottom = 23.0
-grow_horizontal = 0
-text = "EXPLORATION"
-
 [node name="MapLayer" type="CanvasLayer" parent="." unique_id=1496630201]
 layer = -1
 

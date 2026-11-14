@@ -9,12 +9,13 @@ class_name UIPanel
 ## Variantes (docstring corregido en el Spike 15 contra los consumidores reales):
 ##   DEFAULT  → panel estándar: fondo COLOR_PANEL con borde. Lo usan Character
 ##              Creation (3 paneles), Dialogue, Narrative, los sub-paneles del
-##              menú principal y la tienda (cabeceras y filas). Inventario, party
-##              y menú del jugador NO usan UIPanel todavía.
+##              menú principal y la tienda (cabeceras y filas). 
 ##   POPUP    → panel pequeño flotante: fondo COLOR_PANEL_ALT, borde de foco,
 ##              padding 8. Sin consumidores hoy.
 ##   OVERLAY  → fondo OPACO (COLOR_BG oscurecido un 20 %, alfa 1,0), sin borde,
-##              padding 24. Lo usa el panel principal de la tienda (con marco).
+##              padding 24. Lo usan, con marco, las pantallas a pantalla completa
+##              del hito: tienda, inventario, Party, Loadout, árbol de habilidades,
+##              menú del jugador y los sub-paneles del menú principal.
 ##
 ## Marco decorativo (Spike 9, ampliado en el Spike 15):
 ##   decorative_frame = true añade un marco ornamental (doble filete +

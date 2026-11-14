@@ -26,7 +26,7 @@ func _decide_and_act() -> void:
 	var target := _pick_target()
 	if target.is_empty():
 		print("[EnemyAI] %s: no valid target — skipping" % enemy_id)
-		EventBus.emit_signal("combat_action_completed", {"skipped": true})
+		EventBus.emit_signal("combat_action_completed", {"skipped": true, "actor": enemy_id})
 		return
 
 	var action_data = {
@@ -35,7 +35,8 @@ func _decide_and_act() -> void:
 		"target": target
 	}
 	print("[EnemyAI] %s attacks %s" % [enemy_id, target])
-	EventBus.emit_signal("player_action_requested", action_data)
+	action_data["request_id"] = Combat.next_request_id()
+	EventBus.emit_signal("combat_action_requested", action_data)
 
 
 func _pick_target() -> String:

@@ -190,7 +190,8 @@ func _on_slot_action_pressed(slot_id: String) -> void:
 		var skill_id: String = state.loadout.get_skill(slot_id)
 		if skill_id == "":
 			return
-		EventBus.player_action_requested.emit({
+		EventBus.combat_action_requested.emit({
+				"request_id": Combat.next_request_id(),
 			"actor":    "player",
 			"skill_id": skill_id,
 			"slot_id":  slot_id,

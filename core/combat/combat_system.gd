@@ -51,6 +51,10 @@ var _active_buffs: Dictionary = {}
 ## Módulo de defensa (absorción stamina)
 var _defense_module: DefenseModule = null
 
+## Último atacante que ha hecho daño a cada combatiente: { target_id: attacker_id }.
+## Lo consume la IA a través de get_last_attacker() (spec 5.3, 7 y 8).
+var _last_attacker: Dictionary = {}
+
 ## Módulo de huida (escape determinista)
 var _escape_module: EscapeModule = null
 
@@ -103,6 +107,8 @@ func _ready():
 		EventBus.buff_expired.connect(_on_buff_expired_vfx)
 		EventBus.enemy_turn_started.connect(_on_enemy_turn_started)
 		EventBus.companion_turn_started.connect(_on_companion_turn_started)
+		EventBus.combat_ended.connect(_on_combat_ended)
+		EventBus.combat_started.connect(_on_combat_started)
 	else:
 		push_error("[CombatSystem] EventBus autoload not found!")
 	
@@ -125,7 +131,33 @@ func _process(_delta):
 # ============================================
 
 ## Callback: GameLoop ordena ejecutar una acción de combate
+## Contador creciente de peticiones de acción (único por sesión).
+var _request_counter: int = 0
+
+## request_id de la acción que se está ejecutando (-1 = ninguna).
+var _current_request_id: int = -1
+
+
+## Los productores (jugador, enemigos, Mira) piden aquí el id de cada petición.
+func next_request_id() -> int:
+	_request_counter += 1
+	return _request_counter
+
+
+## Al acabar el combate no puede quedar estado que pase al siguiente.
+func _on_combat_ended(_result: String) -> void:
+	_active_buffs.clear()
+	_last_attacker.clear()
+	_pending_skill_context.clear()
+	_current_request_id = -1
+	if _defense_module:
+		_defense_module.reset()
+	if _escape_module:
+		_escape_module.reset()
+
+
 func _on_execute_combat_action(action_data: Dictionary) -> void:
+	_current_request_id = int(action_data.get("request_id", -1))
 	var actor: String = action_data.get("actor", "")
 	var skill_id: String = action_data.get("skill_id", "")
 	var target: String = action_data.get("target", "")
@@ -140,6 +172,7 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 		print("[CombatSystem] 😵 %s is staggered — action cancelled" % actor)
 		EventBus.emit_signal("character_staggered", actor)
 		EventBus.emit_signal("combat_action_completed", {
+			"request_id": _current_request_id,
 			"success": false,
 			"staggered": true,
 			"actor": actor
@@ -163,8 +196,9 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 		if is_weapon_skill:
 			print("[CombatSystem] 🚫 %s is disarmed — cannot use %s" % [actor, skill_id])
 			EventBus.emit_signal("character_disarmed", actor, skill_id)
-			EventBus.emit_signal("combat_action_failed", actor, "DISARMED")
+			EventBus.emit_signal("combat_action_failed", actor, "DISARMED", _current_request_id)
 			EventBus.emit_signal("combat_action_completed", {
+				"request_id": _current_request_id,
 				"success": false,
 				"disarmed": true,
 				"actor": actor
@@ -179,6 +213,7 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 	
 	if target.is_empty() and not is_self_target:
 		push_error("[CombatSystem] No target specified in action_data for skill: %s" % skill_id)
+		EventBus.emit_signal("combat_action_failed", actor, "NO_TARGET", _current_request_id)
 		return
 	
 	print("[CombatSystem] Executing action: %s uses %s on %s" % [actor, skill_id, target if not is_self_target else "SELF"])
@@ -192,7 +227,7 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 	var success = Skills.request_use(actor, skill_id)
 	
 	if not success:
-		EventBus.emit_signal("combat_action_failed", actor, "Skill use failed")
+		# El fallo ya lo ha emitido Skills.skill_failed → _on_skill_failed (con su código de motivo).
 		_pending_skill_context.clear()
 
 ## Callback: Inicio del turno del jugador
@@ -272,7 +307,7 @@ func _on_skill_used(entity_id: String, skill_id: String):
 	if skill_id == "skill.combat.dodge":
 		_process_dodge(entity_id, skill_def)
 		_pending_skill_context.clear()
-		EventBus.emit_signal("combat_action_completed", {"success": true, "action": "dodge", "actor": entity_id})
+		EventBus.emit_signal("combat_action_completed", {"success": true, "action": "dodge", "actor": entity_id, "request_id": _current_request_id})
 		EventBus.emit_signal("player_action_completed", {"success": true, "action": "dodge", "actor": entity_id})
 		return
 	
@@ -369,6 +404,7 @@ func _on_skill_used(entity_id: String, skill_id: String):
 	result["actor"] = entity_id
 	_pending_skill_context.clear()
 	
+	result["request_id"] = _current_request_id
 	EventBus.emit_signal("combat_action_completed", result)
 	EventBus.emit_signal("combat_action_executed", entity_id, skill_id, target_id, result)
 	
@@ -386,8 +422,11 @@ func _on_skill_used(entity_id: String, skill_id: String):
 ## Callback: SkillSystem falló al activar la habilidad
 func _on_skill_failed(entity_id: String, skill_id: String, reason: String):
 	print("[CombatSystem] Skill activation failed: %s (reason: %s)" % [skill_id, reason])
+	# skill_failed también salta con las skills de exploración: sin combate no hay petición que responder.
+	if not GameLoop.is_in_combat():
+		return
 	
-	EventBus.emit_signal("combat_action_failed", entity_id, reason)
+	EventBus.emit_signal("combat_action_failed", entity_id, reason, _current_request_id)
 
 
 # ============================================
@@ -634,6 +673,8 @@ func _apply_damage(target_id: String, damage: float, is_critical: bool = false, 
 	
 	_spawn_damage_number(target_id, applied_damage, is_critical, false)
 	
+	if not attacker_id.is_empty():
+		_last_attacker[target_id] = attacker_id
 	EventBus.emit_signal("character_damaged", target_id, applied_damage, current_hp)
 	
 	if current_hp <= 0:
@@ -761,6 +802,17 @@ func _expire_turn_buffs(entity_id: String) -> void:
 			])
 
 ## Limpia todos los buffs de una entidad (fin de combate)
+## Último combatiente que ha hecho daño a `target_id` en este combate ("" si ninguno).
+## La validez del atacante (¿sigue en pie?) la decide quien consulta, no Combat.
+func get_last_attacker(target_id: String) -> String:
+	return _last_attacker.get(target_id, "")
+
+
+## Al empezar un combate no puede quedar un atacante del anterior.
+func _on_combat_started(_participants: Array) -> void:
+	_last_attacker.clear()
+
+
 func clear_buffs(entity_id: String) -> void:
 	if _active_buffs.has(entity_id):
 		_active_buffs[entity_id].clear()

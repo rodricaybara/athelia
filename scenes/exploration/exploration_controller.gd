@@ -80,9 +80,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_apply_debug_shortcut()
 		return
 
-	if event is InputEventKey and event.pressed and not event.echo:
-		print("[DBG] tecla: ", event.as_text_keycode())
-
 	# Bloquear todo input si el GameLoop no está en EXPLORATION
 	if game_loop.is_input_blocked():
 		return
@@ -92,7 +89,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_try_interact()
 	
 	# Toggle inventario — solo en EXPLORATION, nunca en otro estado
-	if event.is_action_pressed("open_inventory"):  # Tecla I / Tab
+	if event.is_action_pressed("open_inventory"):  # Tecla I
 		scene_orchestrator.open_inventory()
 
 	if event.is_action_pressed("open_party"): # Tecla O

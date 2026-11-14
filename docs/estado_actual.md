@@ -1,7 +1,7 @@
-# Athelia — Estado actual (hito de rediseño de interfaces)
+# Athelia — Estado actual (hito de rediseño de interfaces cerrado)
  
-*Actualizado: 2026-11-10, tras el cierre del Spike 23.*
-Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`.
+*Actualizado: 2026-11-14, tras el cierre de IA-0a (IA de combate). Hito de interfaces cerrado el 2026-11-11.*
+Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`. Resumen del hito: `docs/cierre_hito_rediseno_interfaces.md`.
  
 ## Spikes del hito
  
@@ -17,32 +17,43 @@ Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_archit
 | 19b | Party: mochila a mochila, detalle, estado del compañero, regla de préstamo | cerrado | 19a |
 | 20 | Loadout | cerrado | 18 |
 | 21 | Árbol de habilidades (21a pantalla, 21b comparación) | cerrado | 15 |
-| 21c | Árbol visual con relaciones (selector Lista/Árbol) | propuesto; numeración por decidir (el 22 es el Menú del jugador) | 21 |
+| 21c | Árbol visual con relaciones (selector Lista/Árbol) | propuesto, fuera del hito; numeración por decidir | 21 |
 | 22 | Menú del jugador | cerrado | 18, 20, 21 |
 | 23 | Pantalla de inicio | cerrado | 15 |
-| 24 | Game Over: rediseño visual | pendiente | 14, 15, 23 |
+| 24 | Game Over: rediseño visual y cierre del hito | cerrado | 14, 15, 23 |
  
-El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencias.
+**El hito está terminado:** las ocho pantallas usan el Design System y cumplen el contrato de `athelia_ui_architecture.md`. Lo que sigue son spikes independientes, sin orden fijado.
  
+## IA de combate (fase IA-0, prerrequisitos de motor)
+
+Plan: `docs/ia_combate_ia0_plan.md`; especificación: `docs/ia_combate_spec_v1_7_1.md`. Historia: `athelia_historial_spikes.md`.
+
+| Spike | Contenido | Estado |
+|---|---|---|
+| IA-0a | Robustez de acciones y estado de combate | cerrado (2026-11-14), `docs/ia_combate_ia0a_informe.md` |
+| IA-0b | Combate por turnos puro (regeneración de estamina, cooldowns en rondas, HUD desde `ResourceSystem`) | siguiente |
+| IA-0c | Estimaciones y candidatas de `Combat` (`estimate_damage`, `get_candidates`, RNG inyectable) | pendiente (tras 0b) |
+| IA-0d | Datos (vida derivada, skills de enemigos y de Mira, `focus`, borrado de `_bak`) | pendiente (puede ir con 0c) |
+
+Movido desde IA-0a: la resolución del fin de combate en un solo punto (`_evaluate_outcome()`, tarea 5d) pasa a IA-4; la lectura de las skills de los enemigos desde `CharacterDefinition.skills` (tarea 7) pasa a IA-0d.
+
+Observaciones abiertas (sin spike): `armor_rating` 12 del jugador y de Mira reduce todo daño enemigo (4,7–6,6) al mínimo de 1,0 (IA-5); `Skills.can_use` no comprueba `is_unlocked`; el jugador no tiene registrada `skill.attack.stunning_blow` aunque la tecla 3 apunta a ella; `combat_hud.gd` emite `combat_action_requested` sin pasar por `PlayerCombatController`; no existe `INVALID_TARGET` (un fallo colgaría el turno de una IA sin reintento).
+
 ## Alcance de lo pendiente
  
-**21c — Árbol visual (propuesto).** Nodos y líneas de prerrequisitos con un selector «Lista/Árbol» en la cabecera, sobre el `SkillTreeViewModel` del 21 (ya entrega niveles, requisitos y estado). Decidir en la Fase 0 la disposición (por nivel/subcategoría) y qué hace el scroll/zoom.
+**21c — Árbol visual (propuesto, fuera del hito).** Nodos y líneas de prerrequisitos con un selector «Lista/Árbol» en la cabecera, sobre el `SkillTreeViewModel` del 21 (ya entrega niveles, requisitos y estado). Decidir en la Fase 0 la disposición (por nivel/subcategoría) y qué hace el scroll/zoom.
  
-**22 — Menú del jugador (cerrado, 2026-11-10).** Resueltos `I` dentro del menú, `I` con Party y la doble `P`. Ver `docs/spike_22_menu_jugador.md`.
- 
-**23 — Pantalla de inicio (cerrado, 2026-11-10).** Layout A con `TitleBackdrop` (fondo y título reutilizables, placeholder plano), `UIButton` `LG` con jerarquía, `UIPanel` con marco en Créditos y Confirmar, foco inicial y Esc = Volver. Opciones se extrajo como componente (`OptionsPanel` + `GameSettings`, `ui/options/`) con persistencia de idioma y pantalla completa en `user://settings.cfg`; los sliders de volumen quedan ocultos hasta que exista el audio. Ver `docs/spike_23_pantalla_inicio.md`.
- 
-**24 — Game Over.** `UIPanel` + tokens + arte del estilo del 23 (hereda `TitleBackdrop`, que ya existe: basta instanciarlo con el título y el mensaje de derrota); foco inicial en el botón. La lógica ya está en `GameOverViewModel` (Spike 14). El botón `ReturnToMenuButton` se ensancha («Volver al menú principal»): resolver en la maqueta.
+**24 — Game Over (cerrado, 2026-11-11).** `TitleBackdrop` opaco con título en tono `DANGER`, mensaje de dos líneas y `UIButton` `LG` con foco inicial; `GameOverViewModel` intacto. Limpieza de cierre del hito (trazas, etiqueta de depuración, `.bak`/`.tmp`, comentarios) y arreglo del `TRANSITIONING` atascado del menú principal. Ver `docs/spike_24_game_over.md`.
  
 ## Pendientes sin spike asignado
  
 **Motor**
-- `CombatSystem._active_buffs` no se limpia al terminar un combate; `SessionReset` solo cubre entidades registradas.
+- Combate (IA-0a): sin probar `DISARMED` del jugador (hoy consume el turno) ni `Combat._last_attacker` con datos durante el combate; los fallos de acción de enemigos y companions no tienen gestor (el turno puede quedar a la espera) hasta IA-1.
 - Combate/Loadout (replantear con el combate): `skill.combat.defend`/`flee` sin `.tres`; ids hardcodeados en el controlador (`combat_defense` → defend, `combat_scape` → flee, `SPECIAL_ACTIONS`); sin skill COMBAT con tag `escape`; el HUD muestra vacíos los slots de Defensa y Huida con el loadout actual (la tarjeta de Huida del Loadout dice «Acción de combate»); preselección de Defender/Esquiva/Huida; el combate solo lee el loadout del jugador (`PLAYER_ID`); `SLOT_KEYBIND_LABEL` vive en `CombatHudViewModel` (moverlo a un sitio compartido).
 - Una skill aprendida con requisitos no cumplidos se puede asignar y sale atenuada en el HUD; la lista del Loadout no muestra disponibilidad.
 - `fireball` (tags `magic`, `ranged`) no es asignable a ningún slot.
 - Teclas F y G de consumibles sin acción en el InputMap (la etiqueta se muestra igualmente).
-- `CombatLootSpawner.spawn_pending_loot()` sin llamador: el botín no se materializa en producción.
+- `CombatLootSpawner.spawn_pending_loot()` solo se llama desde `exploration_test.gd` (escena de prueba) y `combat_loot_bag_spawned` solo lo escucha esa misma escena: el botín no se materializa en producción. Decidir dónde se llama tras la victoria (victoria → escena narrativa → exploración) y quién crea la bolsa visible.
 - `ItemCharacterIntegration` es código muerto (el autoload `Bridge` es `item_character_bridge.gd`).
 - `PartyManager._register_in_systems()` conserva un acceso privado (`_entity_skills.get(...).keys()`): falta un listador público en `SkillSystem`.
 - `equip_item` ignora el slot de destino; motivos de `equip_failed`/`item_use_failed` en texto libre en inglés (hace falta código de motivo).
@@ -65,9 +76,7 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - `fullscreen` se guarda aunque no se aplique (ventana incrustada del editor, que solo admite modo ventana): mejora opcional, guardar el modo realmente aplicado.
 - Tiempo jugado del guardado: `playtime_seconds` suma también el tiempo de menú y no se reinicia en una partida nueva (core). Por eso «Cargar partida» no lo muestra.
 - Limpieza de quickload: `consume_pending_quickload()` (`MainMenuViewModel`) y `_quickload()` (`ExplorationController`) siguen vivos, aunque F9 está desestimado.
-- `TRANSITIONING` atascado: si `enter_post_load_state()` o `enter_character_creation()` rechazan la transición, `MainMenuViewModel` no se recupera (mismo patrón que el 14 arregló en Game Over).
-- Versión en el pie (requiere `config/version` en `project.godot`); sustituir los «Por definir» de Créditos; asignar arte a `TitleBackdrop` y comprobar la legibilidad con el velo.
-- Borrar `localization/menus.csv.bak`.
+- Versión en el pie (requiere `config/version` en `project.godot`); sustituir los «Por definir» de Créditos; asignar arte a `TitleBackdrop` (compartido con el Game Over) y comprobar la legibilidad con el velo.
 **Contenido y datos**
 - Marcador `telmori_village_departure` (salida final del pueblo): sale un aviso al cargar la exploración; decidir qué ocurre al salir.
 - Retrato del posadero es un placeholder (muestra el del sheriff).
@@ -78,16 +87,22 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Claves `INVENTORY_BAG_HEADER`/`INVENTORY_STATS_HEADER` sin uso; `INVENTORY_STAT_FOCUS` oculta.
 - Descripciones de estrategia inexistentes en datos; `PARTY_*`: el mensaje «Equipado en Jugador» usa nombre genérico.
 - Spike 21: unidad de `duration` de los buffs sin confirmar (se muestra «s»; si son turnos, cambiar `SKILL_TREE_EFFECT_DURATION`); «Evasión 100» sin unidad; `SKILL_ATTACK_LIGHT_DESC` («atack», espacios); subcategoría de la esquiva `EXPLORATION` (la documentación dice `MELEE`); `NONE`/`ENEMY` tratados al revés de la documentación; entrenamiento `PRACTICE` ilimitado y gratuito (decisión de diseño).
-- `UIButton` `PRIMARY` deshabilitado es ilegible (el árbol lo evita pasando a `SECONDARY`); arreglarlo en el componente afecta a todas las pantallas.
-- `SceneOrchestrator.close_skill_tree()` sin llamadores.
+- `UIButton` `PRIMARY` deshabilitado es ilegible (las pantallas lo evitan pasando a `SECONDARY`); arreglarlo en el componente afecta a todas las pantallas.
+**Auditoría de contrato del cierre del hito (fuera de las ocho pantallas)**
+- Literales de color: `dialogue_panel.tscn:30` (`Color(0,0,0,1)`), `loading_screen.tscn:25`, y constantes y `modulate` en `world_object_interaction_panel` (vestigial).
+- `interactive_scene_view.gd:78` crea `UIButton.new()` en vez de instanciar `ui_button.tscn`.
+- `narrative_scene_panel.gd:118` llama a `Dialogue.start_dialogue()` desde la View (su docstring dice lo contrario).
+- `combat_hud.gd` y `combat_arena_panel.gd` acceden a `Characters`, `Inventory` y `EventBus` directamente (UI de combate, fuera del hito).
 **Limpieza (barrido final)**
-- Candidatos a borrar: `exploration_tutorial`, `exploration_test`, `exploration_telmori_village` (+ líneas comentadas de `SCENE_EXPLORATION`), `player.gd`/`player.tscn` (bloqueado por `test/test_shop_ui.gd`), `combat_test.tscn`/`combat_hud.tscn` si se deja de usar.
+- Candidatos a borrar: `exploration_tutorial`, `exploration_test`, `exploration_test_bak` (+ su `StateDebugLabel`), `exploration_telmori_village` (+ líneas comentadas de `SCENE_EXPLORATION`), `player.gd`/`player.tscn` (bloqueado por `test/test_shop_ui.gd`), `combat_test.tscn`/`combat_hud.tscn` si se deja de usar.
+- Ficheros `*_bak`: `core/combat/combat_system_bak.gd`, `enemy_ai_backup.gd`, `defense_module_bak.gd`, `scenes/player/player_combat_controller_bak.gd`, `ui/entity_animation_controller_bak.gd` (los de combate, en IA-0d; ninguno está referenciado en `.tscn`, `.tres` ni `project.godot`).
+- `ui/dialogue/dialogue_panel_test.gd` (fichero de prueba en carpeta de producción).
 - `Interactable` vestigial; su camino físico nunca se validó y ya no se va a validar.
-- `SceneOrchestrator.open_loadout()` sin llamadores ni acción de input (código muerto; estudiar su eliminación).
-- Autoload `DebugPartyTool` aún en `project.godot` (línea 56) y traza `[DBG] tecla:` en el Output: retirar antes de cerrar el hito.
-- Duplicado `damage_number.tscn` (`ui\` y `ui\combat\`); etiqueta de depuración `estado | paused=` en el HUD; `print` `[DIAG]` en `narrative_scene_panel.gd`; doble `create_shop_snapshot` y `print` de depuración en la tienda; comentarios «UISlot.setup()» obsoletos en `combat_arena_test_scene.gd` y `combat_production_scene.gd`.
+- `SceneOrchestrator.open_loadout()` y `close_skill_tree()` sin llamadores (comentarios ya actualizados; estudiar su eliminación).
+- Acción `toggle_inventory` del InputMap sin uso.
+- Duplicado `damage_number.tscn` (`ui\` y `ui\combat\`); doble `create_shop_snapshot` y `print` de depuración en la tienda.
 - Fuga de la instancia de `SCENE_COMBAT` en `SceneOrchestrator` (mitigada localmente en `combat_production_scene.gd`).
-- Comentario «Tecla I / Tab» obsoleto en `ExplorationController` (Tab no está enlazada) y acción `toggle_inventory` sin uso; comentario obsoleto de `open_loadout()` («llamado desde `PlayerMenuViewModel.request_open_loadout()`»).
+- `docs/athelia_estructura_proyecto_actualizado.md`: nombre antiguo del documento de estructura (el vigente es `athelia_estructura_carpetas.md`).
 - Fuera del hito, para el final: CharacterCreation (6 offsets fijos y fondo gris plano sin el estilo del hito), HUD de exploración, combate (`UICombatToken` de tamaño fijo), `main_theme.tres` sin aplicar (fuentes y tema sin decidir), comentario erróneo en `interactive_scene_view.gd:15`.
 - Decisión cerrada: F9/quickload en sesión activa queda no operativo; no se vuelve a tratar.
 ## Sin validar en partida (no es trabajo de código)
@@ -97,8 +112,9 @@ El orden entre 19b, 20, 21 y 23 es flexible mientras se respeten las dependencia
 - Saludo del sheriff de 3 líneas con 6 opciones a 648 de alto (recorte previsto de ~4 px, no observado).
 - Idioma inglés de lo tocado en el Spike 15.
 - Spike 19b: Party con 2 compañeros y un ítem seleccionado a 1152×648 (margen vertical ≈2 px); un tercer compañero.
-- Spike 14: combate lanzado desde narrativa; rescate y muerte permanente de un companion (sin camino jugable).
+- Spike 14 y 24: derrota en un combate lanzado desde narrativa (mismo código que producción) y con 0 o 2 compañeros (solo se probó con `companion_mira`); rescate y muerte permanente de un companion (sin camino jugable).
 - Spike 10: camino de fallo del libro (`item_use_failed`) y guardado/carga con Curtido aprendido.
 - Spike 21: detalle de Ataque Pesado, refresco ante una mejora externa con la pantalla abierta, contexto PlayerMenu → SkillTree, 1680×1050 de la versión final, lista larga (>15 habilidades).
 - Spike 20: el contexto `open_loadout()` (sin llamadores) y los errores de asignación (`LOADOUT_ERROR_*`), que la interfaz no puede provocar porque la lista ya filtra; asignación con un compañero en la party (el Loadout es solo del jugador).
 - Spike 22: scroll de la lista de buffs con más de seis, captura en inglés a 1680×1050 y buffs con modificadores reales sobre atributos (los de depuración llevan lista vacía).
+- Spike 24: Game Over con arte real de fondo (hoy plano) y captura en inglés a 1680×1050.

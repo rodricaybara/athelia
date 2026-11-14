@@ -1,5 +1,2 @@
 id,es,en
 LOADING_LABEL,Cargando...,Loading...
-GAMEOVER_TITLE,GAME OVER,GAME OVER
-GAMEOVER_MESSAGE,"Todos han caído.\nNo queda nadie que pueda continuar.","Everyone has fallen.\nNo one is left to carry on."
-GAMEOVER_BUTTON_MENU,Volver al menú principal,Return to main menu
