@@ -79,6 +79,15 @@ const PLAYER_ID: String = "player"
 @export var enemy_turn_delay: float = 0.8
 @export var companion_turn_delay: float = 0.5
 
+## IA-0b — Escala de TODAS las esperas de presentación del combate (retardos de
+## GameLoop, EnemyAI y CompanionAI). 1.0 = normal; 0.0 = modo sin interfaz (cada
+## espera dura un frame, para no romper el orden de señales ni recursar). Solo toca
+## la presentación: ninguna regla del combate depende de ella.
+@export var presentation_time_scale: float = 1.0
+
+## Pausa de presentación entre el cierre de una ronda y el inicio de la siguiente.
+const ROUND_END_PAUSE: float = 0.3
+
 var _is_processing: bool = false
 
 ## Índice del companion actual procesando su turno
@@ -342,6 +351,12 @@ func end_combat(result: String) -> void:
 	_pending_victory_scene_id = ""
 
 
+## IA-0b — Segundos de espera de presentación ya escalados. Todas las esperas del
+## combate pasan por aquí: create_timer(GameLoop.presentation_delay(x)).
+func presentation_delay(seconds: float) -> float:
+	return maxf(0.0, seconds) * maxf(0.0, presentation_time_scale)
+
+
 func is_in_combat() -> bool:
 	return current_game_state == GameState.COMBAT_ACTIVE
 
@@ -511,7 +526,7 @@ func _calculate_initiative() -> void:
 		initiatives.append({ "id": participant_id, "initiative": initiative_value })
 		print("[GameLoopSystem] %s initiative: %.1f" % [participant_id, initiative_value])
 
-	initiatives.sort_custom(func(a, b): return a.initiative > b.initiative)
+	initiatives.sort_custom(func(a, b): return a.initiative > b.initiative or (a.initiative == b.initiative and a.id < b.id))
 
 	turn_order.clear()
 	for entry in initiatives:
@@ -530,6 +545,7 @@ func _start_new_round() -> void:
 	_companion_turn_index = 0
 
 	print("[GameLoopSystem] 🔄 Round %d started" % round_number)
+	_apply_round_regen()
 	if current_phase != TurnPhase.ROUND_START:
 		_transition_to_phase(TurnPhase.ROUND_START)
 	EventBus.emit_signal("round_started", round_number)
@@ -538,6 +554,24 @@ func _start_new_round() -> void:
 	_advance_reinforcement_countdown()
 
 	_start_player_turn()
+
+
+## IA-0b — Recuperación fija por ronda (combat_regen_per_round de cada
+## ResourceDefinition) para los participantes en pie. Se aplica al empezar cada
+## ronda EXCEPTO la primera, antes de emitir round_started (el HUD ya ve el valor
+## final). Los caídos (jugador/companions a 0 PV) no recuperan; un refuerzo aún no
+## registrado en ResourceSystem se omite sin ruido.
+func _apply_round_regen() -> void:
+	if round_number <= 1:
+		return
+	for participant_id in participants:
+		if not Resources.has_entity(participant_id):
+			continue
+		if Resources.get_resource_amount(participant_id, "health") <= 0.0:
+			continue
+		var gained: Dictionary = Resources.apply_combat_round_regen(participant_id)
+		if not gained.is_empty():
+			print("[GameLoopSystem] 🔋 Ronda %d: %s recupera %s" % [round_number, participant_id, str(gained)])
 
 
 ## Spike 2, punto 6 — avanza el contador de refuerzos (si está activo) y
@@ -741,7 +775,7 @@ func _end_round() -> void:
 	EventBus.emit_signal("round_ended", round_number)
 	print("[GameLoopSystem] Round %d ended" % round_number)
  
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(presentation_delay(ROUND_END_PAUSE)).timeout
 	_start_new_round()
 
 # ============================================
@@ -850,7 +884,7 @@ func _on_combat_action_completed(result: Dictionary) -> void:
 		if _check_combat_conditions():
 			return
 		_companion_turn_index += 1
-		await get_tree().create_timer(companion_turn_delay).timeout
+		await get_tree().create_timer(presentation_delay(companion_turn_delay)).timeout
 		_process_next_companion()
  
 	elif current_phase == TurnPhase.ENEMY_ACTION_RESOLVE:
@@ -861,7 +895,7 @@ func _on_combat_action_completed(result: Dictionary) -> void:
 		if _check_combat_conditions():
 			return
 		current_turn_index += 1
-		await get_tree().create_timer(enemy_turn_delay).timeout
+		await get_tree().create_timer(presentation_delay(enemy_turn_delay)).timeout
 		_process_next_enemy()
 
 ## Callback específico de companions (cuando skipean su turno)
@@ -875,7 +909,7 @@ func _on_companion_action_completed(companion_id: String, _result: Dictionary) -
 		return
 
 	_companion_turn_index += 1
-	await get_tree().create_timer(companion_turn_delay).timeout
+	await get_tree().create_timer(presentation_delay(companion_turn_delay)).timeout
 	_process_next_companion()
 
 
@@ -1001,6 +1035,14 @@ func _transition_game_state(new_state: GameState) -> void:
 	var old_state := current_game_state
 	previous_game_state = old_state
 	current_game_state = new_state
+	# IA-0b — la regeneración continua se suspende mientras dura COMBAT_ACTIVE y se
+	# reanuda al salir por CUALQUIER camino (victoria, derrota, huida, cambio directo).
+	# Va ANTES de emitir game_state_changed para que los oyentes ya la vean en su sitio.
+	if new_state == GameState.COMBAT_ACTIVE:
+		Resources.set_regen_suspended(true)
+	elif old_state == GameState.COMBAT_ACTIVE:
+		Resources.set_regen_suspended(false)
+
 	EventBus.emit_signal("game_state_changed", new_state)
 	print("[GameLoopSystem] State: %s → %s" % [
 		GameState.keys()[old_state],

@@ -6,8 +6,14 @@ extends Node
 ## Responsabilidades:
 ##   - Leer el LoadoutState del jugador al iniciar el combate
 ##   - Exponer los slots como ActionSlotData con estado en tiempo real
-##   - Trackear cooldowns por rondas
 ##   - Exponer recursos vitales del jugador
+##
+## IA-0b: el HUD ya NO lleva su propio contador de cooldowns ni lee la estamina de
+## CharacterState (que nadie actualiza). Fuente única de verdad:
+##   - cooldowns   → Skills.get_cooldown_remaining() (en rondas durante el combate)
+##   - disponible  → Skills.can_use() (cooldown + coste, el mismo criterio que usa
+##                   PlayerCombatController)
+##   - vida/estamina → ResourceSystem (Resources)
 ##
 ## Solo lectura — no modifica LoadoutState ni ningún sistema.
 ##
@@ -72,9 +78,6 @@ var stamina_max: int = 0
 
 const PLAYER_ID: String = "player"
 
-## Cooldowns activos: { slot_id: rondas_restantes }
-var _cooldowns: Dictionary = {}
-
 
 # ============================================
 # CICLO DE VIDA
@@ -82,80 +85,61 @@ var _cooldowns: Dictionary = {}
 
 func _ready() -> void:
 	EventBus.combat_started.connect(_on_combat_started)
-	EventBus.round_started.connect(_on_round_started)
-	EventBus.skill_used.connect(_on_skill_used)
 	EventBus.resource_changed.connect(_on_resource_changed)
+	Skills.cooldown_started.connect(_on_cooldown_started)
+	Skills.combat_cooldowns_ticked.connect(_on_cooldowns_ticked)
 
 
 func _exit_tree() -> void:
 	if EventBus.combat_started.is_connected(_on_combat_started):
 		EventBus.combat_started.disconnect(_on_combat_started)
-	if EventBus.round_started.is_connected(_on_round_started):
-		EventBus.round_started.disconnect(_on_round_started)
-	if EventBus.skill_used.is_connected(_on_skill_used):
-		EventBus.skill_used.disconnect(_on_skill_used)
 	if EventBus.resource_changed.is_connected(_on_resource_changed):
 		EventBus.resource_changed.disconnect(_on_resource_changed)
+	if Skills.cooldown_started.is_connected(_on_cooldown_started):
+		Skills.cooldown_started.disconnect(_on_cooldown_started)
+	if Skills.combat_cooldowns_ticked.is_connected(_on_cooldowns_ticked):
+		Skills.combat_cooldowns_ticked.disconnect(_on_cooldowns_ticked)
 
 
 # ============================================
-# CALLBACKS DEL EVENTBUS
+# CALLBACKS
 # ============================================
 
 ## combat_started: (participants: Array)
+## SkillSystem ya puso los cooldowns a 0 (se conectó antes que este nodo).
 func _on_combat_started(_participants: Array) -> void:
-	_cooldowns.clear()
 	_refresh_slots()
 	_refresh_resources()
 	changed.emit("opened")
 
 
-## round_started: (round_number: int)
-## Cada ronda reduce todos los cooldowns activos en 1.
-func _on_round_started(_round_number: int) -> void:
-	var dirty: bool = false
-	for slot_id in _cooldowns.keys():
-		if _cooldowns[slot_id] > 0:
-			_cooldowns[slot_id] -= 1
-			dirty = true
-		if _cooldowns[slot_id] <= 0:
-			_cooldowns.erase(slot_id)
-
-	if dirty:
-		_refresh_slots()
-		changed.emit("slots")
-
-
-## skill_used: (entity_id, skill_id)
-## Cuando el jugador usa una skill, iniciamos su cooldown en el slot correspondiente.
-func _on_skill_used(entity_id: String, skill_id: String) -> void:
+## Skills.cooldown_started: (entity_id, skill_id, duration)
+## Se emite tras iniciar el cooldown, así que el slot ya refleja el valor real.
+func _on_cooldown_started(entity_id: String, _skill_id: String, _duration: float) -> void:
 	if entity_id != PLAYER_ID:
 		return
-
-	# Buscar en qué slot está asignada esta skill
-	var slot_id: String = _find_slot_for_skill(skill_id)
-	if slot_id == "":
-		return
-
-	# Leer cooldown base de la definición (en rondas — base_cooldown se interpreta como int)
-	var def: SkillDefinition = Skills.get_skill_definition(skill_id)
-	if def == null:
-		return
-
-	var cooldown_rounds: int = int(def.base_cooldown)
-	if cooldown_rounds > 0:
-		_cooldowns[slot_id] = cooldown_rounds
-
 	_refresh_slots()
 	changed.emit("slots")
 
 
-## resource_changed: (entity_id, resource_id, old_value, new_value)
-func _on_resource_changed(entity_id: String, _resource_id: String, _old: float, _new: float) -> void:
+## Skills.combat_cooldowns_ticked: SkillSystem acaba de descontar una ronda.
+## Se escucha esta señal y no round_started para no depender del orden de conexión.
+func _on_cooldowns_ticked() -> void:
+	_refresh_slots()
+	changed.emit("slots")
+
+
+## EventBus.resource_changed: (entity_id, resource_id, current, max)
+## ResourceSystem reenvía aquí cada cambio. Gastar o recuperar estamina cambia la
+## disponibilidad de los slots, no solo la barra.
+func _on_resource_changed(entity_id: String, resource_id: String, _current: float, _max: float) -> void:
 	if entity_id != PLAYER_ID:
 		return
 	_refresh_resources()
 	changed.emit("resources")
+	if resource_id == "stamina":
+		_refresh_slots()
+		changed.emit("slots")
 
 
 # ============================================
@@ -177,7 +161,6 @@ func _refresh_slots() -> void:
 		data.slot_id      = slot_id
 		data.slot_type    = "skill"
 		data.keybind_label = SLOT_KEYBIND_LABEL.get(slot_id, "")
-		data.cooldown_remaining = _cooldowns.get(slot_id, 0)
 
 		var skill_id: String = loadout.get_skill(slot_id)
 		if skill_id == "":
@@ -197,9 +180,17 @@ func _refresh_slots() -> void:
 		data.display_name = tr(def.name_key)
 		data.stamina_cost = int(def.get_cost("stamina"))
 
-		# Disponible si: sin cooldown Y stamina suficiente
-		var current_stamina: int = int(state.get_resource("stamina"))
-		data.is_available = (data.cooldown_remaining == 0) and (current_stamina >= data.stamina_cost)
+		# Skill en el loadout pero sin instancia para el jugador (p. ej. no
+		# registrada): se muestra no disponible, sin avisos en cada refresco.
+		if not Skills.has_skill(PLAYER_ID, skill_id):
+			data.is_available = false
+			action_slots.append(data)
+			continue
+
+		# En combate el valor está en rondas (entero guardado en float).
+		data.cooldown_remaining = ceili(Skills.get_cooldown_remaining(PLAYER_ID, skill_id))
+		# Mismo criterio que PlayerCombatController: cooldown y coste, vía Skills.
+		data.is_available = Skills.can_use(PLAYER_ID, skill_id)
 
 		action_slots.append(data)
 
@@ -233,27 +224,25 @@ func _refresh_slots() -> void:
 		action_slots.append(data)
 
 
+## Vida y estamina salen de ResourceSystem: el máximo mostrado es el tope real
+## (max_effective) con el que se recorta el valor actual.
 func _refresh_resources() -> void:
-	var state: CharacterState = Characters.get_character_state(PLAYER_ID)
-	if state == null:
+	if not Resources.has_entity(PLAYER_ID):
 		return
 
-	health_current  = int(state.get_resource("health"))
-	health_max      = int(AttributeResolver.resolve(PLAYER_ID, "health_max"))
-	stamina_current = int(state.get_resource("stamina"))
-	stamina_max     = int(AttributeResolver.resolve(PLAYER_ID, "stamina_max"))
+	var health: ResourceState = Resources.get_resource_state(PLAYER_ID, "health")
+	if health:
+		health_current = int(health.current)
+		health_max     = int(health.max_effective)
+
+	var stamina: ResourceState = Resources.get_resource_state(PLAYER_ID, "stamina")
+	if stamina:
+		stamina_current = int(stamina.current)
+		stamina_max     = int(stamina.max_effective)
 
 
 # ============================================
 # UTILIDADES
 # ============================================
-
-func _find_slot_for_skill(skill_id: String) -> String:
-	var state: CharacterState = Characters.get_character_state(PLAYER_ID)
-	if state == null:
-		return ""
-	var loadout: LoadoutState = state.loadout
-	for slot_id in LoadoutState.SKILL_SLOTS:
-		if loadout.get_skill(slot_id) == skill_id:
-			return slot_id
-	return ""
+# (IA-0b: _find_slot_for_skill() y el contador _cooldowns se eliminaron; ya no
+#  hay nada que mapear de skill a slot porque los cooldowns viven en Skills.)

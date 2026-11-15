@@ -26,6 +26,11 @@ signal skill_failed(entity_id: String, skill_id: String, reason: String)
 signal cooldown_started(entity_id: String, skill_id: String, duration: float)
 signal cooldown_finished(entity_id: String, skill_id: String)
 
+## IA-0b — emitida al acabar de descontar los cooldowns de una ronda de combate.
+## Sirve para que el HUD se refresque sin depender del orden de conexión a
+## EventBus.round_started.
+signal combat_cooldowns_ticked
+
 ## Catálogo de definiciones: { skill_id: String -> SkillDefinition }
 var _skill_definitions: Dictionary = {}
 
@@ -34,6 +39,11 @@ var _entity_skills: Dictionary = {}
 
 ## Referencia al ResourceSystem
 var resource_system: ResourceSystem
+
+## IA-0b — true mientras dura un combate. Dentro: los cooldowns se cuentan en RONDAS
+## (se fijan a N al usar la skill y bajan 1 en cada round_started) y _process no
+## avanza el reloj. Fuera: segundos reales, como siempre.
+var _combat_mode: bool = false
 
 
 ## Inicialización
@@ -47,6 +57,15 @@ func _ready():
 	# Cargar definiciones de habilidades (RECURSIVAMENTE)
 	_load_skill_definitions()
 	
+	# IA-0b — cooldowns en rondas dentro del combate
+	if EventBus:
+		EventBus.combat_started.connect(_on_combat_started)
+		EventBus.combat_ended.connect(_on_combat_ended)
+		EventBus.round_started.connect(_on_round_started)
+		EventBus.game_state_changed.connect(_on_game_state_changed)
+	else:
+		push_error("[SkillSystem] EventBus not found!")
+
 	print("[SkillSystem] Initialized with %d skill types" % _skill_definitions.size())
 
 
@@ -247,18 +266,27 @@ func request_use(entity_id: String, skill_id: String) -> bool:
 			return false
 	
 	# Iniciar cooldown
-	instance.start_cooldown()
+	if _combat_mode:
+		instance.start_cooldown_rounds()   # IA-0b: en rondas
+	else:
+		instance.start_cooldown()          # segundos reales
 	
 	# Emitir eventos
 	skill_used.emit(entity_id, skill_id)
-	cooldown_started.emit(entity_id, skill_id, instance.definition.base_cooldown)
+	# IA-0b: 'duration' está en la unidad del modo (segundos fuera de combate,
+	# rondas dentro). Fuera de combate vale lo mismo que antes (base_cooldown).
+	cooldown_started.emit(entity_id, skill_id, instance.current_cooldown)
 	
-	print("[SkillSystem] %s used %s" % [entity_id, skill_id])
+	print("[SkillSystem] %s used %s (cooldown %s %s)" % [
+		entity_id, skill_id, str(instance.current_cooldown),
+		"rondas" if _combat_mode else "s"
+	])
 	
 	return true
 
 
-## Obtiene el cooldown restante de una habilidad
+## Obtiene el cooldown restante de una habilidad.
+## Unidad: segundos fuera de combate, RONDAS dentro (valor entero en float).
 func get_cooldown_remaining(entity_id: String, skill_id: String) -> float:
 	var instance = get_skill_instance(entity_id, skill_id)
 	if instance:
@@ -274,8 +302,74 @@ func get_cooldown_percentage(entity_id: String, skill_id: String) -> float:
 	return 0.0
 
 
+# ============================================
+# MODO COMBATE — cooldowns en rondas (IA-0b)
+# ============================================
+
+func is_combat_mode() -> bool:
+	return _combat_mode
+
+
+func _on_combat_started(_participants: Array) -> void:
+	_combat_mode = true
+	_reset_all_cooldowns()
+	print("[SkillSystem] ⚔️ Modo combate ON — cooldowns en rondas")
+
+
+func _on_combat_ended(_result: String) -> void:
+	_exit_combat_mode()
+
+
+## Red de seguridad: si se sale de COMBAT_ACTIVE sin pasar por combat_ended
+## (cualquier cambio de estado directo), el modo combate no puede quedar activo.
+## Con el flujo normal ya se sale aquí al pasar a VICTORY/DEFEAT/EXPLORATION, y
+## combat_ended llega después (_exit_combat_mode es idempotente).
+func _on_game_state_changed(_new_state) -> void:
+	if not _combat_mode:
+		return
+	var game_loop: Node = get_node_or_null("/root/GameLoop")
+	if game_loop and not game_loop.is_in_combat():
+		_exit_combat_mode()
+
+
+func _exit_combat_mode() -> void:
+	if not _combat_mode:
+		return
+	_combat_mode = false
+	_reset_all_cooldowns()
+	print("[SkillSystem] ⚔️ Modo combate OFF — cooldowns de nuevo en segundos")
+
+
+## Pone a 0 todos los cooldowns de todas las entidades (al empezar y al acabar el
+## combate, para que una cifra en rondas nunca se arrastre como segundos).
+func _reset_all_cooldowns() -> void:
+	for entity_id in _entity_skills.keys():
+		for skill_id in _entity_skills[entity_id].keys():
+			var instance: SkillInstance = _entity_skills[entity_id][skill_id]
+			var was_on_cooldown: bool = instance.is_on_cooldown()
+			instance.reset_cooldown()
+			if was_on_cooldown:
+				cooldown_finished.emit(entity_id, skill_id)
+
+
+## Cada round_started baja 1 ronda todos los cooldowns activos.
+## Usada en la ronda R con cooldown 2: R+1 -> 1 (no disponible), R+2 -> 0 (disponible).
+func _on_round_started(round_number: int) -> void:
+	if not _combat_mode:
+		return
+	for entity_id in _entity_skills.keys():
+		for skill_id in _entity_skills[entity_id].keys():
+			var instance: SkillInstance = _entity_skills[entity_id][skill_id]
+			if instance.tick_round_cooldown():
+				print("[SkillSystem] ✓ Ronda %d: %s/%s disponible de nuevo" % [round_number, entity_id, skill_id])
+				cooldown_finished.emit(entity_id, skill_id)
+	combat_cooldowns_ticked.emit()
+
+
 ## Proceso de cooldowns (cada frame)
 func _process(delta: float):
+	if _combat_mode:
+		return   # IA-0b: en combate los cooldowns avanzan por rondas, no por tiempo
 	for entity_id in _entity_skills.keys():
 		for skill_id in _entity_skills[entity_id].keys():
 			var instance = _entity_skills[entity_id][skill_id] as SkillInstance

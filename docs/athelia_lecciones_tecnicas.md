@@ -44,6 +44,7 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **`user://` no es la carpeta del proyecto:** en Windows es `%APPDATA%\Godot\app_userdata\<proyecto>\` (S12).
 - **`NOTIFICATION_TRANSLATION_CHANGED` llega a todos los nodos, también a los ocultos:** retraducir ahí (con `is_node_ready()` y el ViewModel ya creado) da cambio de idioma en caliente sin recargar escenas ni cerrar paneles (S23).
 - **Un `const` declarado dos veces en un autoload lo deja sin compilar** y arrastra «Cannot infer the type» en todos los consumidores de `UITokens` (decenas de ficheros, y tests): ante ese aluvión, mirar el primer error, no los demás (S23).
+- **Un `.tres` solo guarda las propiedades distintas del valor por defecto:** un `@export` nuevo que no aparece en el fichero vale 0 (o su defecto), aunque el inspector parezca mostrar otra cosa o el valor «se haya puesto». Hay que abrir el recurso, ponerlo y guardar (`combat_regen_per_round` en `stamina.tres`) (IA-0b).
 ---
  
 ## Datos, registries y localización
@@ -82,6 +83,10 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Una API pública necesita su propio guard aunque el llamador ya lo tenga:** `request_interaction()` comprueba `is_input_blocked()` y el ViewModel exige además `GameState == EXPLORATION` (`is_input_blocked()` deja pasar `PAUSE` y `MENU`) (S12).
 - **El orden de las validaciones define el comportamiento:** la regla que ya está en los datos (`quest_loan`) se consulta antes de la comprobación genérica (`base_value <= 0`) (S16).
 - **Un valor nuevo en un `String` de contrato** (`trade_type = "loan"`) solo es seguro si se comprueba quién escucha la señal (S16).
+- **Un solo punto de entrada y salida de un estado:** activar y desactivar algo ligado a `COMBAT_ACTIVE` en `_transition_game_state()` cubre victoria, derrota, huida y cualquier cambio directo; emparejar `start_combat()`/`end_combat()` deja fugas si el estado cambia por otro camino (IA-0b).
+- **Mismo nombre, dos buses:** `SkillSystem.skill_used` (local) y `EventBus.skill_used` (sin emisor) conviven y el HUD escuchaba la segunda; igual que el puente de `resource_changed` (S5): al conectar una señal, comprobar quién la emite (IA-0b).
+- **Un contador, una fuente:** el HUD llevaba sus cooldowns en rondas y `SkillSystem` los suyos en segundos, dos verdades que nunca se hablaban. El dato vive en el sistema y la UI solo lo lee (IA-0b).
+- **Refrescar por señal propia, no por orden de conexión:** el sistema emite al terminar de actualizarse (`combat_cooldowns_ticked`) y el HUD se engancha a esa señal, no a `round_started` (IA-0b).
 ---
  
 ## Sesión, guardado y entidades
@@ -114,7 +119,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **El flujo de una petición del jugador es síncrono** (petición → fase → ejecución → posible fallo → recuperación, todo dentro del `emit_signal`): el controlador apaga el input **antes** de emitir, porque la recuperación lo reactiva dentro de esa llamada (IA-0a).
 - **Las señales que `Combat` reenvía se filtran por estado de juego:** `skill_failed` también salta con las skills de exploración (IA-0a).
 - **Una guarda que sale si «ya está en el estado» no puede ser la que cambia ese estado:** `_incapacitate_player()` salía siempre porque el jugador ya estaba a 0 PV y sus señales no se emitían nunca; la guarda usa un indicador por combate (IA-0a).
-- **La estamina se regenera en tiempo real:** en un combate por turnos el resultado de una pulsación depende del reloj (la misma acción falló y segundos después funcionó). Es el motivo de IA-0b (IA-0a).
+- **Un reloj oculto puede sostener una regla de diseño.** La estamina se regeneraba en tiempo real (10/s): el resultado de una pulsación dependía del reloj y enmascaraba que con 0 de regeneración por ronda el jugador se quedaba sin aguante en 3-4 rondas y que un actor de IA sin estamina cuelga el turno. Al quitar un reloj, revisar los datos y los caminos de fallo que tapaba (IA-0a, IA-0b).
+- **Dentro del combate, un cooldown se avanza solo por rondas:** `SkillSystem._process` tiene que salir en modo combate, o los segundos reales descuentan además del tick por ronda (valores fraccionarios, la skill libre antes de tiempo) (IA-0b).
+- **El golpe que mata termina el combate dentro de `request_use`** (`skill_used` → `GameLoop.end_combat()`): el reseteo de cooldowns ocurre antes del `print` de esa línea y sale `(cooldown 0.0 s)` en la última acción. Es esperado y no es un fallo (IA-0b).
 - **Un `Skill not found for entity` al terminar combate** significa que `register_entity_skills()` recibió una lista distinta a `list_known_skills()` (S3B).
 - **Una cadena multi-escena cortada antes de tiempo se delata por el `scene_id` de `narrative_scene_closed` en el log** (G3D).
 - **Dos sistemas narrativos distintos son fáciles de confundir:** `narrative_event_id` dispara `NarrativeSystem.apply_event()`, no `enter_narrative_scene()` (G3B).
@@ -190,7 +197,7 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 ## Proceso y herramientas
  
 - **Cuando una spec da una hipótesis como causa, reproducir antes de arreglar** (16c) (S19). Las cifras de una spec se comprueban contra el árbol de nodos real (S15).
-- **Una línea que falta en el Output delata un bug:** comparar el Output con la secuencia esperada, no solo buscar errores (S19).
+- **Una línea que falta en el Output delata un bug:** comparar el Output con la secuencia esperada, no solo buscar errores (S19). En IA-0b la ausencia de `🔋` y de `disponible de nuevo` en el log reveló el campo sin guardar y el parche omitido.
 - **Los parches «buscar → sustituir» usan anclas de una sola línea:** las de varias líneas fallan con tabuladores y finales de línea de Windows, y un ancla mal aplicada puede borrar otra línea sin aviso (IA-0a).
 - **Para renombrar una señal, buscar `emit_signal("x"`, `x.emit(` y `x.connect(` por separado:** el HUD de combate emitía con `.emit({` y la primera búsqueda no lo vio (IA-0a).
 - **Los parches «buscar → sustituir» comprueban que el ancla aparece exactamente una vez y no asumen la sangría;** en funciones largas, vigilar las comas al añadir claves a un diccionario. Mismo criterio para parchear documentación (S18, S19, S16).
@@ -212,7 +219,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **El editor ejecuta el juego incrustado en la pestaña Game, que solo admite modo ventana** («Embedded window only supports Windowed mode»): la pantalla completa se prueba con el juego en ventana propia o exportado (S23).
 - **Una comprobación del paquete Fase 0 con `Select-String` sobre las líneas clave (`_feedback_timer`, `consume_pending_quickload`) confirma si el paquete adjunto coincide con el código actual** antes de fiarse de él (S23).
 - **Quitar un nodo de depuración referenciado por `$Nombre`:** primero el script (`@onready` y usos), después los `.tscn`; al revés da error al cargar (S24).
-- **Tras aplicar un parche, comprobar con `Select-String` que su identificador nuevo está en el fichero antes de probar:** una prueba «ok» no demuestra que el cambio estuviera aplicado (el `_recover_if_transition_rejected()` del menú) (S24).
+- **Tras aplicar un parche, comprobar con `Select-String` que su identificador nuevo está en el fichero antes de probar:** una prueba «ok» no demuestra que el cambio estuviera aplicado (el `_recover_if_transition_rejected()` del menú, S24; el `if _combat_mode: return` de `SkillSystem._process`, IA-0b, que se delató porque el número de línea de `process_cooldown` no coincidía con el esperado).
+- **Un setter temporal con `print_stack()` sobre el campo sospechoso** (`current_cooldown`) dice quién lo cambia sin leer todo el código; se retira al cerrar el spike (IA-0b).
+- **Un `print` al cargar un recurso con el valor leído** (`Loaded definition: stamina (combat_regen_per_round=…)`) separa «dato no guardado» de «código equivocado»; es inocuo y se queda (IA-0b).
 - **Un patrón de auditoría amplio (`Label.new`) da falsos positivos en listas dinámicas:** el que cuenta es `Color\(|modulate`; los ficheros `*_test*` y `*_bak*` se filtran por nombre, no solo por carpeta (S24).
 - **Un informe puede listar como pendiente algo que ya no existe** (`DebugPartyTool`): comprobar antes de planificar su retirada (S24).
 ---

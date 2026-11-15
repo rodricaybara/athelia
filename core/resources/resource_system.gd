@@ -20,6 +20,10 @@ var _entities: Dictionary = {}
 ## Catálogo de definiciones disponibles
 var _resource_definitions: Dictionary = {}
 
+## IA-0b — true = la regeneración continua (por tiempo real) está suspendida para
+## todos los recursos de todas las entidades. La activa GameLoop durante el combate.
+var _regen_suspended: bool = false
+
 
 ## Inicialización
 func _ready():
@@ -38,7 +42,7 @@ func _load_resource_definitions():
 		
 		if res_def and res_def.validate():
 			_resource_definitions[res_def.id] = res_def
-			print("[ResourceSystem] Loaded definition: ", res_def.id)
+			print("[ResourceSystem] Loaded definition: ", res_def.id, " (combat_regen_per_round=", res_def.combat_regen_per_round, ")")
 		else:
 			push_error("[ResourceSystem] Failed to load: %s" % path)
 
@@ -195,8 +199,45 @@ func set_regen_paused(entity_id: String, resource_id: String, paused: bool) -> v
 		state.regen_paused = paused
 
 
+## IA-0b — Suspende o reanuda la regeneración CONTINUA (tiempo real) de todos los
+## recursos de todas las entidades. GameLoop la suspende mientras dura COMBAT_ACTIVE:
+## dentro del combate la estamina solo cambia por costes, por acciones de
+## recuperación y por apply_combat_round_regen().
+func set_regen_suspended(suspended: bool) -> void:
+	if _regen_suspended == suspended:
+		return
+	_regen_suspended = suspended
+	print("[ResourceSystem] Regeneración continua %s" % ("SUSPENDIDA" if suspended else "REANUDADA"))
+
+
+func is_regen_suspended() -> bool:
+	return _regen_suspended
+
+
+## IA-0b — Recuperación fija por ronda (combat_regen_per_round de cada
+## ResourceDefinition). La llama GameLoop al empezar cada ronda salvo la primera.
+## Devuelve { resource_id: cantidad realmente añadida } (vacío si no hubo cambio).
+## No filtra por entidad viva: eso lo decide quien llama.
+func apply_combat_round_regen(entity_id: String) -> Dictionary:
+	var gained: Dictionary = {}
+	if not _entities.has(entity_id):
+		return gained
+	for res_id in _entities[entity_id].keys():
+		var state: ResourceState = _entities[entity_id][res_id]
+		var per_round: float = state.definition.combat_regen_per_round
+		if per_round <= 0.0 or state.definition.is_infinite:
+			continue
+		var added: float = state.add(per_round)
+		if added > 0.0:
+			gained[res_id] = added
+			_emit_resource_changed(entity_id, res_id, state)
+	return gained
+
+
 ## Proceso de regeneración (llamado cada frame)
 func _process(delta: float):
+	if _regen_suspended:
+		return
 	for entity_id in _entities.keys():
 		for res_id in _entities[entity_id].keys():
 			var state = _entities[entity_id][res_id] as ResourceState

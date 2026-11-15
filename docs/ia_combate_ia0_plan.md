@@ -1,6 +1,6 @@
 # Athelia — Plan de la fase IA-0 (prerrequisitos de motor de la IA de combate)
 
-**Fecha:** 2026-11-11 · **Base:** `docs/ia_combate_fase0.md` y `docs/ia_combate_spec_v1_7_1.md`
+**Fecha:** 2026-11-11 (IA-0b actualizada el 2026-11-14) · **Base:** `docs/ia_combate_fase0.md` y `docs/ia_combate_spec_v1_7_1.md`
 
 IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pueda construir encima: acciones que no cuelgan el turno, estado que no se arrastra entre combates, reglas por turnos, estimaciones públicas y datos coherentes. Se divide en 4 spikes. Cada uno sigue el flujo habitual (Fase 0 con búsquedas → implementación → validación en partida → informe), y el orden es **0a → 0b → 0c → 0d** (0d puede ir en paralelo a 0c).
 
@@ -36,22 +36,26 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 
 ## IA-0b — Combate por turnos
 
+**Estado: cerrada el 2026-11-14 (confirmada el 2026-11-15)**, validada en partida (`docs/ia_combate_ia0b_informe.md`; spec en `docs/ia_combate_ia0b_spec.md`). Decisiones confirmadas por Fernando: **1-A** 10 de estamina por ronda · **2-A** `int(base_cooldown)` · **3-A** interruptor global. Pendiente que deja: un enemigo o Mira sin estamina pasando el turno no se ejercitó (revisar en IA-0d). Cambios respecto al plan original: el valor inicial de `combat_regen_per_round` **no** es 0 (con 0 y sin `recover` el jugador se queda sin estamina en 3-4 rondas); la conversión es `int()` y no `ceil` (con `ceil` el ataque ligero quedaría bloqueado una ronda de cada dos); el interruptor es global en `ResourceSystem` y no `set_regen_paused` entidad a entidad; la regeneración por ronda va en `GameLoop` y no en `combat_system.gd`.
+
 | # | Tarea | Ficheros |
 |---|---|---|
-| 1 | Pausar la regeneración de estamina de todos los participantes durante el combate (`Resources.set_regen_paused`) y reanudarla al terminar | `game_loop_system.gd` / `combat_system.gd` |
-| 2 | Recuperación fija por ronda: campo `combat_regen_per_round` en `ResourceDefinition` (**valor inicial 0**: la estamina solo sube con la acción `recover`; se decide en IA-5) | `resource_definition.gd`, `stamina.tres`, `combat_system.gd` |
-| 3 | Cooldowns en rondas dentro del combate: `SkillSystem` pausa el avance por segundos de las skills de combate y las descuenta en `round_started`; se reinician al empezar el combate. Regla de conversión única `ceil(base_cooldown)`; el contador se fija a N al usar la skill, baja 1 en cada `round_started` y la skill está disponible al llegar a 0 (cooldown 2 usado en la ronda R → disponible en R+2); el HUD deja de calcularlo | `skill_system.gd`, `skill_instance.gd`, `combat_hub_viewmodel.gd` |
-| 4 | El HUD lee vida, estamina y disponibilidad de **`ResourceSystem`**, no de `CharacterState.resources` (que nadie actualiza) | `combat_hub_viewmodel.gd` |
-| 5 | Comprobar si `EventBus.skill_used` tiene emisor; si no, hacer el puente desde `CombatSystem` (el HUD lo escucha para iniciar cooldowns) | `skill_system.gd` |
+| 1 | Interruptor global `ResourceSystem.set_regen_suspended(bool)`; `_process` no regenera mientras esté activo. `GameLoop` lo activa/desactiva en `_transition_game_state()` al entrar y salir de `COMBAT_ACTIVE` (cubre victoria, derrota, huida y cualquier cambio directo) | `resource_system.gd`, `game_loop_system.gd` |
+| 2 | Recuperación fija por ronda: campo `combat_regen_per_round` en `ResourceDefinition` (`stamina.tres` = **10**), `ResourceSystem.apply_combat_round_regen(entity_id)` y `GameLoop._apply_round_regen()` al empezar cada ronda salvo la primera, solo a participantes con PV > 0 | `resource_definition.gd`, `stamina.tres`, `resource_system.gd`, `game_loop_system.gd` |
+| 3 | Cooldowns en rondas: `SkillSystem` entra en modo combate con `combat_started` (y sale con `combat_ended` o al dejar `COMBAT_ACTIVE`); `_process` no avanza; `SkillInstance.start_cooldown_rounds()` fija el valor con **una sola conversión** (`cooldown_rounds_for()`, `int()`); `round_started` baja 1 y se emite `combat_cooldowns_ticked`; cooldowns a 0 al empezar y al acabar. Regla: se fija a N al usar la skill, baja 1 en cada `round_started` y la skill está disponible al llegar a 0 (cooldown 2 usado en la ronda R → disponible en R+2) | `skill_system.gd`, `skill_instance.gd` |
+| 4 | El HUD lee cooldown y disponibilidad de `Skills` (`get_cooldown_remaining`, `can_use`) y vida y estamina de **`ResourceState`**, no de `CharacterState.resources`; refresca slots al cambiar la estamina | `combat_hub_viewmodel.gd` |
+| 5 | `EventBus.skill_used`: en los ficheros revisados `SkillSystem` solo emite su señal local. Se resuelve **dejando de depender de ella** en el HUD (sin puente); queda por confirmar con la búsqueda 1 si alguien más la emite | `combat_hub_viewmodel.gd` |
 | 6 | Desempate determinista de la iniciativa (por id) | `game_loop_system.gd` |
-| 7 | Ajuste de retardos de IA (`decision_delay`, `enemy_turn_delay`, `companion_turn_delay`) para anularlos en modo sin interfaz | `enemy_ai.gd`, `companion_ai.gd`, `game_loop_system.gd` |
+| 7 | `presentation_time_scale` en `GameLoop` (1.0 por defecto, 0 sin interfaz) con `presentation_delay()` y `ROUND_END_PAUSE`; `GameLoop`, `EnemyAI` y `CompanionAI` lo usan | `game_loop_system.gd`, `enemy_ai.gd`, `companion_ai.gd` |
+| 8 | *(Añadida)* `EnemyAI` y `CompanionAI` no piden una acción que no pueden pagar y pasan el turno con `actor`: sin regeneración continua, el fallo de un actor de IA (sin gestor hasta IA-1) colgaría el turno | `enemy_ai.gd`, `companion_ai.gd` |
 
 **Validación:**
-- Mantener un combate parado 30 s: la estamina **no** cambia. Con `combat_regen_per_round = 3` de prueba, al empezar cada ronda sube exactamente 3 (volver a 0 después).
-- Un ataque con cooldown 2 usado en la ronda R no está disponible en R+1 y sí en R+2.
+- Mantener un combate parado 30 s: la estamina **no** cambia; desde la ronda 2 sube exactamente `combat_regen_per_round` (la 1 no).
+- Un ataque con cooldown 2 usado en la ronda R no está disponible en R+1 y sí en R+2; el HUD y `Skills.can_use` coinciden.
 - Los botones del HUD cambian de estado al gastar estamina.
-- Dos combates seguidos: cooldowns a cero al empezar.
-- Cambio de comportamiento a avisar: el flujo de la estamina es otro, y la huida contra 4 enemigos (umbral 60) sigue siendo inalcanzable.
+- Dos combates seguidos: cooldowns a cero al empezar. Huida y derrota reactivan la regeneración continua.
+- Dos enemigos iguales: mismo orden de turno en cada ejecución. Con `presentation_time_scale = 0` las pausas de IA desaparecen.
+- Cambio de comportamiento a avisar: el flujo de la estamina es otro, el cooldown pasa a bloquear de verdad, y la huida contra 4 enemigos (umbral 60) sigue siendo inalcanzable.
 
 ## IA-0c — Estimaciones y candidatas de `Combat`
 
@@ -76,7 +80,7 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 | 1 | **Vida derivada (decisión D8):** eliminar `health` y `stamina` de `starting_resources` en los `.tres` de enemigo y ajustar las constituciones (ver tabla). No se toca a Mira ni al jugador sin confirmación | `data/characters/**/*.tres` |
 | 2 | Registrar con todos los recursos también a los refuerzos | `combat_production_scene.gd` |
 | 3 | Campo `behavior_profile_id` y `threat_hint` en `CharacterDefinition` (incluidos en `duplicate_definition()`) | `character_definition.gd` |
-| 4 | 2-3 skills de enemigo: ataque fuerte, defender, recuperar (costes y valores orientativos, a tunear en IA-5) y asignación en `skills`/`starting_skill_values` de cada enemigo | `data/skills/`, `.tres` de enemigos |
+| 4 | 2-3 skills de enemigo: ataque fuerte, defender, recuperar (costes y valores orientativos, a tunear en IA-5) y asignación en `skills`/`starting_skill_values` de cada enemigo. **Con IA-0b, comprobar que el coste de `skill.enemy.basic_attack` es sostenible con la estamina del enemigo y `combat_regen_per_round`** (hoy un enemigo sin estamina pasa el turno) | `data/skills/`, `.tres` de enemigos |
 | 5 | 2 skills `SELF` para Mira: defender y recuperar aguante | `data/skills/`, `companion_mira.tres` |
 | 6 | `focus` en `ResourceSystem` (o sacar de `fireball` el coste de foco) para que no sea impagable | `resource_system.gd` |
 | 7 | Borrar `combat_system_bak.gd`, `enemy_ai_backup.gd`, `defense_module_bak.gd` y `ui/entity_animation_controller_bak.gd` | — |

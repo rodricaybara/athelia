@@ -36,13 +36,19 @@ func _on_companion_turn_started(acting_companion_id: String) -> void:
 		companion_id, Party.CompanionStrategy.keys()[strategy]
 	])
 
-	await get_tree().create_timer(decision_delay).timeout
+	await get_tree().create_timer(GameLoop.presentation_delay(decision_delay)).timeout
 	_decide_and_act()
 
 
 func _decide_and_act() -> void:
 	var strategy: Party.CompanionStrategy = Party.get_strategy(companion_id)
 	var skill_id: String = _pick_best_skill(strategy)
+	if not _can_afford(skill_id):
+		skill_id = attack_skill_id   # reserva: el ataque básico del companion
+		if not _can_afford(skill_id):
+			print("[CompanionAI] %s: sin recursos para actuar — pasa el turno" % companion_id)
+			_end_turn_empty()
+			return
 	var target: String   = _pick_best_target(skill_id, strategy)
 
 	if target.is_empty() and not _is_self_target_skill(skill_id):
@@ -199,6 +205,17 @@ func _get_active_enemies() -> Array[String]:
 	if not game_loop:
 		return []
 	return game_loop.get_active_enemies()
+
+
+## IA-0b — ver EnemyAI._can_afford(): evita el turno colgado por un fallo sin gestor.
+func _can_afford(skill_id: String) -> bool:
+	var def: SkillDefinition = Skills.get_skill_definition(skill_id)
+	if def == null:
+		return true
+	var bundle = def.get_cost_bundle()
+	if bundle == null or bundle.is_empty():
+		return true
+	return Resources.can_pay(companion_id, bundle)
 
 
 func _is_self_target_skill(skill_id: String) -> bool:

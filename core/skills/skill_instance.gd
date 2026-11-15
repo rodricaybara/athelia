@@ -17,6 +17,11 @@ var current_cooldown: float = 0.0
 var total_uses: int = 0
 var last_used_time: float = 0.0
 
+## IA-0b — duración total del cooldown en curso, en la unidad con que se fijó
+## (segundos fuera de combate, rondas dentro). 0 = desconocida (p. ej. tras cargar
+## partida): get_cooldown_percentage() recurre entonces a base_cooldown.
+var _cooldown_total: float = 0.0
+
 func _init(skill_def: SkillDefinition):
 	if skill_def == null:
 		push_error("[SkillInstance] definition cannot be null")
@@ -32,13 +37,15 @@ func is_available() -> bool:
 func get_cooldown_percentage() -> float:
 	if definition.base_cooldown <= 0:
 		return 0.0
-	return clampf(current_cooldown / definition.base_cooldown, 0.0, 1.0)
+	var total: float = _cooldown_total if _cooldown_total > 0.0 else definition.base_cooldown
+	return clampf(current_cooldown / total, 0.0, 1.0)
 
 func get_cooldown_remaining() -> float:
 	return current_cooldown
 
 func start_cooldown() -> void:
 	current_cooldown = definition.base_cooldown
+	_cooldown_total = definition.base_cooldown
 	total_uses += 1
 	last_used_time = Time.get_ticks_msec() / 1000.0
 
@@ -46,8 +53,34 @@ func process_cooldown(delta: float) -> void:
 	if current_cooldown > 0:
 		current_cooldown = maxf(0.0, current_cooldown - delta)
 
+## IA-0b — ÚNICA conversión base_cooldown (segundos) -> rondas.
+## Decisión 2-A: truncar. 1,5 -> 1 · 2,0 -> 2 · 2,5 -> 2 · 3,0 -> 3.
+## Para pasar a ceil (decisión 2-B) basta cambiar esta línea; el HUD ya no convierte.
+static func cooldown_rounds_for(base_cooldown_seconds: float) -> int:
+	return int(base_cooldown_seconds)
+
+
+## IA-0b — Inicia el cooldown EN RONDAS (modo combate). Se fija a N al usar la skill;
+## tick_round_cooldown() lo baja 1 en cada round_started.
+func start_cooldown_rounds() -> void:
+	var rounds: int = cooldown_rounds_for(definition.base_cooldown)
+	current_cooldown = float(rounds)
+	_cooldown_total = float(rounds)
+	total_uses += 1
+	last_used_time = Time.get_ticks_msec() / 1000.0
+
+
+## IA-0b — Baja 1 ronda el cooldown. Devuelve true si ACABA de llegar a 0.
+func tick_round_cooldown() -> bool:
+	if current_cooldown <= 0.0:
+		return false
+	current_cooldown = maxf(0.0, current_cooldown - 1.0)
+	return current_cooldown <= 0.0
+
+
 func reset_cooldown() -> void:
 	current_cooldown = 0.0
+	_cooldown_total = 0.0
 
 
 # ============================================

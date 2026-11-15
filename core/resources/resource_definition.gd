@@ -33,6 +33,12 @@ extends Resource
 ## Color para debug UI
 @export var debug_color: Color = Color.WHITE
 
+## IA-0b — Recuperación fija por ronda DENTRO de combate (en unidades del recurso).
+## GameLoop la aplica al empezar cada ronda salvo la primera. 0 = no recupera.
+## Es independiente de regen_rate, que es regeneración continua en tiempo real y
+## queda suspendida durante el combate. Se lee del .tres (@export): no hay from_dict.
+@export var combat_regen_per_round: float = 0.0
+
 
 ## Valida que la definición sea coherente
 func validate() -> bool:
@@ -48,6 +54,10 @@ func validate() -> bool:
 		push_error("ResourceDefinition: regen_rate cannot be negative")
 		return false
 	
+	if combat_regen_per_round < 0:
+		push_error("ResourceDefinition: combat_regen_per_round cannot be negative")
+		return false
+
 	if regen_delay < 0:
 		push_error("ResourceDefinition: regen_delay cannot be negative")
 		return false
@@ -66,6 +76,7 @@ func duplicate_definition() -> ResourceDefinition:
 	copy.regen_delay = regen_delay
 	copy.allow_negative = allow_negative
 	copy.is_infinite = is_infinite
+	copy.combat_regen_per_round = combat_regen_per_round
 	copy.debug_color = debug_color
 	return copy
 

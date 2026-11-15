@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ResourceDefinition" load_steps=2 format=3 uid="uid://bndilpxi6ggva"]
+[gd_resource type="Resource" script_class="ResourceDefinition" format=3 uid="uid://bndilpxi6ggva"]
 
 [ext_resource type="Script" uid="uid://baqglcfoa4xva" path="res://core/resources/resource_definition.gd" id="1"]
 
@@ -7,6 +7,7 @@ script = ExtResource("1")
 id = "stamina"
 name_key = "RESOURCE_STAMINA_NAME"
 description_key = "RESOURCE_STAMINA_DESC"
-regen_rate = 5.0
+regen_rate = 10.0
 regen_delay = 2.0
+combat_regen_per_round = 10.0
 debug_color = Color(0.2, 0.8, 0.2, 1)

@@ -1,10 +1,14 @@
 # Athelia — Especificación de IA de combate (MVP) · v1.7.1
 
-**Estado:** Fase 0 cerrada (`docs/ia_combate_fase0.md`); decisiones de diseño tomadas el 2026-11-11; pendiente de la fase IA-0 (prerrequisitos de motor) · **Motor:** Godot 4.7.2
+**Estado:** Fase 0 cerrada (`docs/ia_combate_fase0.md`); decisiones de diseño tomadas el 2026-11-11; fase IA-0 en curso: IA-0a e IA-0b cerradas (2026-11-14 y 2026-11-15) · **Motor:** Godot 4.7.2
 
 > Lo que se dice del código actual está verificado en la Fase 0. Nombres de señales, clases y campos **nuevos** siguen siendo propuestas.
 
 ## 0. Cambios
+
+### Corrección posterior a v1.7.1 (IA-0b, cerrada y validada; decisiones 1-A, 2-A y 3-A confirmadas)
+
+La fila j de v1.7.1 fijaba la regeneración por ronda en **0** sin acción `recover` disponible para el jugador. Con los datos actuales (estamina ≈30-45, ataque ligero a 10, combates de 12-22 rondas) eso deja al jugador sin aguante en 3-4 rondas: hoy no ocurre solo porque 5/s en tiempo real le da estamina casi ilimitada. **Corregido:** `combat_regen_per_round` de la estamina vale **10** (sostiene un ataque ligero por ronda) hasta que exista `recover` (IA-0c/IA-3); se afina en IA-5. Además: la conversión `base_cooldown` → rondas queda fijada (`int()`, una sola línea en `SkillInstance`), el interruptor de la regeneración continua es global en `ResourceSystem`, y quitar el reloj deja al descubierto que un actor de IA sin estamina cuelga el turno (los fallos de enemigos y companions no tienen gestor hasta IA-1): IA-0b añade una guarda mínima de coste. Detalle en `docs/ia_combate_ia0b_spec.md`.
 
 ### v1.7 → v1.7.1 (revisión de consistencia)
 
@@ -19,7 +23,7 @@
 | g | Mira **no tiene huida** en el MVP; `survival_bonus` no crea acciones | 5.4, 8 |
 | h | Moral: `big_hit_taken` con umbral porcentual, `is_leader` y modificadores configurables de `SHAKEN` | 9 |
 | i | La retirada por huida la ejecuta `GameLoop` al oír `enemy_fled`, aplazada hasta cerrar la acción en curso | 9 |
-| j | Regeneración por ronda con valor inicial **0**; cooldown con regla de conteo explícita | 3, 12 |
+| j | Regeneración por ronda (**valor corregido en IA-0b: 10 para la estamina**, ver arriba); cooldown con regla de conteo explícita | 3, 12 |
 | k | Telemetría: `request_id`, `decision_seq` nulo para el jugador, un `action_result` por intento, valores no finitos, logger creado antes de `combat_started`, `config_hash` con las skills | 11 |
 | l | Vida y estamina derivadas: sin redondeo, mínimo 1 | 4.2 |
 
@@ -75,7 +79,11 @@ Sustituir la IA actual (los enemigos atacan siempre al jugador; Mira no elige ob
 4. Sin acoplamiento: API pública de `Combat` y `EventBus`.
 5. Lista de candidatas abierta: con tablero se añaden movimiento y consideraciones de distancia.
 6. Ligero: clases pequeñas (`Resource`/`RefCounted`), no autoloads ni nodos nuevos.
-7. **Combate por turnos puro:** dentro del combate nada de las reglas depende del reloj. Sin regeneración continua: la estamina solo cambia por la acción `recover` y por una recuperación fija por ronda (`combat_regen_per_round`, **valor inicial 0**, a decidir en IA-5). Cooldowns en rondas: se fijan a N al usar la skill, bajan 1 en cada `round_started` y la skill vuelve a estar disponible al llegar a 0 (usada en la ronda R con cooldown 2, vuelve a estar disponible en la ronda R+2). Las esperas de presentación (retardos de las IA) no afectan a las reglas y se anulan en modo sin interfaz.
+7. **Combate por turnos puro:** dentro del combate nada de las reglas depende del reloj.
+   - **Estamina.** No hay regeneración continua en combate (`ResourceSystem` la suspende mientras dura `COMBAT_ACTIVE`; fuera de combate sigue en tiempo real). La estamina solo cambia por costes, por la acción `recover` (cuando exista) y por una recuperación fija por ronda: `combat_regen_per_round` en `ResourceDefinition`, **10 para la estamina** (corregido en IA-0b: con 0 y sin `recover` el jugador se queda sin aguante en 3-4 rondas; se afina en IA-5). Se aplica al empezar cada ronda **salvo la primera**, antes de `round_started`, y solo a los participantes en pie.
+   - **Cooldowns en rondas.** Se fijan a N al usar la skill, bajan 1 en cada `round_started` y la skill vuelve a estar disponible al llegar a 0 (usada en la ronda R con cooldown 2, vuelve a estar disponible en la ronda R+2). N sale de una conversión única, `int(base_cooldown)` (1,5→1 · 2,0→2 · 2,5→2 · 3,0→3), definida en un solo sitio (`SkillInstance`). Al empezar y al acabar el combate todos los cooldowns se ponen a 0.
+   - **Una sola fuente de verdad.** `SkillSystem` lleva los cooldowns y `ResourceSystem` la estamina; el HUD los lee, no los recalcula.
+   - **Presentación.** Las esperas de presentación (retardos de `GameLoop`, `EnemyAI` y `CompanionAI`) no afectan a las reglas y se anulan con un único ajuste (`GameLoop.presentation_time_scale`, 0 en modo sin interfaz).
 
 ## 4. Piezas y responsabilidades
 
@@ -256,7 +264,7 @@ Combat.next_request_id()              -> int                                    
 | `SKILL_NOT_FOUND`, `NO_DEFINITION`, `INTERNAL` | **ERROR** |
 
 - **Correlación (`request_id`):** todo productor (jugador, enemigo, Mira) pide un `request_id` a `Combat.next_request_id()` y lo incluye en la petición; `Combat` lo devuelve tal cual en `combat_action_executed`, `combat_action_completed` y `combat_action_failed`. Un reintento por `STALE` es una petición nueva con otro `request_id` y `decision_seq` igual. `GameLoop` y la IA descartan toda respuesta cuyo `request_id` no sea el de la petición en curso. `source` es `player` o `ai`. El contrato no cambia de dueño: el productor emite, `GameLoop` filtra por fase y reenvía a `Combat` (que sigue siendo la autoridad de ejecución).
-- **Quién gestiona el fallo:** la IA. Ante `STALE` pide un snapshot y candidatas nuevas y recalcula, con **máximo 2 reintentos adicionales (3 intentos)**; si se agotan, ejecuta una acción de reserva legal (defender o pasar) y registra el error. `ERROR` no se reintenta y aplica la misma acción de reserva. Si no hay ninguna, emite `combat_action_completed` con `{"skipped": true, "actor": id}` (siempre con `actor` y `request_id`).
+- **Quién gestiona el fallo:** la IA. Ante `STALE` pide un snapshot y candidatas nuevas y recalcula, con **máximo 2 reintentos adicionales (3 intentos)**; si se agotan, ejecuta una acción de reserva legal (defender o pasar) y registra el error. `ERROR` no se reintenta y aplica la misma acción de reserva. Si no hay ninguna, emite `combat_action_completed` con `{"skipped": true, "actor": id}` (siempre con `actor` y `request_id`). *Hasta IA-1 esta gestión no existe:* `EnemyAI` y `CompanionAI` solo evitan pedir lo que no pueden pagar (guarda de IA-0b) y pasan el turno.
 - `GameLoop` **no** avanza el turno de un actor de IA ante `combat_action_failed`; avanza con `combat_action_completed`. Para el jugador, `PlayerCombatController` valida antes de pedir (`Skills.can_use`) y, si aun así falla, `GameLoop` devuelve la fase a `PLAYER_ACTION_SELECT`.
 - Etiquetas: conjunto cerrado de constantes en un solo sitio.
 - **Información de las estimaciones (D1):** `Combat` calcula con las reglas existentes, pero del objetivo solo usa información **observable**: equipo, condiciones visibles (lista en datos), estado aparente. Del propio actor puede usar sus valores exactos. La resolución real sigue usando todos los valores reales.
@@ -385,7 +393,7 @@ Señales nuevas en `EventBus`: `ai_decision_made`, `enemy_morale_changed(enemy_i
 - **Dos garantías:**
   1. Misma entrada + mismo snapshot + mismo estado del RNG de IA ⇒ misma decisión de IA.
   2. Mismo estado inicial completo + mismas semillas ⇒ mismo desarrollo del combate (modo sin interfaz y análisis). No se garantiza tras un guardado, porque **no se guarda a mitad de combate**.
-- La iniciativa tiene desempate determinista (por id) para que el orden entre enemigos iguales sea reproducible.
+- La iniciativa tiene desempate determinista (por id: a igual valor, id ascendente) para que el orden entre enemigos iguales sea reproducible.
 - **Guardado:** ningún dato de IA entra en la partida. La única excepción es `default_order` de cada companion, que vive en `Party`.
 - **Log de decisiones**, con desglose por término:
 
@@ -411,7 +419,7 @@ Desglose atacar_mira: daño +8.0 | vulnerabilidad +5.0 | amenaza +3.0 | riesgo �
 - **Un solo logger:** `CombatTelemetry` (`RefCounted`). **Lo crea `CombatProductionScene` (uno por combate)**, que se libera en `combat_ended`: `combat_end` se escribe antes del `queue_free()`. Casi todos los eventos salen de `EventBus` (`combat_started`, `round_started`, `combat_action_executed`, `combat_action_failed`, `character_damaged`, `character_died`, `buff_applied/expired`, `enemy_fled`, `reinforcement_spawned`, `combat_result_ready`); solo `decision` exige un emisor nuevo en `CombatAI`.
 - **Orden de creación:** el logger se crea y se conecta a `EventBus` **antes** de emitir `combat_started`, y se cierra también si el combate termina por otra ruta (`end_combat` directo, Game Over, salida del árbol de escena).
 - **Robustez:** `event_seq` lo incrementa solo el logger. Un fallo de escritura desactiva la telemetría con un aviso y nunca interrumpe el combate. Los valores no finitos (`NAN`, `INF`) se sustituyen por `null` antes de serializar.
-- **Modo sin interfaz:** los retardos de presentación de `EnemyAI`, `CompanionAI` y `GameLoop` se anulan con un ajuste.
+- **Modo sin interfaz:** los retardos de presentación de `EnemyAI`, `CompanionAI` y `GameLoop` se anulan con un único ajuste (`GameLoop.presentation_time_scale = 0`); cada espera pasa a durar un frame para conservar el orden de las señales.
 
 ### 11.2 Trazabilidad de versiones
 
@@ -501,8 +509,10 @@ Registrar los datos de entrada además de la contribución permite distinguir si
 | Umbrales de moral inválidos | Perfil rechazado |
 | `event_seq` | Sin huecos |
 | Git desconocido | `null` |
-| **Nuevas (v1.7):** regeneración pausada en combate | Con `combat_regen_per_round = 0` la estamina solo cambia por `recover` |
+| **Nuevas (v1.7):** regeneración continua suspendida en combate | La estamina no cambia con el tiempo; con `combat_regen_per_round = 0` solo cambia por costes y `recover`; con un valor X (corregido en IA-0b: 10 para la estamina) sube exactamente X al empezar cada ronda **salvo la primera**, y solo a los participantes en pie |
+| Regeneración continua tras el combate | Se reanuda al terminar por victoria, derrota y huida |
 | Cooldown 2 | Usada en la ronda R, no disponible en R+1, disponible en R+2 |
+| Conversión de cooldown a rondas | `1,5→1 · 2,0→2 · 2,5→2 · 3,0→3`; un cooldown de 1 nunca bloquea |
 | Respuesta con `request_id` ajeno | Se descarta |
 | Reintento `STALE` | Nuevo `request_id`, mismo `decision_seq` |
 | `protect` con el protagonista caído | Usa el último atacante del protagonista; sin bonus si ya no es válido |
@@ -511,7 +521,8 @@ Registrar los datos de entrada además de la contribución permite distinguir si
 | Mira con `survival_bonus` | Nunca elige huir (no existe la candidata) |
 | `big_hit_taken` y muerte | Solo `ally_died` para los demás; sin `big_hit_taken` en el que muere |
 | NaN en una estimación | Se registra como `null`; el JSON es válido |
-| Cooldown en rondas | Se descuenta una vez por ronda; se reinicia al empezar el combate |
+| Cooldown en rondas | Se descuenta una vez por ronda; se reinicia al empezar y al acabar el combate |
+| Actor de IA sin recursos para su acción | Pasa el turno con `actor`; el turno no se cuelga |
 | *Last stand* | El combate continúa con Mira; `defeat` si ella cae; `player_rescued` al ganar |
 | Huida individual | El combatiente sale de `turn_order`; `FLED`; la victoria se reevalúa |
 | Iniciativa | Mismo orden entre enemigos iguales en cada ejecución |
@@ -547,11 +558,11 @@ La Fase 0 está en `docs/ia_combate_fase0.md`. Las decisiones que dejó abiertas
 | Fase | Contenido | Validación |
 |---|---|---|
 | **IA-0** | Prerrequisitos de motor (ver `docs/ia_combate_ia0_plan.md`): robustez de acciones y estado de combate, combate por turnos, estimaciones de `Combat`, datos | Los combates actuales se comportan igual o mejor; los defectos del plan no se reproducen |
-| **IA-1** | Contratos: `BehaviorProfile` (con validación), `CombatAIState`, snapshot congelado, candidatas, resultado, registry; primera decisión de objetivo; `CombatTelemetry` mínimo (`combat_start`, `decision`, `combat_end`) | El Output muestra el log y aparece un `.jsonl` con `event_seq` sin huecos; enemigos distintos reparten ataques de forma distinta |
+| **IA-1** | Contratos: `BehaviorProfile` (con validación), `CombatAIState`, snapshot congelado, candidatas, resultado, registry; primera decisión de objetivo; gestión de fallos de acción de IA; `CombatTelemetry` mínimo (`combat_start`, `decision`, `combat_end`) | El Output muestra el log y aparece un `.jsonl` con `event_seq` sin huecos; enemigos distintos reparten ataques de forma distinta |
 | **IA-2** | Evaluador, normalizaciones, selección ponderada, RNG propio, desglose en el log; skills de enemigo (ataque fuerte, defender, recuperar) | Misma entrada y RNG = misma decisión; variación sin absurdos |
 | **IA-3** | Mira con órdenes como bonificaciones, selector de UI, pantalla Party y migración de la estrategia a `default_order`, skills de Mira | La orden cambia sus decisiones; la supervivencia sigue disponible |
 | **IA-4** | Moral individual, transiciones, huida (`FLEE`), `can_flee`, contrato final (`combat_result_ready`); **se elimina la moral de grupo** | Un bandido huye al caer sus compañeros; la narrativa recibe el estado de todos |
-| **IA-5** | Ajuste con partidas reales, escalas, umbral de huida del jugador, HP y estamina, pruebas automatizadas | Diferencias perceptibles entre los 4 perfiles |
+| **IA-5** | Ajuste con partidas reales, escalas, umbral de huida del jugador, HP y estamina (incluido `combat_regen_per_round`), pruebas automatizadas | Diferencias perceptibles entre los 4 perfiles |
 
 Cada fase se cierra con prueba manual (qué debe verse en Output y en Depurador → Errores) e informe en `docs/`.
 
@@ -575,3 +586,4 @@ Cada fase se cierra con prueba manual (qué debe verse en Output y en Depurador 
 - Varios aliados: órdenes por companion (el código ya admite tres) o globales.
 - Objetivo aliado (`SINGLE_ALLY`) y la orden `protect` completa.
 - Conducta alternativa «desesperada» para `BROKEN` sin huida.
+- Valor definitivo de `combat_regen_per_round` y conversión de cooldown (`int()` frente a campo propio `cooldown_rounds`): IA-5.

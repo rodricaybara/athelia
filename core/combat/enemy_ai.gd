@@ -19,10 +19,14 @@ func _on_enemy_turn_started(acting_enemy_id: String) -> void:
 		return
 	
 	print("[EnemyAI] %s deciding..." % enemy_id)
-	await get_tree().create_timer(decision_delay).timeout
+	await get_tree().create_timer(GameLoop.presentation_delay(decision_delay)).timeout
 	_decide_and_act()
 
 func _decide_and_act() -> void:
+	if not _can_afford(attack_skill_id):
+		print("[EnemyAI] %s: sin recursos para %s — pasa el turno" % [enemy_id, attack_skill_id])
+		EventBus.emit_signal("combat_action_completed", {"skipped": true, "actor": enemy_id})
+		return
 	var target := _pick_target()
 	if target.is_empty():
 		print("[EnemyAI] %s: no valid target — skipping" % enemy_id)
@@ -37,6 +41,20 @@ func _decide_and_act() -> void:
 	print("[EnemyAI] %s attacks %s" % [enemy_id, target])
 	action_data["request_id"] = Combat.next_request_id()
 	EventBus.emit_signal("combat_action_requested", action_data)
+
+
+## IA-0b — Sin regeneración continua, un enemigo puede quedarse sin estamina. Un
+## combat_action_failed de un enemigo no tiene gestor (hasta IA-1) y el turno se
+## quedaría esperando: aquí se evita pidiendo solo lo que se puede pagar. Sin
+## definición o sin coste se deja decidir a Combat, como hasta ahora.
+func _can_afford(skill_id: String) -> bool:
+	var def: SkillDefinition = Skills.get_skill_definition(skill_id)
+	if def == null:
+		return true
+	var bundle = def.get_cost_bundle()
+	if bundle == null or bundle.is_empty():
+		return true
+	return Resources.can_pay(enemy_id, bundle)
 
 
 func _pick_target() -> String:

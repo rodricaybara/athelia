@@ -1,6 +1,6 @@
 # Athelia — Estado actual (hito de rediseño de interfaces cerrado)
  
-*Actualizado: 2026-11-14, tras el cierre de IA-0a (IA de combate).*
+*Actualizado: 2026-11-15, tras cerrar y validar IA-0b (IA de combate: combate puramente por turnos).*
 Contrato de pantalla, tokens, resolución y antipatrones: ver `athelia_ui_architecture.md`. Historia y diagnósticos de los spikes cerrados: `athelia_historial_spikes.md` y `docs/spike_N.md`. Resumen del hito: `docs/cierre_hito_rediseno_interfaces.md`.
  
 ## Spikes del hito
@@ -32,9 +32,9 @@ Spec vigente: `docs/ia_combate_spec_v1_7_1.md`. Prerrequisitos de motor: `docs/i
 |---|---|---|
 | Fase 0 | Código real y 7 decisiones de diseño | cerrada (2026-11-11) |
 | IA-0a | Robustez de acciones y estado de combate | **cerrada** (2026-11-14), `docs/ia_combate_ia0a_informe.md` |
-| IA-0b | Combate por turnos: regeneración y cooldowns por ronda, HUD desde `ResourceSystem`, iniciativa determinista, retardos anulables | siguiente |
+| IA-0b | Combate por turnos: regeneración y cooldowns por ronda, HUD desde `ResourceSystem`, iniciativa determinista, retardos anulables | **cerrada** (2026-11-15), validada en partida (Output y pruebas manuales) y decisiones 1-A, 2-A, 3-A confirmadas: `docs/ia_combate_ia0b_informe.md` |
 | IA-0c | Estimaciones y candidatas de `Combat`, RNG inyectable, skills `SELF`/`RESTORE`/`FLEE` | pendiente |
-| IA-0d | Datos: PV derivados, skills de enemigos y de Mira, `behavior_profile_id` (decidir antes la constitución de los enemigos: números declarados o los jugados) | pendiente |
+| IA-0d | Datos: PV derivados, skills de enemigos y de Mira, `behavior_profile_id` (decidir antes la constitución de los enemigos: números declarados o los jugados; comprobar el coste de `basic_attack` frente a la estamina del enemigo: en las partidas de IA-0b los enemigos nunca recuperan estamina porque no la gastan) | pendiente |
 | IA-1 a IA-5 | Contratos, evaluador, órdenes de Mira, moral y huida (incluye `_evaluate_outcome()` y `combat_result_ready`), ajuste | pendiente |
 
 ## Alcance de lo pendiente
@@ -46,8 +46,9 @@ Spec vigente: `docs/ia_combate_spec_v1_7_1.md`. Prerrequisitos de motor: `docs/i
 ## Pendientes sin spike asignado
  
 **Motor**
-- IA de combate (IA-0a): `DISARMED` del jugador sin probar (hoy consume el turno); `Combat.get_last_attacker()` solo comprobado vacío al terminar; `Skills.can_use` no comprueba `is_unlocked`; el jugador no tiene registrada `skill.attack.stunning_blow` aunque la tecla 3 apunta a ella (da `SKILL_NOT_FOUND`); sin `INVALID_TARGET` (un enemigo que apunte a alguien a 0 PV completa su turno sin daño); los fallos de acción de enemigos y companions no tienen gestor (lo resuelve la IA desde IA-1); el HUD (`combat_hud.gd`) emite `combat_action_requested` sin pasar por el controlador (solo cuenta la recuperación de `GameLoop`).
-- Equilibrio de combate (IA-5): `armor_rating = 12` del jugador y de Mira reduce todo daño enemigo (4,7–6,6) al mínimo de 1,0; los combates duran 12–22 rondas y los enemigos no amenazan. Condiciona cualquier estimación de amenaza.
+- IA de combate (IA-0a): `DISARMED` del jugador sin probar (hoy consume el turno); `Combat.get_last_attacker()` solo comprobado vacío al terminar; `Skills.can_use` no comprueba `is_unlocked`; el jugador no tiene registrada `skill.attack.stunning_blow` aunque la tecla 3 apunta a ella (da `SKILL_NOT_FOUND`); sin `INVALID_TARGET` (un enemigo que apunte a alguien a 0 PV completa su turno sin daño); los fallos de acción de enemigos y companions no tienen gestor (lo resuelve la IA desde IA-1; mientras tanto IA-0b hace que `EnemyAI` y `CompanionAI` no pidan lo que no pueden pagar); el HUD (`combat_hud.gd`) emite `combat_action_requested` sin pasar por el controlador (solo cuenta la recuperación de `GameLoop`).
+- IA de combate (IA-0b): `EventBus.skill_used` no tiene emisor en `SkillSystem` (emite una señal local del mismo nombre) y el HUD ya no depende de ella; queda por confirmar con la búsqueda 1 de la spec si lo emite otro sitio (si no, la señal está huérfana) y los oyentes de `cooldown_started`/`cooldown_finished`. Ya comprobado: el combate pasa por `Skills.request_use` (`combat_system.gd:_on_execute_combat_action`) y los buffs de sorpresa sobreviven a `combat_started`.
+- Equilibrio de combate (IA-5): `armor_rating = 12` del jugador y de Mira reduce todo daño enemigo (4,7–6,6) al mínimo de 1,0; los combates duran 12–22 rondas y los enemigos no amenazan. Condiciona cualquier estimación de amenaza. Con IA-0b además: valor de `combat_regen_per_round` (10 por defecto) y conversión de cooldown (`int()`); el umbral de huida crece con los enemigos vivos (60 contra 6, 40 contra 3, con ≈ 46 de estamina máxima), así que huir de un grupo grande es casi inalcanzable.
 - Combate/Loadout (replantear con el combate): `skill.combat.defend`/`flee` sin `.tres`; ids hardcodeados en el controlador (`combat_defense` → defend, `combat_scape` → flee, `SPECIAL_ACTIONS`); sin skill COMBAT con tag `escape`; el HUD muestra vacíos los slots de Defensa y Huida con el loadout actual (la tarjeta de Huida del Loadout dice «Acción de combate»); preselección de Defender/Esquiva/Huida; el combate solo lee el loadout del jugador (`PLAYER_ID`); `SLOT_KEYBIND_LABEL` vive en `CombatHudViewModel` (moverlo a un sitio compartido).
 - Una skill aprendida con requisitos no cumplidos se puede asignar y sale atenuada en el HUD; la lista del Loadout no muestra disponibilidad.
 - `fireball` (tags `magic`, `ranged`) no es asignable a ningún slot.
@@ -106,6 +107,7 @@ Spec vigente: `docs/ia_combate_spec_v1_7_1.md`. Prerrequisitos de motor: `docs/i
 - Decisión cerrada: F9/quickload en sesión activa queda no operativo; no se vuelve a tratar.
 ## Sin validar en partida (no es trabajo de código)
  
+- **IA-0b:** solo queda que un enemigo o Mira sin estamina pasen el turno sin colgarlo (no se ejercita con los datos actuales; revisar en IA-0d).
 - Spike 16 (parte B): puntos 4-7 del plan de validación, tooltips `NO_BUDGET`/`NO_SLOTS`, tienda vacía, camino `LOAN_ITEM`.
 - Spike 17/18: mochila con más de 20 ítems con redimensionado en caliente.
 - Saludo del sheriff de 3 líneas con 6 opciones a 648 de alto (recorte previsto de ~4 px, no observado).
