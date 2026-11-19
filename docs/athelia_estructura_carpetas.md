@@ -15,7 +15,7 @@ athelia/
 │   │
 │   ├── characters/
 │   │   ├── character_system.gd      # [Autoload: Characters]
-│   │   ├── character_definition.gd  # Resource estático (+ token_color, type_icon)
+│   │   ├── character_definition.gd  # Resource estático (+ token_color, type_icon, behavior_profile_id, threat_hint)
 │   │   ├── character_state.gd       # Resource runtime (character_name solo se rellena para el jugador)
 │   │   ├── loadout_state.gd         # estado de loadout (campo de CharacterState)
 │   │   ├── attribute_resolver.gd    # atributos derivados
@@ -26,10 +26,19 @@ athelia/
 │   │   ├── combat_loot_spawner.gd   # [Autoload: CombatLootSpawner]
 │   │   ├── enemy_world_link.gd      # [Autoload: EnemyWorldLink] sin casos de uso reales
 │   │   ├── combat_encounter_definition.gd  # moral, refuerzos, sorpresa, background_path
-│   │   ├── defense_module.gd
+│   │   ├── defense_module.gd        # DefenseModule (class_name activo desde IA-0d; el respaldo _bak se borró)
 │   │   ├── escape_module.gd
-│   │   ├── skill_roller.gd          # tiradas D100 de 5 grados
-│   │   └── enemy_ai.gd              # IA de enemigos (extends Node)
+│   │   ├── skill_roller.gd          # tiradas D100 de 5 grados; RNG estático inyectable y probabilidades por grado (IA-0c)
+│   │   ├── combat_tags.gd           # CombatTags: constantes de etiquetas, estados de PV, amenaza (IA-0c) y bando SIDE_ALLY/SIDE_ENEMY (IA-1a)
+│   │   └── enemy_ai.gd              # IA de enemigos (extends Node; se carga por ruta, sin class_name activo)
+│   │
+│   ├── ai/
+│   │   ├── ai_scales.gd             # AIScales: lee data/ai/ai_scales.json (IA-0c)
+│   │   ├── behavior_profile.gd      # BehaviorProfile (Resource): perfil de comportamiento + validate() (IA-1a)
+│   │   ├── behavior_profile_registry.gd  # BehaviorProfileRegistry: carga recursiva, caché y perfil seguro (IA-1a)
+│   │   ├── combat_ai_state.gd       # CombatAIState: perfil y campos reservados por combatiente (IA-1a)
+│   │   ├── combat_ai_context.gd     # CombatAIContext: RNG de IA y estados de un combate (IA-1a)
+│   │   └── combat_snapshot.gd       # CombatSnapshot: instantánea congelada en profundidad (IA-1a)
 │   │
 │   ├── companions/
 │   │   ├── party_manager.gd         # [Autoload: Party]
@@ -132,7 +141,7 @@ athelia/
 │   │   ├── icons/                   # iconos de tipo de enemigos genéricos (se COPIA el fichero, no se apunta a carpetas de aventura)
 │   │   ├── companions/
 │   │   │   ├── companion_base.tres
-│   │   │   └── companion_mira.tres
+│   │   │   └── companion_mira.tres  # kit de 8 skills (incluye skill.companion.defend/recover, sin starting_skill_values)
 │   │   └── portrait/                # retratos PNG
 │   │       └── telmori/             # por aventura (portrait_folder): <id>.png + <id>_<mood>.png
 │   │
@@ -181,7 +190,9 @@ athelia/
 │   │
 │   ├── resources/                   # gold.tres, health.tres, stamina.tres
 │   ├── shops/                       # blacksmith_01.tres, blacksmith_telmori.tres
-│   ├── skills/                      # combat/ (melee, ranged), enemy/, exploration/ (incl. search, track, stealth, tanning)
+│   ├── ai/ai_scales.json            # escalas de IA de combate: umbrales, effect_value, reglas de etiquetas (provisionales hasta IA-5)
+│   ├── ai/profiles/                 # perfiles de comportamiento .tres (el id = nombre del fichero): beast, bandit, soldier, coward (IA-1a; valores provisionales)
+│   ├── skills/                      # combat/ (melee, ranged), enemy/ (basic_attack, heavy_attack, defend, recover, flee y las dos de Mira: companion_defend, companion_recover), exploration/ (incl. search, track, stealth, tanning)
 │   └── world_objects/               # chest, loot tables
 │
 ├── debug/                           # herramientas de debug (no activas en producción)
@@ -215,7 +226,7 @@ athelia/
 │
 ├── scenes/
 │   ├── combat/
-│   │   ├── combat_production_scene.gd / .tscn  # producción: sin UI (IA + PlayerCombatController); es SCENE_COMBAT
+│   │   ├── combat_production_scene.gd / .tscn  # producción: sin UI (IA + PlayerCombatController); es SCENE_COMBAT; _get_enemy_kit() lee el kit de la definición; crea y libera el CombatAIContext y registra un CombatAIState por IA (IA-1a)
 │   │   ├── combat_test.tscn, combat_test_scene.gd  # escena de test independiente
 │   │   └── enemy_combat_node.gd / .tscn         # sin uso en producción; solo combat_test
 │   ├── companions/                  # companion_base.tscn, companion_mira.tscn
@@ -241,7 +252,9 @@ athelia/
 ├── test/                            # [test] unitarios e integración
 │   ├── test_character_creation_viewmodel.gd, test_narrative_scene_viewmodel.gd,
 │   │   test_group_morale.gd, test_character_persistence.gd, test_spike6_investigacion.gd,
-│   │   test_tokens_alias.gd, …
+│   │   test_tokens_alias.gd, ia0c_test.gd / .tscn (IA-0c: estimaciones, candidatas, SELF/FLEE),
+│   │   ia0d_test.gd / .tscn (IA-0d: máximos, kits, campos, skills nuevas, dodge, multi-objetivo por bando, DefenseModule),
+│   ia1a_test.gd / .tscn (IA-1a: perfiles, registry, estado y contexto de IA, RNG, snapshot congelado, contrato sin privados), …
 │   └── test_narrative_system.gd     # eventos narrativos, NO el motor de escenas
 │
 └── ui/
@@ -312,4 +325,4 @@ athelia/
 - **Documentos de `docs/`:** un informe de cierre por spike (`docs/spike_N_*.md`) más referencias (`characters.md`, `referencia_buff_types.md`, `referencia_skill_definition.md`) y especificaciones. Los ficheros del tipo `spike_N_actualizaciones_docs.md` son bloques de inserción de trabajo, no documentación vigente.
 - **Convención de nombres de escena:** `<tipo>_<identificador_semántico>.tscn`, nunca numeración secuencial. Scripts compartidos en la raíz de `scenes/<tipo>/`; cada zona en su subcarpeta.
 - **Datos por aventura:** personajes e ítems propios van en subcarpeta de la aventura; ítems de arma con ranura se agrupan por tipo en `data/items/weapons/<slot>/`. Localización en un CSV propio por aventura.
-- **Ficheros `*_bak.*`** son backups; `.gd.uid` es metadato de Godot. `.tres` son Resources de Godot; `.json` son datos legibles de narrativa, diálogos y escenas.
+- **Ficheros `*_bak.*`** son backups; `.gd.uid` es metadato de Godot. `.tres` son Resources de Godot; `.json` son datos legibles de narrativa, diálogos y escenas. Los cinco respaldos de combate se borraron en IA-0d; queda `core/economy/economy_system_bak.gd`.

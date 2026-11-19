@@ -167,6 +167,11 @@ signal combat_loot_collected(entity_id: String, instance_id: String)
 ## se emite; la escena solo necesita reaccionar visualmente).
 signal enemy_group_fled(fled_enemy_ids: Array[String])
 
+## IA-0c — un enemigo ha huido del combate por su cuenta (efecto FLEE de una skill SELF).
+## Lo emite Combat al marcarlo FLED; GameLoop lo retira de participants/turn_order al
+## cerrar la acción en curso y reevalúa la victoria. Un id por señal.
+signal enemy_fled(enemy_id: String)
+
 ## Spike 2, punto 6 — refuerzos cronometrados: emitido cuando se cumple
 ## CombatEncounterDefinition.reinforcement_delay_rounds y GameLoopSystem
 ## añade un refuerzo a participants/turn_order. La escena de combate

@@ -85,6 +85,14 @@ extends Resource
 ## Vacio = sin loot. Referencia a LootTableDefinition en WorldObjectRegistry.
 @export var loot_table_id: String = ""
 
+## IA-0d — Perfil de comportamiento (id de un perfil de data/ai). Vacío = sin perfil.
+## Solo se almacena; la IA lo resolverá en IA-1.
+@export var behavior_profile_id: StringName = &""
+
+## IA-0d — Pista de amenaza para la IA: "" (derivada del daño), "low", "medium" o "high".
+## Combat.estimate_threat() ya la lee con definition.get("threat_hint").
+@export var threat_hint: String = ""
+
 ## Slots de equipamiento disponibles
 @export var equipment_slots: Array[String] = [
 	"head",
@@ -133,6 +141,10 @@ func validate() -> bool:
 			])
 			return false
 	
+	# IA-0d — threat_hint: aviso suave, no invalida la definicion
+	if not threat_hint in ["", "low", "medium", "high"]:
+		push_warning("[CharacterDefinition] '%s': threat_hint '%s' no valido (usa low/medium/high)" % [id, threat_hint])
+
 	# Inventario debe tener al menos 1 slot
 	if inventory_slots < 1:
 		push_error("[CharacterDefinition] inventory_slots must be >= 1 (got %d)" % inventory_slots)
@@ -179,6 +191,8 @@ func duplicate_definition() -> CharacterDefinition:
 	copy.starting_skill_values = starting_skill_values.duplicate()
 	copy.inventory_slots = inventory_slots
 	copy.loot_table_id = loot_table_id
+	copy.behavior_profile_id = behavior_profile_id
+	copy.threat_hint = threat_hint
 	copy.equipment_slots = equipment_slots.duplicate()
 	return copy
 

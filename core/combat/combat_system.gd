@@ -13,6 +13,9 @@ extends Node
 ## - Gestionar buffs activos de combate
 ## - Reproducir animaciones y VFX
 ## - Emitir resultados de acciones
+## - Estimar daño y probabilidades sin efectos laterales (IA-0c)
+## - Ofrecer a la IA candidatas, amenaza y condiciones visibles, solo lectura (IA-0c)
+## - Resolver skills SELF de datos: BUFF, RESTORE y FLEE (IA-0c)
 ##
 ## NO hace (movido a GameLoopSystem):
 ## - Controlar turnos
@@ -43,6 +46,18 @@ const DamageNumberScene = preload("res://ui/damage_number.tscn")
 ## ID del jugador (hardcoded para MVP)
 const PLAYER_ID: String = "player"
 
+## IA-0c — Grados con acierto (los que hacen daño), de menor a mayor.
+const HIT_GRADES: Array = [
+	SkillRoller.RollResult.SUCCESS,
+	SkillRoller.RollResult.SPECIAL,
+	SkillRoller.RollResult.CRITICAL,
+]
+
+## IA-0c — Traza de validación: antes de cada tirada de ataque imprime la estimación
+## de esa misma acción (acierto, daño si acierta, daño esperado). Solo lectura: no
+## cambia el combate. Cerrada la Tanda 2 queda a false.
+const DEBUG_ESTIMATES: bool = false
+
 ## Buffs activos por entidad
 ## Estructura: { entity_id: [{ buff_type, expires_on, turns_left, uses_left }, ...] }
 ## expires_on: "turn" (expira inicio turno jugador) | "use" (expira al activarse)
@@ -57,6 +72,15 @@ var _last_attacker: Dictionary = {}
 
 ## Módulo de huida (escape determinista)
 var _escape_module: EscapeModule = null
+
+## IA-0c — Enemigos que han huido en este combate (efecto FLEE): { enemy_id: true }.
+## Combat solo MARCA; quien retira de participants/turn_order es GameLoop al oír
+## EventBus.enemy_fled. Se vacía al empezar y al acabar cada combate.
+var _fled: Dictionary = {}
+
+## IA-0c — Avisos ya impresos en este combate: { clave: true }. Evita repetir la misma
+## línea en cada consulta de candidatas.
+var _noted: Dictionary = {}
 
 ## Nodo padre para damage numbers (configurado externamente)
 @export var damage_numbers_parent: Control
@@ -150,6 +174,8 @@ func _on_combat_ended(_result: String) -> void:
 	_last_attacker.clear()
 	_pending_skill_context.clear()
 	_current_request_id = -1
+	_fled.clear()
+	_noted.clear()
 	if _defense_module:
 		_defense_module.reset()
 	if _escape_module:
@@ -186,34 +212,43 @@ func _on_execute_combat_action(action_data: Dictionary) -> void:
 		return
 
 	# --- DISARMED: bloquea skills con tags de arma ---
-	if has_buff(actor, "disarmed") and skill_def:
-		var weapon_tags: Array[String] = ["attack", "melee", "ranged"]
-		var is_weapon_skill: bool = false
-		for tag in skill_def.tags:
-			if tag in weapon_tags:
-				is_weapon_skill = true
-				break
-		if is_weapon_skill:
-			print("[CombatSystem] 🚫 %s is disarmed — cannot use %s" % [actor, skill_id])
-			EventBus.emit_signal("character_disarmed", actor, skill_id)
-			EventBus.emit_signal("combat_action_failed", actor, "DISARMED", _current_request_id)
-			EventBus.emit_signal("combat_action_completed", {
-				"request_id": _current_request_id,
+	if _blocked_by_disarm(actor, skill_def):
+		print("[CombatSystem] 🚫 %s is disarmed — cannot use %s" % [actor, skill_id])
+		EventBus.emit_signal("character_disarmed", actor, skill_id)
+		EventBus.emit_signal("combat_action_failed", actor, "DISARMED", _current_request_id)
+		EventBus.emit_signal("combat_action_completed", {
+			"request_id": _current_request_id,
+			"success": false,
+			"disarmed": true,
+			"actor": actor
+		})
+		if actor == PLAYER_ID:
+			EventBus.emit_signal("player_action_completed", {
 				"success": false,
 				"disarmed": true,
 				"actor": actor
 			})
-			if actor == PLAYER_ID:
-				EventBus.emit_signal("player_action_completed", {
-					"success": false,
-					"disarmed": true,
-					"actor": actor
-				})
-			return
+		return
 	
 	if target.is_empty() and not is_self_target:
 		push_error("[CombatSystem] No target specified in action_data for skill: %s" % skill_id)
 		EventBus.emit_signal("combat_action_failed", actor, "NO_TARGET", _current_request_id)
+		return
+
+	# IA-0c — INVALID_TARGET (STALE): el objetivo ya no es legal (muerto, huido o fuera del
+	# combate). Se valida ANTES de cobrar coste y cooldown. Un actor que no es el jugador
+	# cierra su turno sin daño con el mismo patrón que DISARMED (la IA aún no gestiona
+	# fallos, IA-1); el jugador recibe solo el fallo y GameLoop le devuelve la selección.
+	if not is_self_target and not _is_valid_target(target):
+		print("[CombatSystem] ⛔ %s → %s: objetivo no válido (INVALID_TARGET)" % [actor, target])
+		EventBus.emit_signal("combat_action_failed", actor, "INVALID_TARGET", _current_request_id)
+		if actor != PLAYER_ID:
+			EventBus.emit_signal("combat_action_completed", {
+				"request_id": _current_request_id,
+				"success": false,
+				"skipped": true,
+				"actor": actor
+			})
 		return
 	
 	print("[CombatSystem] Executing action: %s uses %s on %s" % [actor, skill_id, target if not is_self_target else "SELF"])
@@ -311,6 +346,13 @@ func _on_skill_used(entity_id: String, skill_id: String):
 		EventBus.emit_signal("player_action_completed", {"success": true, "action": "dodge", "actor": entity_id})
 		return
 	
+	# --- SKILLS SELF DE DATOS (IA-0c): sin tirada; efectos BUFF, RESTORE y FLEE ---
+	# Solo si la skill viene de una acción de combate en curso (contexto pendiente de esta
+	# misma skill): una skill SELF fuera de combate sigue el camino de siempre.
+	if skill_def.target_type == "SELF" and _pending_skill_context.get("skill_id", "") == skill_id:
+		_resolve_self_skill(entity_id, skill_def)
+		return
+
 	# --- HABILIDADES DE ATAQUE: requieren target ---
 	if target_id.is_empty():
 		push_error("[CombatSystem] No target in pending context for skill: %s" % skill_id)
@@ -319,24 +361,24 @@ func _on_skill_used(entity_id: String, skill_id: String):
 	
 	print("[CombatSystem] Resolving skill: %s → %s" % [entity_id, target_id])
 	
-	# Verificar guaranteed_hit antes de la tirada
-	var skill_value: int = Characters.get_skill_value(entity_id, skill_id)
-	var is_guaranteed: bool = has_buff(entity_id, "guaranteed_hit")
+	# IA-0c — los parámetros de la tirada salen de _get_roll_params(), la MISMA función
+	# que usan las estimaciones. Aquí solo se consumen los buffs y se imprime.
+	var roll_params: Dictionary = _get_roll_params(entity_id, skill_id)
+	var skill_value: int = roll_params.skill_value
+	var is_guaranteed: bool = roll_params.guaranteed
+	var crit_bonus: int = roll_params.crit_bonus
 
-	# precision_up: bonus temporal a la tirada
-	if has_buff(entity_id, "precision_up"):
-		var bonus: float = _get_buff_value(entity_id, "precision_up")
-		skill_value += int(bonus)
+	if DEBUG_ESTIMATES:
+		_print_estimate(entity_id, target_id, skill_id)
+
+	# precision_up: bonus temporal a la tirada (ya sumado en roll_params.skill_value)
+	if roll_params.has_precision:
 		consume_buff(entity_id, "precision_up")
 		print("[CombatSystem] 🎯 precision_up: skill_value → %d" % skill_value)
-		
-	# critical_bonus: amplía el umbral de crítico (no se consume, dura X turnos)
-	# Spike 2: el umbral ya no es la constante fija "2" — se lee de SkillRoller,
-	# que ahora lo calcula de forma dinámica (skill_value / 20 + bonus). Se pide
-	# aquí en vez de hardcodear el valor para no duplicar la fórmula.
-	var crit_bonus: int = 0
-	if has_buff(entity_id, "critical_bonus"):
-		crit_bonus = int(_get_buff_value(entity_id, "critical_bonus"))
+
+	# critical_bonus: amplía el umbral de crítico (no se consume, dura X turnos).
+	# El umbral lo calcula SkillRoller (skill_value / 20 + bonus); no se duplica aquí.
+	if roll_params.has_crit_bonus:
 		print("[CombatSystem] 🎯 critical_bonus activo: umbral crítico → %d" % SkillRoller.get_critical_threshold(skill_value, crit_bonus))
 
 	var roll_result = SkillRoller.roll_skill(skill_value, false, crit_bonus)
@@ -485,24 +527,12 @@ func _process_skill_effects(
 	for effect in skill_def.effects:
 		match effect.get("type", "").to_upper():
 			"DAMAGE":
-				var base_damage_attr: String = effect.get("base_damage_attribute", "base_damage")
-				var damage_modifier: float = effect.get("value", 1.0)
-
-				var resolved_damage: float = AttributeResolver.resolve(entity_id, base_damage_attr, {})
-				damage = resolved_damage * damage_modifier
-
-				if is_critical:
-					var crit_multiplier: float = effect.get("critical_multiplier", 2.0)
-					damage *= crit_multiplier
-				elif is_special:
-					# Spike 2: bonus de daño para el grado SPECIAL, menor que el
-					# de crítico. Configurable por skill vía "special_multiplier"
-					# en el effect, mismo patrón que "critical_multiplier".
-					var special_multiplier: float = effect.get("special_multiplier", 1.2)
-					damage *= special_multiplier
+				# IA-0c — fórmula única: _effect_damage() (la usan también las estimaciones)
+				var parts: Dictionary = _effect_damage(entity_id, effect, _grade_from_flags(is_critical, is_special))
+				damage = parts.damage
 
 				print("[CombatSystem] Damage calculated: %.1f (base: %.1f, modifier: %.2f, crit: %s, special: %s)" % [
-					damage, resolved_damage, damage_modifier, is_critical, is_special
+					damage, parts.base, parts.modifier, is_critical, is_special
 				])
 
 			"BUFF":
@@ -512,15 +542,9 @@ func _process_skill_effects(
 				if buff_target_field == "target" and not target_id.is_empty():
 					buff_recipient = target_id
 
-				var duration: int = effect.get("duration", 1)
-				var buff_data: Dictionary = {
-					"buff_type":  effect.get("buff_type", "unknown"),
-					"value":      effect.get("value", 0.0),
-					"expires_on": "use" if duration == 0 else "turn",
-					"turns_left": duration if duration > 0 else 0,
-					"uses_left":  1 if duration == 0 else 0,
-					"recipient":  buff_recipient
-				}
+				# IA-0c — _build_buff() es el ÚNICO sitio que construye un buff desde un efecto
+				# (lo usan también las skills SELF); copia resource_id si el efecto lo declara.
+				var buff_data: Dictionary = _build_buff(effect, buff_recipient)
 				buffs_applied.append(buff_data)
 				print("[CombatSystem] Buff queued: %s → %s (%d turns)" % [
 					buff_data.buff_type, buff_recipient, buff_data.turns_left
@@ -552,45 +576,27 @@ func _apply_damage_by_target_type(
 	damage: float,
 	is_critical: bool
 ) -> void:
-	var target_type = skill_def.target_type
+	# IA-0c — el conjunto de objetivos alcanzados lo decide _get_hit_targets(), el mismo
+	# que usan las estimaciones.
+	var hit: Dictionary = _get_hit_targets(attacker_id, target_id, skill_def)
+	var hit_targets: Array = hit.targets
 
-	match target_type:
+	match skill_def.target_type:
 		"SINGLE_ENEMY":
-			_apply_damage(target_id, damage, is_critical, attacker_id)
+			pass
 
 		"AREA":
-			# Golpea a todos los enemigos vivos
-			var all_enemies = GameLoop.get_active_enemies()
-			print("[CombatSystem] 💥 AREA attack hits %d enemies" % all_enemies.size())
-			for enemy_id in all_enemies:
-				_apply_damage(enemy_id, damage, is_critical, attacker_id)
+			print("[CombatSystem] 💥 AREA attack hits %d enemies" % hit_targets.size())
 
 		"MULTI_ENEMY":
-			# Golpea hasta max_targets enemigos — se lee del primer effect con type DAMAGE
-			var max_targets = 2  # fallback si no está definido en el .tres
-			for effect in skill_def.effects:
-				if effect.get("type", "").to_lower() == "damage":
-					max_targets = effect.get("max_targets", max_targets)
-					break
-
-			var all_enemies = GameLoop.get_active_enemies()
-			# Priorizar el target seleccionado: colocarlo primero en la lista
-			var ordered: Array[String] = []
-			if target_id in all_enemies:
-				ordered.append(target_id)
-			for enemy_id in all_enemies:
-				if enemy_id != target_id:
-					ordered.append(enemy_id)
-
-			var targets_hit = min(max_targets, ordered.size())
-			print("[CombatSystem] ⚔️ MULTI_ENEMY attack hits %d/%d enemies" % [targets_hit, ordered.size()])
-			for i in range(targets_hit):
-				_apply_damage(ordered[i], damage, is_critical, attacker_id)
+			print("[CombatSystem] ⚔️ MULTI_ENEMY attack hits %d/%d enemies" % [hit_targets.size(), hit.pool_size])
 
 		_:
 			# Fallback seguro: comportamiento SINGLE
-			push_warning("[CombatSystem] Unknown target_type '%s' for skill, falling back to SINGLE" % target_type)
-			_apply_damage(target_id, damage, is_critical, attacker_id)
+			push_warning("[CombatSystem] Unknown target_type '%s' for skill, falling back to SINGLE" % skill_def.target_type)
+
+	for hit_id in hit_targets:
+		_apply_damage(hit_id, damage, is_critical, attacker_id)
 
 
 ## Aplica daño a una entidad
@@ -612,45 +618,10 @@ func _apply_damage(target_id: String, damage: float, is_critical: bool = false, 
 		print("[CombatSystem] 🤸 Attack EVADED! (attacker: %s)" % attacker_id)
 		return
 	
-	# --- ARMOR RATING: reducción plana aplicada a todos los targets ---
-	# Se resuelve ANTES de defensa/daño para que sea la base sobre la que operan.
-	# Fórmula: damage_after_armor = max(1, damage - armor_rating)
-	# El mínimo 1 garantiza que ningún ataque haga 0 daño.
-	var armor = AttributeResolver.resolve(target_id, "armor_rating", {})
-	var damage_after_armor := maxf(1.0, damage - armor)
-	# --- BUFFS NUMÉRICOS: modificadores de daño activos ---
-	# Orden: weakened (atacante) → damage_bonus (atacante) → vulnerable (defensor) → damage_reduction (defensor)
-
-	if not attacker_id.is_empty():
-	# weakened: el atacante hace menos daño
-		if has_buff(attacker_id, "weakened"):
-			var buff_val: float = _get_buff_value(attacker_id, "weakened")
-			damage_after_armor *= maxf(0.0, 1.0 - buff_val / 100.0)
-			print("[CombatSystem] 🔻 weakened: -%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
-
-	# damage_bonus: el atacante hace más daño
-		if has_buff(attacker_id, "damage_bonus"):
-			var buff_val: float = _get_buff_value(attacker_id, "damage_bonus")
-			damage_after_armor *= (1.0 + buff_val / 100.0)
-			print("[CombatSystem] 🔺 damage_bonus: +%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
-
-	# vulnerable: el defensor recibe más daño
-	if has_buff(target_id, "vulnerable"):
-		var buff_val: float = _get_buff_value(target_id, "vulnerable")
-		damage_after_armor *= (1.0 + buff_val / 100.0)
-		print("[CombatSystem] 🔺 vulnerable: +%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
-
-	# damage_reduction: el defensor recibe menos daño (se aplica al final)
-	if has_buff(target_id, "damage_reduction"):
-		var buff_val: float = _get_buff_value(target_id, "damage_reduction")
-		damage_after_armor *= maxf(0.0, 1.0 - buff_val / 100.0)
-		print("[CombatSystem] 🔻 damage_reduction: -%.0f%% → %.1f dmg" % [buff_val, damage_after_armor])
-
-	damage_after_armor = maxf(1.0, damage_after_armor)
-	if armor > 0.0:
-		print("[CombatSystem] 🛡️ %s armor_rating=%.1f: %.1f → %.1f dmg" % [
-			target_id, armor, damage, damage_after_armor
-		])
+	# --- ARMADURA Y BUFFS NUMÉRICOS ---
+	# IA-0c — fórmula única: _mitigate_damage() (la usan también las estimaciones).
+	# Aquí se imprime cada paso (log_steps = true); las estimaciones no imprimen.
+	var damage_after_armor: float = _mitigate_damage(attacker_id, target_id, damage, true)["damage"]
 	
 	# --- PRIORIDAD 2: DEFENSA (solo jugador, todos los ataques del turno) ---
 	var final_damage := int(damage_after_armor)
@@ -679,6 +650,802 @@ func _apply_damage(target_id: String, damage: float, is_critical: bool = false, 
 	
 	if current_hp <= 0:
 		EventBus.emit_signal("character_died", target_id)
+
+# ============================================
+# FÓRMULA DE DAÑO Y ESTIMACIONES (IA-0c)
+# ============================================
+# Una sola fórmula para el daño y para la probabilidad de acierto: el camino real
+# (_on_skill_used, _process_skill_effects, _apply_damage) y las estimaciones llaman a
+# las MISMAS funciones de este bloque. Las funciones puras (_get_roll_params,
+# _grade_multiplier, _effect_damage, _skill_raw_damage, _mitigate_damage con
+# log_steps=false, _get_hit_targets, get_grade_probabilities, get_success_chance y
+# estimate_damage) no consumen buffs, no emiten señales y no tocan el RNG.
+
+## Parámetros de la tirada de un actor. PURO: no consume buffs (los consume quien
+## tira de verdad). skill_value NO está recortado a 0..100: roll_skill() lo recorta.
+func _get_roll_params(entity_id: String, skill_id: String) -> Dictionary:
+	var skill_value: int = Characters.get_skill_value(entity_id, skill_id)
+
+	var has_precision: bool = has_buff(entity_id, "precision_up")
+	if has_precision:
+		skill_value += int(_get_buff_value(entity_id, "precision_up"))
+
+	var has_crit_bonus: bool = has_buff(entity_id, "critical_bonus")
+	var crit_bonus: int = 0
+	if has_crit_bonus:
+		crit_bonus = int(_get_buff_value(entity_id, "critical_bonus"))
+
+	return {
+		"skill_value": skill_value,
+		"has_precision": has_precision,
+		"crit_bonus": crit_bonus,
+		"has_crit_bonus": has_crit_bonus,
+		"guaranteed": has_buff(entity_id, "guaranteed_hit"),
+	}
+
+
+## Probabilidad de cada grado para `actor_id` usando `skill_id`, con sus buffs actuales.
+## guaranteed_hit fuerza SUCCESS después de la tirada (CombatSystem._on_skill_used), así
+## que con ese buff el único grado posible es SUCCESS.
+func get_grade_probabilities(actor_id: String, skill_id: String) -> Dictionary:
+	var params: Dictionary = _get_roll_params(actor_id, skill_id)
+	if params.guaranteed:
+		return {
+			SkillRoller.RollResult.FUMBLE: 0.0,
+			SkillRoller.RollResult.FAILURE: 0.0,
+			SkillRoller.RollResult.SUCCESS: 1.0,
+			SkillRoller.RollResult.SPECIAL: 0.0,
+			SkillRoller.RollResult.CRITICAL: 0.0,
+		}
+	return SkillRoller.get_grade_probabilities(params.skill_value, params.crit_bonus)
+
+
+## Probabilidad de acierto de `actor_id` usando `skill_id` (0..1).
+func get_success_chance(actor_id: String, skill_id: String) -> float:
+	var probabilities: Dictionary = get_grade_probabilities(actor_id, skill_id)
+	var chance: float = 0.0
+	for grade in HIT_GRADES:
+		chance += float(probabilities.get(grade, 0.0))
+	return chance
+
+
+## Grado de la tirada a partir de las banderas que usa _process_skill_effects().
+func _grade_from_flags(is_critical: bool, is_special: bool) -> int:
+	if is_critical:
+		return SkillRoller.RollResult.CRITICAL
+	if is_special:
+		return SkillRoller.RollResult.SPECIAL
+	return SkillRoller.RollResult.SUCCESS
+
+
+## Multiplicador de daño de un grado para un efecto DAMAGE (única fuente).
+func _grade_multiplier(effect: Dictionary, grade: int) -> float:
+	match grade:
+		SkillRoller.RollResult.CRITICAL:
+			return float(effect.get("critical_multiplier", 2.0))
+		SkillRoller.RollResult.SPECIAL:
+			# Spike 2: bonus del grado SPECIAL, menor que el crítico.
+			return float(effect.get("special_multiplier", 1.2))
+	return 1.0
+
+
+## Daño bruto de UN efecto DAMAGE (antes de armadura y buffs) para un grado.
+## Devuelve { damage, base, modifier } (base y modifier solo para el log).
+func _effect_damage(entity_id: String, effect: Dictionary, grade: int) -> Dictionary:
+	var base_damage_attr: String = effect.get("base_damage_attribute", "base_damage")
+	var damage_modifier: float = effect.get("value", 1.0)
+
+	var resolved_damage: float = AttributeResolver.resolve(entity_id, base_damage_attr, {})
+	var damage: float = resolved_damage * damage_modifier
+	damage *= _grade_multiplier(effect, grade)
+
+	return {"damage": damage, "base": resolved_damage, "modifier": damage_modifier}
+
+
+## Daño bruto de una skill para un grado: el del último efecto DAMAGE (igual que
+## _process_skill_effects, donde cada DAMAGE sobrescribe al anterior).
+func _skill_raw_damage(entity_id: String, skill_def: SkillDefinition, grade: int) -> float:
+	var damage: float = 0.0
+	for effect in skill_def.effects:
+		if effect.get("type", "").to_upper() == "DAMAGE":
+			damage = _effect_damage(entity_id, effect, grade)["damage"]
+	return damage
+
+
+## Daño tras armadura y buffs numéricos. Sin efectos laterales salvo el log opcional.
+## Orden: armadura → weakened (atacante) → damage_bonus (atacante) → vulnerable
+## (defensor) → damage_reduction (defensor) → mínimo 1.
+## extra_reduction_pct (IA-0c): reducción HIPOTÉTICA en % que se apila sobre la que ya tenga
+## el defensor; solo la usan las estimaciones de defensa (0 = comportamiento de siempre).
+## Devuelve { damage, armor }.
+func _mitigate_damage(attacker_id: String, target_id: String, damage: float, log_steps: bool = false, extra_reduction_pct: float = 0.0) -> Dictionary:
+	# Reducción plana: damage_after_armor = max(1, damage - armor_rating).
+	# El mínimo 1 garantiza que ningún ataque haga 0 daño.
+	var armor: float = AttributeResolver.resolve(target_id, "armor_rating", {})
+	var result: float = maxf(1.0, damage - armor)
+
+	if not attacker_id.is_empty():
+		# weakened: el atacante hace menos daño
+		if has_buff(attacker_id, "weakened"):
+			var weakened_val: float = _get_buff_value(attacker_id, "weakened")
+			result *= maxf(0.0, 1.0 - weakened_val / 100.0)
+			if log_steps:
+				print("[CombatSystem] 🔻 weakened: -%.0f%% → %.1f dmg" % [weakened_val, result])
+
+		# damage_bonus: el atacante hace más daño
+		if has_buff(attacker_id, "damage_bonus"):
+			var bonus_val: float = _get_buff_value(attacker_id, "damage_bonus")
+			result *= (1.0 + bonus_val / 100.0)
+			if log_steps:
+				print("[CombatSystem] 🔺 damage_bonus: +%.0f%% → %.1f dmg" % [bonus_val, result])
+
+	# vulnerable: el defensor recibe más daño
+	if has_buff(target_id, "vulnerable"):
+		var vulnerable_val: float = _get_buff_value(target_id, "vulnerable")
+		result *= (1.0 + vulnerable_val / 100.0)
+		if log_steps:
+			print("[CombatSystem] 🔺 vulnerable: +%.0f%% → %.1f dmg" % [vulnerable_val, result])
+
+	# damage_reduction: el defensor recibe menos daño (se aplica al final)
+	if has_buff(target_id, "damage_reduction"):
+		var reduction_val: float = _get_buff_value(target_id, "damage_reduction")
+		result *= maxf(0.0, 1.0 - reduction_val / 100.0)
+		if log_steps:
+			print("[CombatSystem] 🔻 damage_reduction: -%.0f%% → %.1f dmg" % [reduction_val, result])
+
+	if extra_reduction_pct > 0.0:
+		result *= maxf(0.0, 1.0 - extra_reduction_pct / 100.0)
+
+	result = maxf(1.0, result)
+	if log_steps and armor > 0.0:
+		print("[CombatSystem] 🛡️ %s armor_rating=%.1f: %.1f → %.1f dmg" % [
+			target_id, armor, damage, result
+		])
+
+	return {"damage": result, "armor": armor}
+
+
+## Objetivos que alcanza una skill ofensiva cuyo objetivo principal es `target_id`.
+## Misma regla que aplica el camino real. Devuelve { targets, pool_size }:
+## pool_size es el total de candidatos del que sale la selección (solo para el log).
+## AREA y MULTI_ENEMY golpean al bando contrario a attacker_id (IA-0d, ver _get_hit_pool).
+## Hoy solo las usan el jugador y Mira; el test ia0d cubre el caso de un enemigo.
+## IA-0d — Pool de objetivos de una skill de área: el bando contrario a `attacker_id`.
+## Un aliado conserva la lista de GameLoop (comportamiento previo); un enemigo golpea al
+## jugador y a los compañeros activos (_get_opponents ya filtra objetivos legales).
+func _get_hit_pool(attacker_id: String) -> Array[String]:
+	if _is_ally(attacker_id):
+		return GameLoop.get_active_enemies()
+	return _get_opponents(attacker_id)
+
+
+func _get_hit_targets(attacker_id: String, target_id: String, skill_def: SkillDefinition) -> Dictionary:
+	match skill_def.target_type:
+		"AREA":
+			# Golpea a todos los enemigos vivos
+			var all_enemies: Array[String] = _get_hit_pool(attacker_id)
+			return {"targets": all_enemies, "pool_size": all_enemies.size()}
+
+		"MULTI_ENEMY":
+			# Golpea hasta max_targets enemigos — se lee del primer effect con type DAMAGE
+			var max_targets = 2  # fallback si no está definido en el .tres
+			for effect in skill_def.effects:
+				if effect.get("type", "").to_lower() == "damage":
+					max_targets = effect.get("max_targets", max_targets)
+					break
+
+			var pool: Array[String] = _get_hit_pool(attacker_id)
+			# Priorizar el target seleccionado: colocarlo primero en la lista
+			var ordered: Array[String] = []
+			if target_id in pool:
+				ordered.append(target_id)
+			for enemy_id in pool:
+				if enemy_id != target_id:
+					ordered.append(enemy_id)
+
+			var targets_hit: int = int(min(max_targets, ordered.size()))
+			return {"targets": ordered.slice(0, targets_hit), "pool_size": ordered.size()}
+
+	# SINGLE_ENEMY y cualquier otro valor: solo el objetivo principal
+	return {"targets": [target_id], "pool_size": 1}
+
+
+## Estimación de `attacker_id` usando `skill_id` con `target_id` como objetivo principal.
+## SOLO LECTURA: no consume buffs, no emite señales, no toca el RNG.
+##
+## Valor esperado COMPLETO (decisión 3-A): para cada grado con acierto (SUCCESS, SPECIAL,
+## CRITICAL) se calcula el daño bruto con su multiplicador, se le aplica la armadura y los
+## buffs numéricos (la armadura no es lineal, por eso grado a grado) y se pondera por la
+## probabilidad de ese grado. Así expected_damage coincide con la media real.
+##
+## Devuelve:
+##   success_chance   probabilidad de acierto (0..1)
+##   damage_if_hit    daño medio condicionado al acierto (suma de todos los objetivos)
+##   expected_damage  success_chance × damage_if_hit (ya ponderado; suma de todos)
+##   targets          objetivos alcanzados (principal primero en MULTI_ENEMY)
+##   max_hit/kill_possible   del objetivo principal (mejor grado posible vs PV actuales)
+##   per_target       { id: { expected_damage, max_hit, kill_possible } }
+##
+## NO contempla (limitaciones conocidas, IA-1): evasión y DefenseModule del jugador
+## (estado de un solo uso o de absorción por estamina, solo para PLAYER_ID); un objetivo
+## con la evasión activa recibirá en realidad 0.
+func estimate_damage(attacker_id: String, target_id: String, skill_id: String) -> Dictionary:
+	var estimate: Dictionary = {
+		"success_chance": 0.0,
+		"damage_if_hit": 0.0,
+		"expected_damage": 0.0,
+		"max_hit": 0.0,
+		"kill_possible": false,
+		"targets": [],
+		"per_target": {},
+	}
+
+	var skill_def: SkillDefinition = Skills.get_skill_definition(skill_id)
+	if skill_def == null or skill_def.target_type == "SELF":
+		return estimate
+
+	var probabilities: Dictionary = get_grade_probabilities(attacker_id, skill_id)
+	var chance: float = 0.0
+	for grade in HIT_GRADES:
+		chance += float(probabilities.get(grade, 0.0))
+	estimate.success_chance = chance
+
+	var hit: Dictionary = _get_hit_targets(attacker_id, target_id, skill_def)
+	estimate.targets = hit.targets
+
+	var total_expected: float = 0.0
+	for hit_id in hit.targets:
+		var hp: float = Resources.get_resource_amount(hit_id, "health")
+		if hp <= 0.0:
+			continue   # _apply_damage ignora a quien ya está a 0 PV
+
+		var on_target: Dictionary = _expected_on_target(attacker_id, hit_id, skill_def, probabilities)
+		var expected: float = on_target.expected
+		var max_hit: float = on_target.max_hit
+
+		total_expected += expected
+		estimate.per_target[hit_id] = {
+			"expected_damage": expected,
+			"max_hit": max_hit,
+			"kill_possible": max_hit >= hp,
+		}
+		if hit_id == target_id:
+			estimate.max_hit = max_hit
+			estimate.kill_possible = max_hit >= hp
+
+	estimate.expected_damage = total_expected
+	if chance > 0.0:
+		estimate.damage_if_hit = total_expected / chance
+	return estimate
+
+
+## Traza de validación (DEBUG_ESTIMATES): imprime la estimación de la acción que se va a tirar.
+func _print_estimate(attacker_id: String, target_id: String, skill_id: String) -> void:
+	var estimate: Dictionary = estimate_damage(attacker_id, target_id, skill_id)
+	print("[CombatSystem] 📐 estimate %s → %s (%s): acierto %.3f · daño si acierta %.2f · esperado %.2f · mata: %s · objetivos %s" % [
+		attacker_id, target_id, skill_id,
+		estimate.success_chance, estimate.damage_if_hit, estimate.expected_damage,
+		estimate.kill_possible, str(estimate.targets)
+	])
+
+
+## Daño esperado de `attacker_id` contra UN objetivo con la skill dada (IA-0c).
+## Valor esperado COMPLETO grado a grado (SUCCESS, SPECIAL, CRITICAL): la armadura no es
+## lineal, así que el daño de cada grado se mitiga por separado y se pondera por su
+## probabilidad. Lo usan estimate_damage() y la estimación de defensa.
+## extra_reduction_pct: reducción hipotética (ver _mitigate_damage).
+## Devuelve { expected, max_hit }.
+func _expected_on_target(attacker_id: String, hit_id: String, skill_def: SkillDefinition, probabilities: Dictionary, extra_reduction_pct: float = 0.0) -> Dictionary:
+	var expected: float = 0.0
+	var max_hit: float = 0.0
+	for grade in HIT_GRADES:
+		var probability: float = float(probabilities.get(grade, 0.0))
+		if probability <= 0.0:
+			continue
+		var raw: float = _skill_raw_damage(attacker_id, skill_def, grade)
+		var dealt: float = 0.0
+		if raw > 0.0:   # el camino real solo aplica daño si damage > 0
+			dealt = _mitigate_damage(attacker_id, hit_id, raw, false, extra_reduction_pct)["damage"]
+		expected += probability * dealt
+		max_hit = maxf(max_hit, dealt)
+	return {"expected": expected, "max_hit": max_hit}
+
+
+# ============================================
+# SKILLS SELF DE DATOS (IA-0c)
+# ============================================
+# Una skill SELF no tira dado de ataque. Sus efectos son datos:
+#   BUFF     buff sobre el propio actor (misma construcción que los buffs de ataque)
+#   RESTORE  recupera `value` de `resource_id` de golpe, sin pasar del máximo
+#   FLEE     el actor abandona el combate (solo enemigos; marca FLED y emite enemy_fled)
+# `dodge` pasa por _build_buff() (IA-0d): sus efectos declaran `expires_on: "use"`,
+# y _process_dodge() solo añade la animación.
+
+## ÚNICO constructor de buffs a partir de un efecto BUFF.
+## `duration` son TURNOS DEL DUEÑO del buff (0 = se consume al primer uso). En un efecto
+## DAMAGE, en cambio, `duration` es tiempo de animación en segundos.
+func _build_buff(effect: Dictionary, recipient: String) -> Dictionary:
+	var duration: int = effect.get("duration", 1)
+	# IA-0d — un efecto puede declarar `expires_on` ("use" / "turn"); sin él se deriva de duration
+	var expires_on: String = String(effect.get("expires_on", "use" if duration == 0 else "turn"))
+	var by_use: bool = (expires_on == "use")
+	var buff_data: Dictionary = {
+		"buff_type":  effect.get("buff_type", "unknown"),
+		"value":      effect.get("value", 0.0),
+		"expires_on": expires_on,
+		"turns_left": duration if (duration > 0 and not by_use) else 0,
+		"uses_left":  1 if by_use else 0,
+		"recipient":  recipient
+	}
+	if effect.has("resource_id"):
+		buff_data["resource_id"] = effect.get("resource_id", "")
+	return buff_data
+
+
+## Resuelve una skill SELF de datos y cierra la acción.
+func _resolve_self_skill(entity_id: String, skill_def: SkillDefinition) -> void:
+	print("[CombatSystem] 🧪 SELF skill: %s uses %s" % [entity_id, skill_def.id])
+
+	var restored: Dictionary = {}
+	var fled: bool = false
+	var defended: bool = false
+
+	for effect in skill_def.effects:
+		match String(effect.get("type", "")).to_upper():
+			"BUFF":
+				apply_buff(entity_id, _build_buff(effect, entity_id))
+				if String(effect.get("buff_type", "")) in AIScales.get_value("effect_value.defense_buffs", []):
+					defended = true
+
+			"RESTORE":
+				var resource_id: String = String(effect.get("resource_id", ""))
+				var added: float = _apply_restore(entity_id, resource_id, float(effect.get("value", 0.0)))
+				restored[resource_id] = float(restored.get(resource_id, 0.0)) + added
+
+			"FLEE":
+				if _apply_flee(entity_id):
+					fled = true
+
+			_:
+				push_warning("[CombatSystem] Efecto '%s' no soportado en una skill SELF (%s)" % [effect.get("type"), skill_def.id])
+
+	if defended:
+		var anim = _get_animation_controller(entity_id)
+		if anim and anim.has_method("play_defend"):
+			anim.play_defend()
+
+	_pending_skill_context.clear()
+	var result: Dictionary = {
+		"success": true,
+		"action": "self",
+		"skill_id": skill_def.id,
+		"actor": entity_id,
+		"request_id": _current_request_id,
+		"restored": restored,
+		"fled": fled,
+	}
+	EventBus.emit_signal("combat_action_completed", result)
+	if entity_id == PLAYER_ID:
+		EventBus.emit_signal("player_action_completed", result)
+
+
+## Efecto RESTORE. Devuelve lo realmente añadido (nunca pasa del máximo ni resta).
+func _apply_restore(entity_id: String, resource_id: String, amount: float) -> float:
+	if resource_id.is_empty() or not Resources.has_resource(entity_id, resource_id):
+		push_warning("[CombatSystem] RESTORE sin recurso válido ('%s') para %s" % [resource_id, entity_id])
+		return 0.0
+	if amount < 0.0:
+		push_warning("[CombatSystem] RESTORE con valor negativo (%.1f) ignorado" % amount)
+		return 0.0
+
+	var state: ResourceState = Resources.get_resource_state(entity_id, resource_id)
+	var room: float = maxf(0.0, state.max_effective - state.current)
+	var to_add: float = minf(amount, room)
+	if to_add > 0.0:
+		Resources.add_resource(entity_id, resource_id, to_add)
+	print("[CombatSystem] 💚 RESTORE: %s +%.1f %s (pedido %.1f, hueco %.1f)" % [entity_id, to_add, resource_id, amount, room])
+	return to_add
+
+
+## Efecto FLEE. Solo enemigos: la huida del jugador sigue siendo EscapeModule y Mira no
+## tiene huida en el MVP. Combat marca FLED y emite la señal; GameLoop retira al
+## combatiente al cerrar la acción en curso y reevalúa la victoria.
+func _apply_flee(entity_id: String) -> bool:
+	if _is_ally(entity_id):
+		push_warning("[CombatSystem] FLEE solo es para enemigos: ignorado para %s" % entity_id)
+		return false
+	if is_fled(entity_id):
+		return false
+	_fled[entity_id] = true
+	print("[CombatSystem] 🏃 %s huye del combate (FLED)" % entity_id)
+	EventBus.emit_signal("enemy_fled", entity_id)
+	return true
+
+
+## IA-1a — Bando del combatiente: &"ally" (protagonista y party) o &"enemy". Envuelve _is_ally().
+func get_side(entity_id: String) -> StringName:
+	return CombatTags.SIDE_ALLY if _is_ally(entity_id) else CombatTags.SIDE_ENEMY
+
+
+## IA-1a — Combatientes de un bando que siguen en el combate (no huidos), con los caídos (0 PV)
+## incluidos: el snapshot los necesita (p. ej. `protect` con el protagonista caído). Quien
+## elija objetivos filtra con `targetable`. SOLO LECTURA. Reutiliza la misma lógica de bandos
+## que _get_opponents(); unificarlas queda como pendiente de limpieza.
+func get_combatant_ids(side: StringName) -> Array[String]:
+	var pool: Array[String] = []
+	if side == CombatTags.SIDE_ALLY:
+		pool.append(PLAYER_ID)
+		var party: Node = get_node_or_null("/root/Party")
+		if party:
+			for companion_id in party.get_active_members():
+				pool.append(companion_id)
+	else:
+		pool = GameLoop.get_active_enemies()
+	var result: Array[String] = []
+	for entity_id in pool:
+		if not is_fled(entity_id) and Resources.has_entity(entity_id):
+			result.append(entity_id)
+	return result
+
+
+## ¿Ha huido este combatiente en el combate en curso?
+func is_fled(entity_id: String) -> bool:
+	return _fled.has(entity_id)
+
+
+# ============================================
+# CANDIDATAS, AMENAZA Y CONDICIONES VISIBLES (IA-0c) — SOLO LECTURA
+# ============================================
+# Nada de este bloque consume buffs, emite señales ni toca el RNG. Nadie lo llama aún en
+# producción: lo usará la IA (IA-1). Las escalas y tablas salen de data/ai/ai_scales.json.
+
+## ¿Es aliado del protagonista (él mismo o un miembro de la party)?
+func _is_ally(entity_id: String) -> bool:
+	if entity_id == PLAYER_ID:
+		return true
+	var party: Node = get_node_or_null("/root/Party")
+	return party != null and party.is_in_party(entity_id)
+
+
+## ¿Es un objetivo legal? Vivo, no huido y dentro del combate. Fuera de combate
+## (pruebas) no se exige estar en participants.
+func _is_valid_target(target_id: String) -> bool:
+	if target_id.is_empty() or is_fled(target_id):
+		return false
+	if not Resources.has_entity(target_id) or not Resources.has_resource(target_id, "health"):
+		return false
+	if Resources.get_resource_amount(target_id, "health") <= 0.0:
+		return false
+	if GameLoop.is_in_combat() and not GameLoop.participants.has(target_id) and not _is_ally(target_id):
+		return false
+	return true
+
+
+## Combatientes del bando contrario a `actor_id` que son objetivos legales.
+func _get_opponents(actor_id: String) -> Array[String]:
+	var result: Array[String] = []
+	if _is_ally(actor_id):
+		for enemy_id in GameLoop.get_active_enemies():
+			if _is_valid_target(enemy_id):
+				result.append(enemy_id)
+		return result
+
+	var allies: Array[String] = [PLAYER_ID]
+	var party: Node = get_node_or_null("/root/Party")
+	if party:
+		for companion_id in party.get_active_members():
+			allies.append(companion_id)
+	for ally_id in allies:
+		if _is_valid_target(ally_id):
+			result.append(ally_id)
+	return result
+
+
+## ¿Bloquea DISARMED esta skill? (mismo criterio para ejecutar y para listar candidatas).
+func _blocked_by_disarm(actor_id: String, skill_def: SkillDefinition) -> bool:
+	if skill_def == null or not has_buff(actor_id, "disarmed"):
+		return false
+	var weapon_tags: Array[String] = ["attack", "melee", "ranged"]
+	for tag in skill_def.tags:
+		if tag in weapon_tags:
+			return true
+	return false
+
+
+## ¿Puede pagar el actor el coste de la skill? Sin errores si le falta algún recurso
+## (un enemigo registrado solo con salud no tiene estamina).
+func _can_afford_silent(actor_id: String, skill_def: SkillDefinition) -> bool:
+	if not Resources.has_entity(actor_id):
+		return false
+	for resource_id in skill_def.costs.keys():
+		if not Resources.has_resource(actor_id, resource_id):
+			return false
+	var bundle: ResourceBundle = skill_def.get_cost_bundle()
+	if bundle == null or bundle.is_empty():
+		return true
+	return Resources.can_pay(actor_id, bundle)
+
+
+## Aviso o nota que se imprime una sola vez por combate.
+func _note_once(key: String, message: String) -> void:
+	if _noted.has(key):
+		return
+	_noted[key] = true
+	print(message)
+
+
+## Proporción de salud actual (0..1) respecto del máximo derivado. 1.0 si no se puede calcular.
+func get_hp_ratio(entity_id: String) -> float:
+	if not Resources.has_entity(entity_id) or not Resources.has_resource(entity_id, "health"):
+		return 1.0
+	var hp_max: float = AttributeResolver.resolve(entity_id, "health_max", {})
+	if hp_max <= 0.0:
+		return 1.0
+	return clampf(Resources.get_resource_amount(entity_id, "health") / hp_max, 0.0, 1.0)
+
+
+## Estado aparente de salud: healthy / hurt / badly_hurt, con umbrales de ai_scales.
+func get_hp_state(entity_id: String) -> StringName:
+	var ratio: float = get_hp_ratio(entity_id)
+	var hurt_below: float = float(AIScales.get_value("hp_state_thresholds.hurt", 0.7))
+	var badly_below: float = float(AIScales.get_value("hp_state_thresholds.badly_hurt", 0.3))
+	if ratio < badly_below:
+		return CombatTags.HP_BADLY_HURT
+	if ratio < hurt_below:
+		return CombatTags.HP_HURT
+	return CombatTags.HP_HEALTHY
+
+
+## Condiciones que un observador puede ver en `entity_id`: los buffs de la lista
+## `visible_conditions` de ai_scales más `incapacitated` (0 PV) y `fled`. Ordenadas.
+func get_visible_conditions(entity_id: String) -> Array[StringName]:
+	var result: Array[StringName] = []
+	var visible: Array = AIScales.get_value("visible_conditions", [])
+	if _active_buffs.has(entity_id):
+		for buff in _active_buffs[entity_id]:
+			var buff_type: String = String(buff.get("buff_type", ""))
+			if buff_type in visible and not result.has(StringName(buff_type)):
+				result.append(StringName(buff_type))
+	if is_fled(entity_id):
+		result.append(CombatTags.CONDITION_FLED)
+	elif Resources.has_entity(entity_id) and Resources.has_resource(entity_id, "health") \
+			and Resources.get_resource_amount(entity_id, "health") <= 0.0:
+		result.append(CombatTags.CONDITION_INCAPACITATED)
+	result.sort()
+	return result
+
+
+## Amenaza aparente de `target_id` (low / medium / high) con información observable:
+## `threat_hint` de su definición si existe (IA-0d); si no, el daño base derivado de su
+## arma y atributos (AttributeResolver "base_damage") clasificado con los umbrales de
+## ai_scales. Un `disarmed` visible baja un nivel. `observer_side` queda reservado: hoy
+## ambos bandos ven lo mismo.
+func estimate_threat(_observer_side: StringName, target_id: String) -> StringName:
+	if not Characters.has_entity(target_id):
+		return CombatTags.THREAT_LOW
+
+	var level: StringName = _threat_from_hint(target_id)
+	if level == &"":
+		var power: float = AttributeResolver.resolve(target_id, "base_damage", {})
+		if power >= float(AIScales.get_value("threat_thresholds.high", 15.0)):
+			level = CombatTags.THREAT_HIGH
+		elif power >= float(AIScales.get_value("threat_thresholds.medium", 8.0)):
+			level = CombatTags.THREAT_MEDIUM
+		else:
+			level = CombatTags.THREAT_LOW
+
+	if has_buff(target_id, "disarmed"):
+		if level == CombatTags.THREAT_HIGH:
+			level = CombatTags.THREAT_MEDIUM
+		elif level == CombatTags.THREAT_MEDIUM:
+			level = CombatTags.THREAT_LOW
+	return level
+
+
+## threat_hint de la definición (campo opcional de IA-0d): "" si no existe o no es válido.
+func _threat_from_hint(entity_id: String) -> StringName:
+	var state: CharacterState = Characters.get_character_state(entity_id)
+	if state == null or state.definition == null:
+		return &""
+	var hint: Variant = state.definition.get("threat_hint")
+	if hint is String or hint is StringName:
+		var key: StringName = StringName(String(hint))
+		if key == CombatTags.THREAT_LOW or key == CombatTags.THREAT_MEDIUM or key == CombatTags.THREAT_HIGH:
+			return key
+	return &""
+
+
+## Etiquetas de una skill, DERIVADAS de sus efectos (decisión 4-A) y del coste.
+func _derive_tags(actor_id: String, skill_def: SkillDefinition) -> Array[StringName]:
+	var tags: Array[StringName] = []
+	var defense_buffs: Array = AIScales.get_value("effect_value.defense_buffs", [])
+	for effect in skill_def.effects:
+		var tag: StringName = &""
+		match String(effect.get("type", "")).to_upper():
+			"DAMAGE":
+				tag = CombatTags.TAG_ATTACK
+			"BUFF":
+				if String(effect.get("buff_type", "")) in defense_buffs:
+					tag = CombatTags.TAG_DEFENSE
+			"RESTORE":
+				tag = CombatTags.TAG_RECOVER
+			"FLEE":
+				tag = CombatTags.TAG_FLEE
+		if tag != &"" and not tags.has(tag):
+			tags.append(tag)
+	if _is_costly(actor_id, skill_def):
+		tags.append(CombatTags.TAG_COSTLY)
+	return tags
+
+
+## costly: algún coste supera la fracción configurada del máximo de ese recurso del actor.
+func _is_costly(actor_id: String, skill_def: SkillDefinition) -> bool:
+	var fraction: float = float(AIScales.get_value("tag_rules.costly_cost_fraction", 1.0))
+	for resource_id in skill_def.costs.keys():
+		if not Resources.has_resource(actor_id, resource_id):
+			continue
+		var state: ResourceState = Resources.get_resource_state(actor_id, resource_id)
+		if state.max_effective > 0.0 and float(skill_def.costs[resource_id]) > fraction * state.max_effective:
+			return true
+	return false
+
+
+## Valor de una skill SELF en PV equivalentes (spec 5.2). Devuelve { ok, value, reason }.
+## ok = false si algún efecto no tiene conversión declarada en ai_scales: esa skill no
+## puede ser candidata. Un total negativo se corta a 0 con aviso.
+func _estimate_self_effects(actor_id: String, skill_def: SkillDefinition) -> Dictionary:
+	var total: float = 0.0
+	var defense_buffs: Array = AIScales.get_value("effect_value.defense_buffs", [])
+
+	for effect in skill_def.effects:
+		match String(effect.get("type", "")).to_upper():
+			"BUFF":
+				var buff_type: String = String(effect.get("buff_type", ""))
+				if not buff_type in defense_buffs:
+					return {"ok": false, "value": 0.0, "reason": "buff '%s' sin conversión en effect_value" % buff_type}
+				total += _estimate_reduction_value(actor_id, effect)
+
+			"RESTORE":
+				var resource_id: String = String(effect.get("resource_id", ""))
+				var unit: Variant = AIScales.get_value("effect_value.restore.%s" % resource_id, null)
+				if unit == null:
+					return {"ok": false, "value": 0.0, "reason": "RESTORE de '%s' sin conversión en effect_value" % resource_id}
+				if not Resources.has_resource(actor_id, resource_id):
+					return {"ok": false, "value": 0.0, "reason": "el actor no tiene el recurso '%s'" % resource_id}
+				var state: ResourceState = Resources.get_resource_state(actor_id, resource_id)
+				var room: float = maxf(0.0, state.max_effective - state.current)
+				total += minf(maxf(0.0, float(effect.get("value", 0.0))), room) * float(unit)
+
+			"FLEE":
+				var flee_value: Variant = AIScales.get_value("effect_value.flee", null)
+				if flee_value == null:
+					return {"ok": false, "value": 0.0, "reason": "FLEE sin conversión en effect_value"}
+				total += float(flee_value)
+
+			_:
+				return {"ok": false, "value": 0.0, "reason": "efecto '%s' sin conversión" % effect.get("type")}
+
+	if total < 0.0:
+		push_warning("[CombatSystem] effect_estimate negativo (%.2f) en %s: cortado a 0" % [total, skill_def.id])
+		total = 0.0
+	return {"ok": true, "value": total, "reason": ""}
+
+
+## Daño esperado que evita un buff de reducción de daño del propio actor: para cada
+## amenaza visible (bando contrario), su mejor skill pagable, con y sin la reducción,
+## con las MISMAS funciones de daño. Se multiplica por las ventanas del buff (turnos del
+## dueño). Con armadura alta el mínimo de 1 deja la reducción en 0: es la regla real.
+func _estimate_reduction_value(actor_id: String, effect: Dictionary) -> float:
+	var pct: float = float(effect.get("value", 0.0))
+	if pct <= 0.0:
+		return 0.0
+	var windows: int = maxi(1, int(effect.get("duration", 1)))
+
+	var avoided: float = 0.0
+	for threat_id in _get_opponents(actor_id):
+		if not Skills.has_entity(threat_id):
+			continue
+		var best_without: float = -1.0
+		var best_with: float = 0.0
+		for entry in Skills.get_entity_skill_snapshot(threat_id):
+			if entry.mode != "COMBAT" or not entry.is_unlocked:
+				continue
+			var threat_skill: SkillDefinition = Skills.get_skill_definition(entry.skill_id)
+			if threat_skill == null or threat_skill.target_type == "SELF" or not _can_afford_silent(threat_id, threat_skill):
+				continue
+			var probabilities: Dictionary = get_grade_probabilities(threat_id, entry.skill_id)
+			var without: float = _expected_on_target(threat_id, actor_id, threat_skill, probabilities)["expected"]
+			if without > best_without:
+				best_without = without
+				best_with = _expected_on_target(threat_id, actor_id, threat_skill, probabilities, pct)["expected"]
+		if best_without > 0.0:
+			avoided += maxf(0.0, best_without - best_with)
+	return avoided * float(windows)
+
+
+## Candidatas del actor: una por (skill utilizable × objetivo válido); las skills SELF
+## generan una sola candidata sin objetivo. SOLO LECTURA.
+##
+## No lista: skills que no son de combate o están bloqueadas, las que el actor no puede
+## pagar (o cuyo recurso no tiene), las que están en cooldown, las bloqueadas por
+## DISARMED, las SELF con un efecto sin conversión en `effect_value`, ni objetivos a 0 PV,
+## huidos o fuera del combate. Orden canónico: action_id y después target_ids[0].
+##
+## Cada candidata: { action_id, actor_id, target_ids, tags, resource_cost (suma de costes),
+## costs (por recurso), success_chance, expected_damage (ya ponderado por success_chance),
+## kill_possible, effect_estimate (PV equivalentes), action_data (listo para
+## combat_action_requested; falta el request_id) }.
+func get_candidates(actor_id: String) -> Array:
+	var candidates: Array = []
+	if not Skills.has_entity(actor_id) or not Resources.has_entity(actor_id):
+		return candidates
+	if is_fled(actor_id) or not Resources.has_resource(actor_id, "health") \
+			or Resources.get_resource_amount(actor_id, "health") <= 0.0:
+		return candidates
+
+	var opponents: Array[String] = _get_opponents(actor_id)
+
+	for entry in Skills.get_entity_skill_snapshot(actor_id):
+		if entry.mode != "COMBAT" or not entry.is_unlocked:
+			continue
+		var skill_id: String = entry.skill_id
+		var skill_def: SkillDefinition = Skills.get_skill_definition(skill_id)
+		if skill_def == null or _blocked_by_disarm(actor_id, skill_def):
+			continue
+		if not _can_afford_silent(actor_id, skill_def) or not Skills.can_use(actor_id, skill_id):
+			continue
+
+		var tags: Array[StringName] = _derive_tags(actor_id, skill_def)
+
+		if skill_def.target_type == "SELF":
+			var utility: Dictionary = _estimate_self_effects(actor_id, skill_def)
+			if not utility.ok:
+				_note_once("nocand:" + skill_id, "[CombatSystem] ℹ️ %s no es candidata de %s: %s" % [skill_id, actor_id, utility.reason])
+				continue
+			candidates.append(_make_candidate(actor_id, skill_def, tags, "", {}, float(utility.value)))
+		else:
+			for target_id in opponents:
+				var estimate: Dictionary = estimate_damage(actor_id, target_id, skill_id)
+				candidates.append(_make_candidate(actor_id, skill_def, tags, target_id, estimate, 0.0))
+
+	candidates.sort_custom(_candidate_before)
+	return candidates
+
+
+## Construye el diccionario de una candidata. `estimate` vacío = skill SELF (sin tirada:
+## acierto 1.0 y sin daño).
+func _make_candidate(actor_id: String, skill_def: SkillDefinition, tags: Array[StringName], target_id: String, estimate: Dictionary, effect_estimate: float) -> Dictionary:
+	var total_cost: float = 0.0
+	for resource_id in skill_def.costs.keys():
+		total_cost += float(skill_def.costs[resource_id])
+
+	var target_ids: Array[String] = []
+	if not target_id.is_empty():
+		target_ids.append(target_id)
+
+	return {
+		"action_id": skill_def.id,
+		"actor_id": actor_id,
+		"target_ids": target_ids,
+		"tags": tags,
+		"resource_cost": total_cost,
+		"costs": skill_def.costs.duplicate(),
+		"success_chance": float(estimate.get("success_chance", 1.0)),
+		"expected_damage": float(estimate.get("expected_damage", 0.0)),
+		"kill_possible": bool(estimate.get("kill_possible", false)),
+		"effect_estimate": effect_estimate,
+		"action_data": {"actor": actor_id, "skill_id": skill_def.id, "target": target_id},
+	}
+
+
+## Orden canónico (clave de desempate explícita: sort_custom no es estable).
+func _candidate_before(a: Dictionary, b: Dictionary) -> bool:
+	if a.action_id != b.action_id:
+		return a.action_id < b.action_id
+	var target_a: String = a.target_ids[0] if not a.target_ids.is_empty() else ""
+	var target_b: String = b.target_ids[0] if not b.target_ids.is_empty() else ""
+	return target_a < target_b
+
 
 ## Callback: Personaje murió
 func _on_character_death(character_id: String) -> void:
@@ -712,11 +1479,7 @@ func _process_dodge(entity_id: String, skill_def: SkillDefinition) -> void:
 	for effect in skill_def.effects:
 		if effect.get("type") == "BUFF":
 			var buff_type = effect.get("buff_type", "")
-			apply_buff(entity_id, {
-				"buff_type": buff_type,
-				"expires_on": "use",   # Se consume al primer uso
-				"uses_left": 1
-			})
+			apply_buff(entity_id, _build_buff(effect, entity_id))
 			print("[CombatSystem] 🤸 Buff applied: %s" % buff_type)
 			# Iniciar efecto visual persistente para evasión
 			if buff_type == "evasion":
@@ -811,6 +1574,8 @@ func get_last_attacker(target_id: String) -> String:
 ## Al empezar un combate no puede quedar un atacante del anterior.
 func _on_combat_started(_participants: Array) -> void:
 	_last_attacker.clear()
+	_fled.clear()
+	_noted.clear()
 
 
 func clear_buffs(entity_id: String) -> void:

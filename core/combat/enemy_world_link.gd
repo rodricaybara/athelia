@@ -25,6 +25,7 @@ var _cleanup_by_entity: Dictionary = {}
 func _ready() -> void:
 	if EventBus:
 		EventBus.enemy_group_fled.connect(_on_enemy_group_fled)
+		EventBus.enemy_fled.connect(_on_enemy_fled)
 	else:
 		push_error("[EnemyWorldLink] EventBus autoload not found!")
 
@@ -42,6 +43,13 @@ func register_fled_cleanup(entity_id: String, cleanup: Callable) -> void:
 ## necesite desengancharlo sin esperar a un flee que no va a llegar.
 func unregister(entity_id: String) -> void:
 	_cleanup_by_entity.erase(entity_id)
+
+
+## IA-0c — huida individual (efecto FLEE): mismo cleanup que la huida de grupo.
+func _on_enemy_fled(entity_id: String) -> void:
+	if _cleanup_by_entity.has(entity_id):
+		_cleanup_by_entity[entity_id].call()
+		_cleanup_by_entity.erase(entity_id)
 
 
 func _on_enemy_group_fled(fled_enemy_ids: Array[String]) -> void:

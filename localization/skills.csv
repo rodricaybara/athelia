@@ -39,3 +39,15 @@ SKILL_FIREBALL_NAME,Fireball,Bola de Fuego
 SKILL_FIREBALL_DESC,A concentrated sphere of fire hurled at the enemy.,Una esfera concentrada de fuego lanzada contra el enemigo.
 SKILL_TANNING_NAME,Tanning,Curtido
 SKILL_TANNING_DESC,The craft of treating hides into usable leather.,El oficio de tratar pieles para convertirlas en cuero utilizable.
+SKILL_ENEMY_DEFEND_NAME,Defend,Defenderse
+SKILL_ENEMY_DEFEND_DESC,"Takes cover and takes half damage until its next turn.","Se cubre y recibe la mitad de daño hasta su próximo turno."
+SKILL_ENEMY_RECOVER_NAME,Catch breath,Recuperar aliento
+SKILL_ENEMY_RECOVER_DESC,Recovers 20 stamina.,Recupera 20 de aguante.
+SKILL_ENEMY_FLEE_NAME,Flee,Huir
+SKILL_ENEMY_FLEE_DESC,Leaves the battle.,Abandona el combate.
+SKILL_ENEMY_HEAVY_ATTACK_NAME,Heavy Attack,Golpe pesado
+SKILL_ENEMY_HEAVY_ATTACK_DESC,A powerful blow that costs stamina.,Un golpe potente que cuesta aguante.
+SKILL_COMPANION_DEFEND_NAME,Defend,Defenderse
+SKILL_COMPANION_DEFEND_DESC,"Takes cover and takes half damage until her next turn.","Se cubre y recibe la mitad de daño hasta su próximo turno."
+SKILL_COMPANION_RECOVER_NAME,Catch breath,Recuperar aliento
+SKILL_COMPANION_RECOVER_DESC,Recovers 20 stamina.,Recupera 20 de aguante.

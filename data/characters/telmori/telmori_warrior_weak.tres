@@ -19,14 +19,15 @@ base_attributes = {
 }
 starting_resources = {
 "focus": 0,
-"gold": 0,
-"health": 40,
-"stamina": 15
+"gold": 0
 }
-skills = Array[String](["skill.enemy.basic_attack"])
+skills = Array[String](["skill.enemy.basic_attack", "skill.enemy.heavy_attack", "skill.enemy.defend"])
 starting_skill_values = {
-"skill.enemy.basic_attack": 45
+"skill.enemy.basic_attack": 45,
+"skill.enemy.heavy_attack": 45
 }
 inventory_slots = 10
+behavior_profile_id = &"bandit"
+threat_hint = "low"
 loot_table_id = "enemy_base_drops"
 equipment_slots = Array[String]([])

@@ -31,8 +31,16 @@ extends Node
 ## GameLoop ya ha vaciado `participants`, así que no se pueden leer de allí.
 var _enemy_ids: Array[String] = []
 
+## IA-1a — Contexto de IA de este combate: RNG propio y un CombatAIState por actor de IA
+## (enemigos, refuerzos y companions; el protagonista no es de IA). Se crea antes de
+## instanciar ninguna IA y se suelta en combat_ended. En 1a solo se registra y se loguea.
+var _ai_context: CombatAIContext = null
+
 
 func _ready() -> void:
+	_ai_context = CombatAIContext.new()
+	print("[CombatProductionScene] IA-1a contexto de IA creado (seed=%s)" % _ai_context.rng_seed_string())
+
 	_spawn_player_combat_controller()
 
 	for enemy_id in game_loop.get_active_enemies():
@@ -47,6 +55,23 @@ func _ready() -> void:
 	EventBus.combat_ended.connect(_on_combat_ended)
 
 
+## IA-1a — Alta idempotente del estado de IA de un combatiente, con una línea de log:
+## id, perfil aplicado y estado de salud aparente.
+func _register_ai_state(entity_id: String) -> void:
+	if _ai_context == null or _ai_context.has_state(entity_id):
+		return
+	var state: CombatAIState = _ai_context.register_entity(entity_id)
+	print("[CombatProductionScene] IA-1a estado de IA: %s (hp_state=%s)" % [state.describe(), Combat.get_hp_state(entity_id)])
+
+
+func _release_ai_context() -> void:
+	if _ai_context == null:
+		return
+	print("[CombatProductionScene] IA-1a contexto de IA liberado (%d estados)" % _ai_context.size())
+	_ai_context.release()
+	_ai_context = null
+
+
 func _spawn_player_combat_controller() -> void:
 	var controller := Node.new()
 	controller.set_script(preload("res://scenes/player/player_combat_controller.gd"))
@@ -55,11 +80,22 @@ func _spawn_player_combat_controller() -> void:
 
 
 func _spawn_companion_ai(companion_id: String) -> void:
+	_register_ai_state(companion_id)
 	var ai := Node.new()
 	ai.set_script(preload("res://core/companions/companion_ai.gd"))
 	ai.name = "CompanionAI_%s" % companion_id
 	ai.set("companion_id", companion_id)
 	add_child(ai)
+
+
+## IA-0d — Kit de un enemigo: sale de CharacterDefinition.skills, no de una constante de
+## la escena. Sin definición o con la lista vacía cae al ataque básico, como hasta ahora.
+func _get_enemy_kit(enemy_id: String) -> Array:
+	var definition: CharacterDefinition = Characters.get_character_definition(enemy_id)
+	if definition == null or definition.skills.is_empty():
+		push_warning("[CombatProductionScene] %s sin skills en su definición: kit mínimo (basic_attack)" % enemy_id)
+		return ["skill.enemy.basic_attack"]
+	return definition.skills.duplicate()
 
 
 func _spawn_enemy_ai(enemy_id: String) -> void:
@@ -71,7 +107,8 @@ func _spawn_enemy_ai(enemy_id: String) -> void:
 	if not _enemy_ids.has(enemy_id):
 		_enemy_ids.append(enemy_id)
 	if not Skills.has_entity(enemy_id):
-		Skills.register_entity_skills(enemy_id, ["skill.enemy.basic_attack"])
+		Skills.register_entity_skills(enemy_id, _get_enemy_kit(enemy_id))
+	_register_ai_state(enemy_id)
 
 	var ai := Node.new()
 	ai.set_script(preload("res://core/combat/enemy_ai.gd"))
@@ -101,7 +138,7 @@ func _on_reinforcement_spawned(enemy_id: String, definition_id: String) -> void:
 		# Resources SIEMPRE después de Characters — Spike 6, Punto 1:
 		# ResourceSystem.register_entity() necesita la entidad ya en
 		# CharacterSystem para poder sincronizar max_effective.
-		Resources.register_entity(enemy_id, ["health"])
+		Resources.register_entity(enemy_id)
  
 	_spawn_enemy_ai(enemy_id)
 
@@ -111,6 +148,7 @@ func _on_reinforcement_spawned(enemy_id: String, definition_id: String) -> void:
 ## se difiere hasta que termine la acción en curso: end_combat() puede dispararse a
 ## mitad de una acción (character_died) y Combat sigue leyendo al objetivo y al atacante.
 func _on_combat_ended(_result: String) -> void:
+	_release_ai_context()
 	print("[CombatProductionScene] Baja de %d enemigos al acabar el combate" % _enemy_ids.size())
 	for enemy_id in _enemy_ids:
 		# Si un combate nuevo ya reutiliza este id, no se le quita el registro.

@@ -11,7 +11,6 @@ mode = "COMBAT"
 category = "MAGIC"
 subcategory = "RANGED"
 costs = {
-"focus": 10.0,
 "stamina": 15.0
 }
 base_cooldown = 2.0

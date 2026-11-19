@@ -101,6 +101,11 @@ var _current_acting_entity: String = ""
 ## request_id de la acción en curso (-1 = ninguna). Sirve para descartar respuestas ajenas.
 var _pending_request_id: int = -1
 
+## IA-0c — Enemigos que han anunciado su huida (EventBus.enemy_fled) y aún no se han
+## retirado: GameLoop los saca de participants/turn_order al cerrar la acción en curso,
+## no antes (no se toca turn_order mientras se recorre).
+var _pending_fled: Array[String] = []
+
 ## El jugador ya se anunció como caído en este combate (guarda de _incapacitate_player).
 var _player_downed_announced: bool = false
 
@@ -143,6 +148,7 @@ func _ready():
 	if EventBus:
 		EventBus.player_action_completed.connect(_on_player_action_completed)
 		EventBus.combat_action_completed.connect(_on_combat_action_completed)
+		EventBus.enemy_fled.connect(_on_enemy_fled)
 		EventBus.character_died.connect(_on_character_died)
 		EventBus.combat_action_requested.connect(_on_combat_action_requested)
 		EventBus.combat_action_failed.connect(_on_combat_action_failed)
@@ -254,7 +260,6 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 		return
  
 	print("[GameLoopSystem] ⚔️ Starting combat with %d enemies" % enemy_ids.size())
- 
 	participants.clear()
 	participants.append(PLAYER_ID)
  
@@ -283,6 +288,7 @@ func start_combat(enemy_ids: Array[String], encounter: CombatEncounterDefinition
 	_reinforcement_countdown_active = false
 	_current_encounter = encounter
 	_pending_victory_scene_id = victory_scene_id
+	_pending_fled.clear()
 	_pending_request_id = -1
 	_player_downed_announced = false
  
@@ -337,6 +343,7 @@ func end_combat(result: String) -> void:
 	# Spike 2, punto 6 — limpiar estado de moral/refuerzos, no debe fugarse
 	# a un combate siguiente
 	_current_encounter = null
+	_pending_fled.clear()
 	_group_morale_base_hp = 0.0
 	_group_morale_base_dirty = false
 	_morale_broken = false
@@ -857,6 +864,10 @@ func _on_combat_action_failed(actor_id: String, reason: String, request_id: int)
 	if not _is_current_request({"request_id": request_id}):
 		return
 	# DISARMED consume el turno: lo cierra combat_action_completed.
+	# IA-0c: INVALID_TARGET de un actor que no es el jugador también lo cierra
+	# combat_action_completed (skipped), igual que DISARMED.
+	if reason == "INVALID_TARGET" and actor_id != PLAYER_ID:
+		return
 	if reason == "DISARMED":
 		return
 	if actor_id != PLAYER_ID:
@@ -892,6 +903,7 @@ func _on_combat_action_completed(result: Dictionary) -> void:
 			push_warning("[GameLoopSystem] combat_action_completed ignorado: actor '%s' no coincide con el enemigo en turno ('%s')" % [actor, _current_acting_entity])
 			return
 		print("[GameLoopSystem] Enemy action completed")
+		_retire_fled()
 		if _check_combat_conditions():
 			return
 		current_turn_index += 1
@@ -911,6 +923,34 @@ func _on_companion_action_completed(companion_id: String, _result: Dictionary) -
 	_companion_turn_index += 1
 	await get_tree().create_timer(presentation_delay(companion_turn_delay)).timeout
 	_process_next_companion()
+
+
+## IA-0c — Un enemigo huye por su cuenta (efecto FLEE). Solo anota: la retirada se aplaza
+## hasta cerrar la acción en curso (_retire_fled).
+func _on_enemy_fled(enemy_id: String) -> void:
+	if not is_in_combat():
+		return
+	if not _pending_fled.has(enemy_id):
+		_pending_fled.append(enemy_id)
+
+
+## IA-0c — Retira de participants/turn_order a los enemigos que han huido, al cerrar la
+## acción en curso. Corrige current_turn_index: si el que huye está en la posición actual
+## o antes, el siguiente enemigo ocupa su sitio y el `+= 1` posterior se lo saltaría.
+## No emite señal propia (enemy_fled ya la emitió Combat) y la victoria se reevalúa en
+## el _check_combat_conditions() que sigue: sin ese enemigo en turn_order, cuenta como inactivo.
+func _retire_fled() -> void:
+	if _pending_fled.is_empty():
+		return
+	var enemies_before: Array[String] = get_active_enemies()
+	for enemy_id in _pending_fled:
+		var position: int = enemies_before.find(enemy_id)
+		participants.erase(enemy_id)
+		turn_order.erase(enemy_id)
+		if position != -1 and position <= current_turn_index:
+			current_turn_index -= 1
+		print("[GameLoopSystem] 🏃 %s retirado del combate (huida)" % enemy_id)
+	_pending_fled.clear()
 
 
 func _on_character_died(character_id: String) -> void:

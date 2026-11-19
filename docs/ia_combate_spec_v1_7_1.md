@@ -1,10 +1,38 @@
 # Athelia — Especificación de IA de combate (MVP) · v1.7.1
 
-**Estado:** Fase 0 cerrada (`docs/ia_combate_fase0.md`); decisiones de diseño tomadas el 2026-11-11; fase IA-0 en curso: IA-0a e IA-0b cerradas (2026-11-14 y 2026-11-15) · **Motor:** Godot 4.7.2
+**Estado:** Fase 0 cerrada (`docs/ia_combate_fase0.md`); decisiones de diseño tomadas el 2026-11-11; fase IA-0 cerrada (IA-0a a IA-0d, hasta 2026-11-16); fase IA-1 en curso: IA-1a cerrada (2026-11-19), IA-1b (telemetría) y IA-1c (decisión de objetivo y fallos) pendientes · **Motor:** Godot 4.7.2
 
 > Lo que se dice del código actual está verificado en la Fase 0. Nombres de señales, clases y campos **nuevos** siguen siendo propuestas.
 
 ## 0. Cambios
+
+### Correcciones posteriores a v1.7.1 (IA-1a, cerrada y validada; decisiones 1-A a 8 en `docs/ia_combate_ia1a_informe.md`)
+
+- **§15 IA-1:** la fase se divide en 1a (contratos y datos, cerrada), 1b (telemetría) y 1c (decisión de objetivo y gestión de fallos). El **contrato de resultados** (`CombatantStatus`, `combat_result_ready`, sección 10) pasa a IA-4, donde se elimina la moral de grupo; en IA-1a solo se entregan el snapshot y el contexto de IA.
+- **§4 piezas:** se añade `CombatAIContext` (por combate: RNG de IA y los `CombatAIState` de cada combatiente). Lo crea `CombatProductionScene` en `_ready()`, registra un estado por cada IA (plantilla y refuerzos) y lo libera en `_on_combat_ended()`. El jugador no tiene `CombatAIState`.
+- **§4 `BehaviorProfile`:** el id es el nombre del fichero (`data/ai/profiles/<id>.tres`); `BehaviorProfileRegistry.get_profile()` devuelve `duplicate(true)` y un perfil inexistente o inválido da el perfil seguro con aviso en Depurador.
+- **§7 snapshot:** `make_read_only()` es **superficial** en 4.7.2; `CombatSnapshot.build(actor_id)` congela en profundidad con una función recursiva y solo contiene tipos simples (sin `Resource` ni arrays empaquetados). Mutar un contenedor congelado da un error de ejecución que no se puede capturar: la prueba lo comprueba con `is_read_only()` recursivo, nunca intentando mutar.
+- **§11 RNG:** el estado de 64 bits no sobrevive a JSON como número; se expone como texto (`rng_state_string()`).
+- **`Combat`:** nuevos envoltorios públicos `get_side(id)` y `get_combatant_ids(side)` (duplican por ahora la lógica del privado `_get_opponents()`; unificar es un pendiente) y constantes `SIDE_ALLY`/`SIDE_ENEMY` en `CombatTags`.
+- **Asignación provisional de perfiles (hasta IA-5):** lobos → bestia; `warrior_base` → soldado; `warrior_weak` y `enemy_base` → bandido; Mira → soldado (provisional hasta IA-3); cobarde sin asignar.
+
+### Correcciones posteriores a v1.7.1 (IA-0d, cerrada y validada; decisiones 1-A a 5-A y 6 en `docs/ia_combate_ia0d_informe.md`)
+
+- **§4.2 vida y estamina:** los máximos ya salían de la constitución; solo se quitaron los `health`/`stamina` inertes de `starting_resources` de los cinco enemigos (vida 40 / 60 / 60 / 50 / 45, decisión de Fernando: no se cambió ningún atributo). Los refuerzos se registran con todos los recursos. El kit del enemigo se lee de `CharacterDefinition.skills` (`_get_enemy_kit()`).
+- **§4.2 campos:** `behavior_profile_id` y `threat_hint` existen en `CharacterDefinition` (copiados por `duplicate_definition()`; sin `from_dict` ni registry, se cargan como `.tres`).
+- **§6 skills de enemigo:** `skill.enemy.heavy_attack` nueva; kits por tipo (guerreros: basic + heavy + defend; lobos: basic + heavy + recover; `enemy_base`: basic + defend + recover); `flee` sin asignar hasta IA-4.
+- **§8 kit de Mira:** `skill.companion.defend` y `skill.companion.recover`, sin entrada en `starting_skill_values` (solo candidatas de `Combat` hasta IA-3).
+- **Defensa y multiobjetivo:** el `DefenseModule` en uso era el de un respaldo (absorbía daño gratis sin estamina suficiente); se activó el real y se borraron los cinco respaldos. `AREA`/`MULTI_ENEMY` se resuelven según el bando del atacante; `dodge` construye sus buffs con `_build_buff()` (`expires_on: "use"` en su `.tres`); `fireball` sin coste de `focus`.
+
+### Correcciones posteriores a v1.7.1 (IA-0c, cerrada y validada; decisiones 1-A a 5-A)
+
+- **§5.2 `effect_estimate`:** la tabla `effect_value` vive en `data/ai/ai_scales.json` (`restore`: salud 1,0 y estamina 0,5 PV por unidad; `defense_buffs`: `damage_reduction`; `flee`: 0,0). Una defensa se valora como el daño esperado evitado durante `max(1, int(duration))` ventanas del dueño frente a la mejor skill pagable de los oponentes, con y sin la reducción hipotética. Un efecto sin entrada en la tabla deja la skill fuera de las candidatas (aviso una vez por combate).
+- **§5.2 `expected_damage`:** valor esperado completo, grado a grado (decisión 3-A); error medido 0,17–0,59 % frente a 40 000 ejecuciones reales.
+- **§5.2 `threat`:** `threat_hint` si existe; si no, `base_damage` de `AttributeResolver` como proxy del arma contra `threat_thresholds`; un desarmado baja un nivel.
+- **§6 etiquetas:** derivadas de los efectos de la skill (decisión 4-A), sin campo `ai_tags`; `costly` si el coste supera `tag_rules.costly_cost_fraction` del máximo del recurso.
+- **§6 acciones de utilidad:** validadas. La rama genérica de `SELF` solo resuelve si la acción en curso es esa skill; `dodge` conserva la suya. Skills de datos: `skill.enemy.defend`, `skill.enemy.recover` y `skill.enemy.flee`. La `duration` de un `BUFF` son turnos del dueño (0 = «uso»).
+- **§6 `INVALID_TARGET`:** implementado (decisión 5-A) y comprobado antes de coste y cooldown. A un actor no jugador se le responde además con `combat_action_completed {skipped: true, actor, request_id}` y `GameLoop` ignora el fallo.
+- **§9 huida:** `FLEE` implementado como se describe; `GameLoop` retira al huido tras `Enemy action completed` corrigiendo el índice de turno, y `PlayerCombatController` excluye a los `FLED` de sus objetivos.
 
 ### Corrección posterior a v1.7.1 (IA-0b, cerrada y validada; decisiones 1-A, 2-A y 3-A confirmadas)
 
@@ -92,6 +120,7 @@ Sustituir la IA actual (los enemigos atacan siempre al jugador; Mira no elige ob
 | `BehaviorProfile` | `Resource` (`.tres`) con `validate()`; se duplica al iniciar el combate | Parámetros estáticos |
 | `BehaviorProfileRegistry` | Clase estática (`RefCounted`) con caché | Carga y valida perfiles; perfil seguro por defecto |
 | `CombatAIState` | Objeto por combatiente, vive lo que dura el combate | Orden activa, eventos de moral procesados, estado de moral. El último atacante lo registra `Combat` |
+| `CombatAIContext` | Objeto por combate (IA-1a), lo crea y libera `CombatProductionScene` | RNG de IA y los `CombatAIState` de todas las IA del combate |
 | `CombatSnapshot` | Estructura congelada | Lo que la IA puede conocer (sección 7) |
 | `CombatAI` | Lógica sin estado propio | Puntúa y elige |
 | `Combat` | `CombatSystem` existente | Candidatas, estimaciones, validación y ejecución |
@@ -173,7 +202,7 @@ Ejemplo ilustrativo de pesos (soldado): `expected_damage +10`, `target_vulnerabi
 #### Precisiones de datos y orden
 - **`expected_damage`:** `Combat` lo entrega ya multiplicado por `success_chance` y la IA no vuelve a multiplicar. `expected_damage`, `success_chance` y `kill_possible` son tres datos distintos y se registran los tres. `success_chance` sale de `SkillRoller` (acierto = `roll ≤ skill_value`, con la pifia `roll ≥ 98` que tiene prioridad; `guaranteed_hit` lo fuerza). La parte pura del daño se extrae de `CombatSystem`; la IA nunca implementa una segunda fórmula.
 - **`resource_cost` con recurso 0:** nunca se divide por cero. Si el recurso actual es 0, `C = 1` cuando el coste es > 0 y `C = 0` cuando es 0. `Combat` no lista candidatas que el actor no pueda pagar.
-- **`effect_estimate` en PV equivalentes:** `Combat` convierte cada efecto a una escala común para que no se comparen unidades distintas. Defensa/reducción de daño: daño esperado evitado durante la duración del buff, estimado con las mismas funciones de daño sobre las amenazas visibles. Recuperación de salud: la cantidad restaurada. Recuperación de estamina: cantidad × `stamina_value` (tabla de datos `effect_value`, valor inicial a fijar en IA-0c y afinar en IA-5). Un efecto nuevo debe declarar cómo se convierte antes de poder usarse en una candidata.
+- **`effect_estimate` en PV equivalentes:** `Combat` convierte cada efecto a una escala común para que no se comparen unidades distintas. Defensa/reducción de daño: daño esperado evitado durante la duración del buff, estimado con las mismas funciones de daño sobre las amenazas visibles. Recuperación de salud: la cantidad restaurada. Recuperación de estamina: cantidad × `stamina_value` (tabla de datos `effect_value`; valor inicial 0,5 fijado en IA-0c, afinar en IA-5). Un efecto nuevo debe declarar cómo se convierte antes de poder usarse en una candidata.
 - **`action_utility`:** `effect_estimate` es siempre ≥ 0. Un valor negativo es un error de datos: se corta a 0 y se registra un aviso.
 - **`threat`:** lo calcula `Combat` (`estimate_threat(observer_side, target_id)`) con información observable (arma equipada, condiciones visibles, `threat_hint`) y lo clasifica con umbrales de `ai_scales`. El constructor del snapshot lo copia.
 - **Orden canónico de candidatas:** antes de puntuar y sortear, se ordenan por `action_id` y después por `target_ids[0]` (cadena vacía si no hay objetivo). Es la clave de desempate explícita porque `sort_custom` no es estable.
@@ -268,7 +297,7 @@ Combat.next_request_id()              -> int                                    
 - `GameLoop` **no** avanza el turno de un actor de IA ante `combat_action_failed`; avanza con `combat_action_completed`. Para el jugador, `PlayerCombatController` valida antes de pedir (`Skills.can_use`) y, si aun así falla, `GameLoop` devuelve la fase a `PLAYER_ACTION_SELECT`.
 - Etiquetas: conjunto cerrado de constantes en un solo sitio.
 - **Información de las estimaciones (D1):** `Combat` calcula con las reglas existentes, pero del objetivo solo usa información **observable**: equipo, condiciones visibles (lista en datos), estado aparente. Del propio actor puede usar sus valores exactos. La resolución real sigue usando todos los valores reales.
-- **Acciones de utilidad como datos** (propuesta técnica, a validar en IA-0c): las skills `SELF` (defender, recuperar, huir) no tiran dado de ataque, igual que hoy `dodge`; sus efectos son `BUFF` (p. ej. `damage_reduction`), un efecto inmediato `RESTORE` de recurso y, para la huida, `FLEE`. La rama actual de `dodge` se generaliza a toda skill `SELF`.
+- **Acciones de utilidad como datos** (validado en IA-0c): las skills `SELF` (defender, recuperar, huir) no tiran dado de ataque, igual que hoy `dodge`; sus efectos son `BUFF` (p. ej. `damage_reduction`), un efecto inmediato `RESTORE` de recurso y, para la huida, `FLEE`. La rama actual de `dodge` se generaliza a toda skill `SELF`.
 
 ## 7. Snapshot
 
@@ -277,7 +306,7 @@ Generado por un constructor de la IA a través de la API pública de `Combat` (n
 - **De sí mismo:** exacto (PV, estamina, recursos, condiciones).
 - **De los demás:** aparente (`hp_state`, `threat`, condiciones visibles).
 - **Último atacante:** `Combat` lo registra por combatiente al aplicar daño; el snapshot incluye `self.last_attacker_id` y `player.last_attacker_id`.
-- **Inmutable por implementación:** se congela en profundidad al construirlo (`Dictionary.make_read_only()` / `Array.make_read_only()` recursivos; verificar en 4.7.2 y probar con datos anidados). El evaluador no consulta `Combat` mientras puntúa.
+- **Inmutable por implementación:** se congela en profundidad al construirlo (`Dictionary.make_read_only()` / `Array.make_read_only()` recursivos; verificado en 4.7.2 en IA-1a: `make_read_only()` es superficial, por eso `CombatSnapshot` lo aplica con una función recursiva y solo admite tipos simples). El evaluador no consulta `Combat` mientras puntúa.
 
 ## 8. Órdenes a Mira
 
@@ -389,7 +418,7 @@ Señales nuevas en `EventBus`: `ai_decision_made`, `enemy_morale_changed(enemy_i
 ## 11. RNG, reproducibilidad y trazabilidad
 
 - **RNG de combate:** `SkillRoller` pasa a usar un `RandomNumberGenerator` inyectable (variable estática con valor por defecto aleatorio). Es el único consumidor de azar que influye en el desarrollo del combate; `SkillProgressionService` solo tira al final y el loot, después.
-- **RNG de la IA:** independiente del de combate; se usa también para desempates (5.3).
+- **RNG de la IA:** independiente del de combate; se usa también para desempates (5.3). Vive en `CombatAIContext`; su estado se registra como texto (`rng_state_string()`), porque 64 bits no sobreviven a JSON como número.
 - **Dos garantías:**
   1. Misma entrada + mismo snapshot + mismo estado del RNG de IA ⇒ misma decisión de IA.
   2. Mismo estado inicial completo + mismas semillas ⇒ mismo desarrollo del combate (modo sin interfaz y análisis). No se garantiza tras un guardado, porque **no se guarda a mitad de combate**.
@@ -417,7 +446,7 @@ Desglose atacar_mira: daño +8.0 | vulnerabilidad +5.0 | amenaza +3.0 | riesgo �
 - **Control:** activado por defecto en compilaciones de depuración, desactivado en las exportadas. Se conservan los últimos N ficheros (p. ej. 50). No entran en el guardado.
 - **Acceso:** opción «Abrir carpeta de logs» (`OS.shell_open(ProjectSettings.globalize_path("user://logs/combat"))`).
 - **Un solo logger:** `CombatTelemetry` (`RefCounted`). **Lo crea `CombatProductionScene` (uno por combate)**, que se libera en `combat_ended`: `combat_end` se escribe antes del `queue_free()`. Casi todos los eventos salen de `EventBus` (`combat_started`, `round_started`, `combat_action_executed`, `combat_action_failed`, `character_damaged`, `character_died`, `buff_applied/expired`, `enemy_fled`, `reinforcement_spawned`, `combat_result_ready`); solo `decision` exige un emisor nuevo en `CombatAI`.
-- **Orden de creación:** el logger se crea y se conecta a `EventBus` **antes** de emitir `combat_started`, y se cierra también si el combate termina por otra ruta (`end_combat` directo, Game Over, salida del árbol de escena).
+- **Orden de creación:** el logger se crea y se conecta a `EventBus` **antes** de emitir `combat_started`, y se cierra también si el combate termina por otra ruta (`end_combat` directo, Game Over, salida del árbol de escena). *(Matiz de IA-1a: `combat_started` solo se emite en `game_loop_system.gd`, después de que la escena de combate haya ejecutado `_ready()`; el logger se crea al final de ese `_ready()`. Ver `docs/ia_combate_ia1b_spec.md`.)*
 - **Robustez:** `event_seq` lo incrementa solo el logger. Un fallo de escritura desactiva la telemetría con un aviso y nunca interrumpe el combate. Los valores no finitos (`NAN`, `INF`) se sustituyen por `null` antes de serializar.
 - **Modo sin interfaz:** los retardos de presentación de `EnemyAI`, `CompanionAI` y `GameLoop` se anulan con un único ajuste (`GameLoop.presentation_time_scale = 0`); cada espera pasa a durar un frame para conservar el orden de las señales.
 
@@ -501,7 +530,7 @@ Registrar los datos de entrada además de la contribución permite distinguir si
 | Acción obsoleta (`STALE`) | Recalcula sin ejecutar acción ilegal; máximo 2 reintentos |
 | `ERROR` | No se reintenta; aplica la acción de reserva |
 | Perfil inexistente o mal formado | Perfil seguro o rechazo controlado |
-| Snapshot congelado | Intentar modificarlo falla; también en datos anidados |
+| Snapshot congelado | Se comprueba con `is_read_only()` recursivo (mutar un contenedor congelado da un error de ejecución no capturable, así que nunca se intenta); también en datos anidados |
 | **Mismo perfil, distinta situación** | La puntuación cambia con la circunstancia relevante y las decisiones siguen siendo legales |
 | Candidatas barajadas | Mismo resultado |
 | `effect_estimate` negativo | Se corta a 0 con aviso |
@@ -558,7 +587,7 @@ La Fase 0 está en `docs/ia_combate_fase0.md`. Las decisiones que dejó abiertas
 | Fase | Contenido | Validación |
 |---|---|---|
 | **IA-0** | Prerrequisitos de motor (ver `docs/ia_combate_ia0_plan.md`): robustez de acciones y estado de combate, combate por turnos, estimaciones de `Combat`, datos | Los combates actuales se comportan igual o mejor; los defectos del plan no se reproducen |
-| **IA-1** | Contratos: `BehaviorProfile` (con validación), `CombatAIState`, snapshot congelado, candidatas, resultado, registry; primera decisión de objetivo; gestión de fallos de acción de IA; `CombatTelemetry` mínimo (`combat_start`, `decision`, `combat_end`) | El Output muestra el log y aparece un `.jsonl` con `event_seq` sin huecos; enemigos distintos reparten ataques de forma distinta |
+| **IA-1** | Dividida en tres (ver `docs/ia_combate_ia1_spec.md`). **1a (cerrada):** contratos y datos: `BehaviorProfile` (con validación), `CombatAIState`, snapshot congelado (con las candidatas de `Combat`), contexto de IA por combate, registry (el contrato de resultados queda en IA-4). **1b:** `CombatTelemetry` mínimo (`combat_start`, `combat_end` y `error` en 1b; `decision` llega con 1c). **1c:** primera decisión de objetivo; gestión de fallos de acción de IA | El Output muestra el log y aparece un `.jsonl` con `event_seq` sin huecos; enemigos distintos reparten ataques de forma distinta |
 | **IA-2** | Evaluador, normalizaciones, selección ponderada, RNG propio, desglose en el log; skills de enemigo (ataque fuerte, defender, recuperar) | Misma entrada y RNG = misma decisión; variación sin absurdos |
 | **IA-3** | Mira con órdenes como bonificaciones, selector de UI, pantalla Party y migración de la estrategia a `default_order`, skills de Mira | La orden cambia sus decisiones; la supervivencia sigue disponible |
 | **IA-4** | Moral individual, transiciones, huida (`FLEE`), `can_flee`, contrato final (`combat_result_ready`); **se elimina la moral de grupo** | Un bandido huye al caer sus compañeros; la narrativa recibe el estado de todos |

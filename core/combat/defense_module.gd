@@ -1,4 +1,4 @@
-#class_name DefenseModule
+class_name DefenseModule
 extends RefCounted
 
 ## DefenseModule - Sistema de absorción temporal de daño

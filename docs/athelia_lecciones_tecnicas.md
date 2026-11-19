@@ -1,13 +1,13 @@
 # Athelia — Lecciones técnicas y convenciones
- 
+
 Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indica el spike de origen entre paréntesis (el relato completo está en `athelia_historial_spikes.md`).
- 
+
 **Lo que ya está en otros ficheros no se repite aquí:** los antipatrones de UI (autorreferencia por `class_name`, `SceneState`, `closed` frente a `tree_exiting`, razón de `changed()` sin consumidor, panel sin tamaño fijo, `TextureRect` con `expand_mode`, contorno sobre imagen, `PanelContainer` que apila hijos, validar antes de mover, `owner_id` en el arrastre, etc.) están en `athelia_ui_architecture.md`.
- 
+
 ---
- 
+
 ## Las 15 que más evitan errores
- 
+
 1. **Fase 0 antes de diseñar:** comprobar el código real con `Select-String` (con `-CaseSensitive` si hace falta); la documentación y las specs han descrito el código de forma incorrecta varias veces (S12, S15, S19).
 2. **Una transición de `GameState` nueva se verifica contra `VALID_STATE_TRANSITIONS`:** una inválida solo hace `push_warning` y no pasa nada visible (G1, S13).
 3. **`push_warning`/`push_error` salen en Depurador → Errores, no en el Output** (S13, S16).
@@ -24,9 +24,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 14. **Dos caminos para construir el mismo evento divergen:** el segundo llama a la API pública del dueño del estado (S8).
 15. **Una operación que cambia de dueño un dato valida todo antes y revierte si falla** (S19).
 ---
- 
+
 ## GDScript y Godot
- 
+
 - **Enum anidado en otra clase** (`GameLoopSystem.GameState`): no usarlo como anotación de tipo de variable (falla con «Could not find type»); trabajar con `int` (G3A).
 - **`match` sin rama `_:` y array indexado por enum no avisan si el enum crece:** revisar todos los consumidores al extender un enum (S2).
 - **Una señal no admite parámetros opcionales,** y un dato que viaja fuera de la señal se lee de estado ambiente con degradación silenciosa si falta. Un punto de entrada nuevo debe pasar explícitamente todo lo que el camino antiguo obtenía por efecto lateral (S12).
@@ -45,10 +45,17 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **`NOTIFICATION_TRANSLATION_CHANGED` llega a todos los nodos, también a los ocultos:** retraducir ahí (con `is_node_ready()` y el ViewModel ya creado) da cambio de idioma en caliente sin recargar escenas ni cerrar paneles (S23).
 - **Un `const` declarado dos veces en un autoload lo deja sin compilar** y arrastra «Cannot infer the type» en todos los consumidores de `UITokens` (decenas de ficheros, y tests): ante ese aluvión, mirar el primer error, no los demás (S23).
 - **Un `.tres` solo guarda las propiedades distintas del valor por defecto:** un `@export` nuevo que no aparece en el fichero vale 0 (o su defecto), aunque el inspector parezca mostrar otra cosa o el valor «se haya puesto». Hay que abrir el recurso, ponerlo y guardar (`combat_regen_per_round` en `stamina.tres`) (IA-0b).
+- **Un `class_name` comentado en el fichero real y activo en su `_bak` hace que el nombre global resuelva al respaldo:** el código de producción usaba sin saberlo `defense_module_bak.gd` (con un fallo de desbordamiento). Antes de borrar un respaldo, buscar `class_name X` y `#class_name X` en todo el proyecto, activar la clase real y borrar el respaldo después; dos ficheros con el mismo `class_name` activo dan además errores de clase global duplicada (IA-0d).
+- **`CharacterDefinition` y los `Resource` que se cargan como `.tres` no tienen `from_dict` ni registry:** un campo nuevo es `@export` + copia en `duplicate_definition()` (+ `validate()` si hace falta) (IA-0d).
+- **`Dictionary.make_read_only()` y `Array.make_read_only()` son superficiales** (comprobado en 4.7.2): los contenedores anidados siguen siendo mutables, y un `deep_freeze` recursivo los congela (arrays tipados incluidos). Los `Resource` y los `Packed*Array` no se pueden congelar: un snapshot lleva solo tipos simples (IA-1a).
+- **Mutar un contenedor congelado da un error rojo de runtime que aborta la función y no se puede atrapar:** una prueba comprueba `is_read_only()` de forma recursiva y nunca intenta mutar (IA-1a).
+- **`duplicate()` de un contenedor congelado devuelve una copia mutable, pero superficial; `Resource.duplicate()` comparte los `Dictionary`/`Array` con el original:** quien entrega copias de un recurso con contenedores (un registry) usa `duplicate(true)`, que separa también los anidados (IA-1a).
+- **El estado de un `RandomNumberGenerator` es de 64 bits y no sobrevive a JSON como número:** semilla y estado se exponen y se guardan como texto (`rng_state_string()`), y se reanuda asignando `state` (IA-1a).
+- **Un `Array[String]` tipado comparado con un literal sin tipo da falso:** comparar con `",".join(...)` o elemento a elemento (IA-1a).
 ---
- 
+
 ## Datos, registries y localización
- 
+
 - **No asumir que un catálogo escanea subcarpetas:** `SkillSystem`/`ItemRegistry` recursan; `ResourceSystem` no (lista hardcodeada `health`/`stamina`/`gold`); `DialogueRegistry` solo desde el Grupo 2; `InteractiveSceneDB` no. Comprobar el `_load_*` real (G3D, G2, S12).
 - **Un registry que construye campo a campo ignora en silencio un campo nuevo del JSON** (`DialogueRegistry._load_option_from_dict()`) (G1).
 - **Dos ficheros con el mismo nombre en carpetas distintas se pisan al copiar** (diálogo y escena narrativa del briefing); los diálogos llevan prefijo `dlg_` (S13).
@@ -57,7 +64,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Textos de habilidades en `skills.csv`** (`SKILL_<ID>_NAME`/`_DESC`); una habilidad sin sus dos claves sale como `SKILL_X_NAME` (S15).
 - **Datos específicos de una aventura** en su propia subcarpeta (`data/characters/telmori/`, `data/items/telmori/`), salvo ítems de arma con ranura (por tipo). Localización en un CSV propio por aventura (G3B).
 - **Un fichero de iconos genéricos copia el arte;** nunca apunta a la carpeta de una aventura (G4).
-- **El kit de skills de una entidad se lee siempre de su `CharacterDefinition`;** una copia paralela se desincroniza al editar el `.tres` (G3B).
+- **El kit de skills de una entidad se lee siempre de su `CharacterDefinition`;** una copia paralela se desincroniza al editar el `.tres` (G3B). Los enemigos y refuerzos también (`_get_enemy_kit()`) (IA-0d).
+- **`list_known_skills()` son las claves de `starting_skill_values`, no el kit `skills`:** una skill del kit sin valor de habilidad queda invisible para los selectores heredados que usan `list_known_skills()`; se usa a propósito para añadir skills a una IA que aún no debe verlas (las dos de Mira) (IA-0d).
+- **Un recurso con máximo derivado no declara su máximo en `starting_resources`:** un dato inerte que parece mandar engaña a quien edita el `.tres`; se quita y se verifica por el log de registro (`Resources.register_entity()` sin lista da de alta todos los recursos) (IA-0d).
 - **`reinforcement_definition_id` no admite tipos mixtos:** un refuerzo sale de una única `CharacterDefinition` (G3C).
 - **`Inventory.add_item` devuelve `true` aunque pierda datos** (sobrescribe un no apilable ya presente, recorta al `max_stack`, descarta `custom_state`): quien transfiere pre-valida y comprueba la cantidad resultante (S19b).
 - **La documentación decía «máximo 2 compañeros» y el código tiene `MAX_PARTY_SIZE = 3`:** una decisión de diseño que vive solo en un documento no es una regla (S19b).
@@ -65,9 +74,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **`AttributeResolver.resolve()` solo sirve para derivados:** con un atributo base devuelve 0.0 con aviso; para los base se usa `Characters.get_all_base_attributes()` y `get_active_modifiers()` (S22).
 - **Que un ítem declare un bono no garantiza que el motor lo aplique:** se comprueba contra los derivados antes de mostrarlo (el `+2 DES` de las botas no cambia la Iniciativa) (S22).
 ---
- 
+
 ## Estado, flujo y señales
- 
+
 - **Un overlay/sub-pantalla anidable no depende de `tree_exiting`:** ver `athelia_ui_architecture.md`. Complemento: un orquestador con `_current_overlay` único debe conectar `closed` de cada overlay, o hay que pulsar la tecla dos veces (S17).
 - **Con un orquestador de slot único, el overlay abierto se identifica por `scene_file_path` y se aplica una sola regla:** el propio se cierra, otro ligero se ignora, cualquier otro se cierra (S22).
 - **Una pantalla anidada oculta debe seguir consumiendo en `_input` la tecla que cierra a su padre:** si no, el evento llega al orquestador y cierra todo (S22).
@@ -88,9 +97,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Un contador, una fuente:** el HUD llevaba sus cooldowns en rondas y `SkillSystem` los suyos en segundos, dos verdades que nunca se hablaban. El dato vive en el sistema y la UI solo lo lee (IA-0b).
 - **Refrescar por señal propia, no por orden de conexión:** el sistema emite al terminar de actualizarse (`combat_cooldowns_ticked`) y el HUD se engancha a esa señal, no a `round_started` (IA-0b).
 ---
- 
+
 ## Sesión, guardado y entidades
- 
+
 - **Un guard `has_entity` que no recrea hace que una sesión nueva herede la entidad vieja** (jugador muerto con HP 0 y stats viejos): el guard protege del doble registro, no de la herencia entre sesiones (S14).
 - **La carga sobrescribe, no borra:** todo lo que no está en el guardado sobrevive a una carga; el reinicio debe ocurrir antes (S14).
 - **La lista de `get_save_state()` es la lista de control de un reinicio:** todo sistema que guarda estado hay que vaciarlo; añadir a mano los diccionarios runtime que no se guardan (`CombatSystem._active_buffs`) (S14).
@@ -106,9 +115,9 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **`playtime_seconds` de `SaveSystem` suma también el tiempo de menú y no se reinicia en una partida nueva:** no se muestra hasta arreglarlo (S23).
 - **Una intención que pide una transición a `GameLoop` compara `current_game_state` antes y después:** `enter_*` ignora el `bool` de `request_state_change()`, y si se rechaza nadie emite `game_state_changed`; el ViewModel debe volver por sí mismo a su estado (`MAIN` en el menú, `opened` en el Game Over) (S24).
 ---
- 
+
 ## Combate y narrativa
- 
+
 - **Un listener de `combat_ended` sin desconectar resucita contenido:** cualquier combate posterior reactiva un guard que solo comprueba flag + «¿existe el nodo?». Desconectar al completar el arco (G3C). *(Con el ciclo actual de `combat_victory_scene_id` este patrón ya no se usa; la lección vale para cualquier listener global.)*
 - **Un listener filtrado por `flag_name` no necesita desconectarse,** pero un interactuable de recompensa sin retirar permite repetir oro/ítems sin límite: siempre un segundo listener del flag de cierre del arco (G3D).
 - **Limpiar un interactuable de reconexión se engancha a `narrative_flag_set`, no a `narrative_scene_closed`:** una escena que encadena a otra por `next_scene_id` no cierra el panel ni emite el cierre con su `scene_id` (G3C).
@@ -126,10 +135,20 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Una cadena multi-escena cortada antes de tiempo se delata por el `scene_id` de `narrative_scene_closed` en el log** (G3D).
 - **Dos sistemas narrativos distintos son fáciles de confundir:** `narrative_event_id` dispara `NarrativeSystem.apply_event()`, no `enter_narrative_scene()` (G3B).
 - **Un modificador multiplicativo de combate y un mini-acertijo de objeto sobre objeto se descartaron explícitamente** por falta de un segundo caso real (G3C, G3D).
+- **Un combatiente que sale sin morir (`FLED`) sale de todas las listas de objetivos con el mismo criterio:** `PlayerCombatController` seguía apuntando al lobo huido, `Combat` respondía `INVALID_TARGET` y el jugador repetía la misma petición. Se filtra con `Combat.is_fled()` y se escucha `enemy_fled`; releer la lista de `GameLoop` no basta, porque la retirada ocurre después de la señal (IA-0c).
+- **Retirar a alguien de `turn_order` mientras se recorre se aplaza hasta cerrar la acción en curso y corrige el índice:** si no, el enemigo siguiente se salta (IA-0c).
+- **Una rama genérica que reacciona a la señal de uso de cualquier skill comprueba que la acción en curso es esa skill** (`_pending_skill_context`); hasta IA-0c una skill `SELF` distinta de `dodge` colgaba el turno porque nadie la cerraba (IA-0c).
+- **Un daño con una función no lineal (armadura `max(1, daño − armadura)`) se estima grado a grado con las probabilidades de `SkillRoller`, no con un daño medio:** y el camino real llama a las mismas funciones puras, para tener una sola fórmula (IA-0c).
+- **Una rama especial se unifica con el constructor genérico declarando en los datos lo que antes deducía por su cuenta:** el buff de `dodge` pasó a `_build_buff()` con `expires_on: "use"` en su `.tres` (el constructor respeta el campo explícito y deduce de `duration` solo si falta), sin cambiar el resultado jugable (IA-0d).
+- **Una skill multi-objetivo se resuelve respecto al bando del atacante** (`_get_hit_pool(attacker_id)`): con un conjunto fijo («los enemigos») un barrido enemigo golpearía a sus propios compañeros; el fallo es latente hasta que existe una skill así, y se prueba con una skill real leída de su definición, no con el tipo supuesto (`sweep` es `MULTI_ENEMY`, no `AREA`) (IA-0d).
+- **Una prueba con entidades inventadas hereda las reglas de bando del sistema que prueba:** tras hacer `_get_hit_pool()` relativo al atacante, `ia0c_test` rompió porque su barrido lo lanzaba un aliado; se ajustó a un atacante no aliado y el caso de aliado lo cubre `ia0d_test` (IA-0d).
+- **Un módulo de defensa debe calcular el desbordamiento antes de gastar el recurso:** si resta primero y `ResourceState` recorta a 0, el exceso nunca se detecta y la defensa absorbe gratis (IA-0d).
+- **Un dato que la IA necesita y el sistema solo tiene privado se expone con un envoltorio público mínimo, no leyendo el miembro privado:** `Combat.get_side()` y `get_combatant_ids()` envuelven `_is_ally()` y la misma lógica de `_get_opponents()`; la lógica queda duplicada y se anota para unificarla. La prueba de contrato escanea `core/ai/` buscando `\b(Combat|GameLoop|Party|Resources|Characters|Skills)\._[A-Za-z]` (IA-1a).
+- **Un estado que vive por combate y otro por combatiente son dos objetos:** el RNG de IA es por combate y el perfil por combatiente, así que un contexto por combate (`CombatAIContext`) reúne ambos; lo crea y libera la escena de combate, que ya spawnea cada IA (también los refuerzos) (IA-1a).
 ---
- 
+
 ## UI y Design System (solo lo no cubierto en ui_architecture)
- 
+
 - **Un componente del DS lee sus propiedades en `_ready()`:** fijar `variant`, `btn_size`, `min_square`, `icon_backdrop` antes de `add_child()`; un `custom_minimum_size` previo se pisa en parte (S13).
 - **Una raíz que `extends UIPanel` fija `padding` antes de `super._ready()` y siempre llama a `super._ready()`** (S16, S18).
 - **Tipar un `@onready` con la clase del componente delata una instancia equivocada:** falla en `@implicit_ready` con «Trying to assign value of type 'Button'…» (S16).
@@ -148,7 +167,7 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Una rejilla con columnas variables usa el ancho real del `ScrollContainer` menos una reserva para la barra de scroll** y un pool de slots (S18).
 - **Lo que no cabe en la capacidad se muestra con borde de desbordamiento, no se descarta** (S18).
 - **Los bonos de equipo suman solo `add`;** `mul` y `override` no se pueden sumar sin ambigüedad. Las estadísticas mostradas son valores **base** (S18).
-- **Un `.tscn` creado a mano sin UID:** Godot lo regenera y avisa; es inofensivo (S18).
+- **Un `.tscn` creado a mano sin UID:** Godot lo regenera y avisa; es inofensivo (S18). Lo mismo un `.tres` de skill sin `uid` en la cabecera (IA-0d).
 - **Una clase interna de la View (`ColumnView`) evita duplicar el pintado de dos columnas idénticas** (S19).
 - **Una View puede pintar sin `ItemInstance`:** `UISlot.set_definition(definition, quantity)` basta (S19).
 - **Un widget con ocultado automático lleva su propio `Timer` hijo:** un mensaje nuevo reinicia la cuenta (S17).
@@ -193,16 +212,18 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Un botón con ancho por fracción de pantalla (`custom_minimum_size.x` desde la View, recalculado en `size_changed`) y `SHRINK_CENTER` no depende del idioma ni del texto** (S24).
 - **Una pantalla que arranca oculta y la muestra el orquestador se previsualiza con una escena temporal en `test/`** (con una constante de idioma); la retira el propio spike (S24).
 ---
- 
+
 ## Proceso y herramientas
- 
+
 - **Cuando una spec da una hipótesis como causa, reproducir antes de arreglar** (16c) (S19). Las cifras de una spec se comprueban contra el árbol de nodos real (S15).
 - **Una línea que falta en el Output delata un bug:** comparar el Output con la secuencia esperada, no solo buscar errores (S19). En IA-0b la ausencia de `🔋` y de `disponible de nuevo` en el log reveló el campo sin guardar y el parche omitido.
 - **Los parches «buscar → sustituir» usan anclas de una sola línea:** las de varias líneas fallan con tabuladores y finales de línea de Windows, y un ancla mal aplicada puede borrar otra línea sin aviso (IA-0a).
 - **Para renombrar una señal, buscar `emit_signal("x"`, `x.emit(` y `x.connect(` por separado:** el HUD de combate emitía con `.emit({` y la primera búsqueda no lo vio (IA-0a).
 - **Los parches «buscar → sustituir» comprueban que el ancla aparece exactamente una vez y no asumen la sangría;** en funciones largas, vigilar las comas al añadir claves a un diccionario. Mismo criterio para parchear documentación (S18, S19, S16).
 - **Un script de PowerShell 5.1 sin BOM corrompe los acentos literales:** escribirlos con `[char]0xE9` o mantener el script en ASCII; los CSV se leen y escriben como UTF-8 conservando BOM y saltos de línea (S15).
-- **`Select-String` no distingue mayúsculas por defecto:** `Items\.` casa con `bag_items.`; para auditar el contrato MVVM usar `-CaseSensitive` (S17).
+- **Las rutas relativas de .NET (`[IO.File]::…`) se resuelven contra `C:\Windows\system32`, no contra `Get-Location`:** un script de PowerShell las construye con `Join-Path (Get-Location) …`. Y un bloque de GDScript pegado en la consola pierde las tabulaciones: el código va al editor, no a un here-string (IA-0d).
+- **`Select-String` no distingue mayúsculas por defecto:** `Items\.` casa con `bag_items.`; para auditar el contrato MVVM usar `-CaseSensitive` (S17). Un patrón también casa con líneas preexistentes parecidas: contar bien el número esperado de coincidencias antes de dar un parche por mal aplicado (IA-0d).
+- **`Get-ChildItem data\characters\*.tres` no entra en subcarpetas:** para localizar un recurso usar `-Recurse` (`companion_mira.tres` está en `companions/`) (IA-0d).
 - **Una prueba aislada de un componente con ítems de respaldo** evita depender del estado del juego (`ui_slot_drag_test`) (S18).
 - **Un script de depuración temporal (autoload con teclas) permite probar casos que el juego no produce** (0 y 2 compañeros), pero sus acciones destruyen estado: no se guarda con él activo, se restaura el guardado después y se retira (con su autoload) antes de cerrar el spike (S19).
 - **Un dato de prueba de un spike anterior altera la siguiente validación** (`inventory_slots` reducido, `Huecos 6/7`): devolverlo a su valor real (S19).
@@ -221,13 +242,21 @@ Lecciones de motor y de proceso reutilizables, agrupadas por tema. Cada una indi
 - **Quitar un nodo de depuración referenciado por `$Nombre`:** primero el script (`@onready` y usos), después los `.tscn`; al revés da error al cargar (S24).
 - **Tras aplicar un parche, comprobar con `Select-String` que su identificador nuevo está en el fichero antes de probar:** una prueba «ok» no demuestra que el cambio estuviera aplicado (el `_recover_if_transition_rejected()` del menú, S24; el `if _combat_mode: return` de `SkillSystem._process`, IA-0b, que se delató porque el número de línea de `process_cooldown` no coincidía con el esperado).
 - **Un setter temporal con `print_stack()` sobre el campo sospechoso** (`current_cooldown`) dice quién lo cambia sin leer todo el código; se retira al cerrar el spike (IA-0b).
+- **Los cambios temporales de validación llevan una marca fija (`TEMPORAL IA-0c`, `TEMPORAL IA-0d`) y su retirada se comprueba con `Select-String` sobre la marca y sobre `seed(`** antes de cerrar el spike (IA-0c, IA-0d).
+- **Una comparación de cifras con semilla solo vale con el mismo estado inicial completo:** si cada ejecución crea un personaje distinto, no es comparable; la prueba automática con ids de definición fijos sí (IA-0c).
+- **Una prueba de Monte Carlo silencia el Output (`Engine.print_to_stdout = false`) y lo restaura al terminar;** usa ids de definición reales (`companion_mira`, `telmori_wolf_base`; el jugador no tiene `.tres`) (IA-0c).
+- **Una prueba automática lee los datos reales en lugar de suponerlos** (tipo de objetivo de `sweep`, kit de cada enemigo): una prueba que asume el dato falla por la suposición y esconde si el código está bien (IA-0d).
+- **`Resources.get_resource_state` da error si el recurso no existe:** una comprobación silenciosa (costes de las candidatas) usa `has_resource` (IA-0c).
 - **Un `print` al cargar un recurso con el valor leído** (`Loaded definition: stamina (combat_regen_per_round=…)`) separa «dato no guardado» de «código equivocado»; es inocuo y se queda (IA-0b).
 - **Un patrón de auditoría amplio (`Label.new`) da falsos positivos en listas dinámicas:** el que cuenta es `Color\(|modulate`; los ficheros `*_test*` y `*_bak*` se filtran por nombre, no solo por carpeta (S24).
 - **Un informe puede listar como pendiente algo que ya no existe** (`DebugPartyTool`): comprobar antes de planificar su retirada (S24).
+- **Una sonda `EditorScript` (Ctrl+Shift+X) con líneas `[PASS]/[FAIL]/[INFO]` contrasta hipótesis de motor** (congelado, `duplicate`, RNG) antes de diseñar sobre ellas; es temporal, marcada `TEMPORAL IA-<x>`, y se borra al cerrar. En una sonda no se pueden usar métodos de comprobación por nombre sobre tipos nativos (`PackedStringArray.has_method` da error) (IA-1a).
+- **Un registry de recursos exige que el id coincida con el nombre del fichero:** así copiar un `.tres` no crea duplicados silenciosos, y la prueba de carga usa un directorio temporal en `user://` con casos buenos y rechazados (IA-1a).
+- **En una prueba, una línea `[SKIP]` no es un fallo de código:** significa que no se pudo preparar el escenario (por ejemplo, no hay protagonista); se informa y se pregunta, no se da por buena (IA-1a).
 ---
- 
+
 ## Convenciones de ficheros
- 
+
 - `*_bak.gd`/`*_bak.tscn` son backups; `.gd.uid` es metadato de Godot. `_definition.gd` = Resource estático; `_state.gd` = Resource runtime; `_system.gd` = sistema lógico (autoload o manager). `test/` y `debug/` no se usan en producción.
 - Main Scene del proyecto: `res://ui/main_menu/main_menu_screen.tscn`.
 - La localización cubre ES y EN: CSV compilados a `.translation`.

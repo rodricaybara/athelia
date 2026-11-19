@@ -1,13 +1,13 @@
 # Athelia — Referencia de sistemas (estado actual)
- 
+
 Motor: Godot 4.7.2 (Forward Plus). RPG por turnos con escenas narrativas e interactivas, combate, diálogo, economía y guardado.
- 
+
 Este fichero describe **qué existe hoy y cómo se comporta**. El porqué de cada decisión está en `athelia_historial_spikes.md`; las lecciones reutilizables en `athelia_lecciones_tecnicas.md`; el árbol de ficheros en `athelia_estructura_carpetas.md`; el patrón MVVM y el Design System en `athelia_ui_architecture.md` (no se duplican aquí).
- 
+
 ---
- 
+
 ## Autoloads
- 
+
 ### Infraestructura base
 | Singleton | Script | Descripción |
 |---|---|---|
@@ -16,18 +16,18 @@ Este fichero describe **qué existe hoy y cómo se comporta**. El porqué de cad
 | `SceneOrchestrator` | `core/scene_orchestrator.gd` | Reacciona a `game_state_changed` para mostrar/ocultar overlays y cargar/descargar escenas. Nunca modifica `GameState`. Ver «SceneOrchestrator». |
 | `SaveManager` | `core/save/save_system.gd` | Guardado/carga. Slot único `"quicksave"`. Ver «Guardado». |
 | `UITokens` | `ui/design_system/tokens/ui_tokens.gd` | Tokens de diseño. |
- 
+
 ### Personaje
 | Singleton | Script | Descripción |
 |---|---|---|
 | `Characters` | `core/characters/character_system.gd` | Creación, acceso y ciclo de vida de personajes. |
 | `Modifiers` | `core/characters/modifier_applicator.gd` | Aplica modificadores sobre atributos. No emite `temporary_state_added/removed/expired` y nadie aplica estados temporales en producción. Los modificadores `attribute.<base>` **no** afectan a los derivados: `AttributeResolver._resolve_linear_combination` lee `state.get_base_attribute()`, y `AttributeResolver.resolve()` solo sirve para derivados. |
-| `Resources` | `core/resources/resource_system.gd` | Recursos vitales (vida, stamina, oro). `register_entity()` depende de `Characters`/`AttributeResolver` (sincroniza `max_effective` vía `AttributeResolver.resolve_resource_max()`): `Characters.register_entity()` debe haberse llamado antes. Su lista de recursos en `_load_resource_definitions()` está hardcodeada (`health`, `stamina`, `gold`), a diferencia de Skills/Items; carga con `load()` y una línea de log por definición (`Loaded definition: <id> (combat_regen_per_round=…)`). `_emit_resource_changed()` reenvía a `EventBus.resource_changed`. **Regeneración:** continua en `_process` (la estamina, 10/s tras `regen_delay = 2.0`); `set_regen_suspended(bool)` la detiene y la gobierna `GameLoop` al entrar/salir de `COMBAT_ACTIVE` (log `Regeneración continua SUSPENDIDA/REANUDADA`). En combate, `apply_combat_round_regen(entity_id) -> Dictionary` suma `ResourceDefinition.combat_regen_per_round` (estamina = 10; es un `@export` de `.tres`, sin `from_dict` ni registry) sin pasar de `max_effective` y devuelve lo añadido. |
-| `Skills` | `core/skills/skill_system.gd` | Registro, acceso y uso de habilidades. `SkillRoller` (estático, no autoload) resuelve D100 con 5 grados: `FUMBLE`/`FAILURE`/`SUCCESS`/`SPECIAL`/`CRITICAL`; `CRITICAL` (skill/20) y `SPECIAL` (skill/5) dinámicos, `FUMBLE` absoluto (≥98). `learn_skill()` enseña una skill fuera del kit inicial. **Cooldowns:** fuera de combate corren en segundos (`_process`); con `combat_started` entra en modo combate (`_combat_mode`; red de seguridad por `game_state_changed` y `GameLoop.is_in_combat()`) y los cooldowns pasan a rondas: `request_use` los fija con `SkillInstance.start_cooldown_rounds()`, cada `round_started` los baja 1 (`tick_round_cooldown()`, log `✓ Ronda N: <skill> disponible de nuevo`) y se emite `combat_cooldowns_ticked`. `_process` sale sin avanzar en modo combate. Se ponen a 0 al entrar y al salir de combate. `SkillInstance.cooldown_rounds_for()` es la única conversión `base_cooldown` → rondas (`int()`: ligero 1, esquiva 2, barrido 2, pesado 3, golpe aturdidor 2). Una skill usada en la ronda R con cooldown N vuelve a estar disponible en R+N. `cooldown_started.duration` va en la unidad del modo. `EventBus.skill_used` no tiene emisor; `SkillSystem.skill_used` es local (la escucha `Combat`). `Skills.can_use` no comprueba `is_unlocked`. |
+| `Resources` | `core/resources/resource_system.gd` | Recursos vitales (vida, stamina, oro). `register_entity()` depende de `Characters`/`AttributeResolver` (sincroniza `max_effective` vía `AttributeResolver.resolve_resource_max()`): `Characters.register_entity()` debe haberse llamado antes. Sin lista, `register_entity(id)` da de alta los tres recursos (log `with 3 resources`); **vida y estamina máximas son siempre derivadas** (`health_max = con × 5`, `stamina_max = con × 2 + fue × 1,5`) y los `.tres` de enemigo ya no declaran `health`/`stamina` en `starting_resources` (solo `focus` y `gold`). Su lista de recursos en `_load_resource_definitions()` está hardcodeada (`health`, `stamina`, `gold`), a diferencia de Skills/Items; **`focus` no es un recurso registrado** (ninguna skill cargada lo cuesta). Carga con `load()` y una línea de log por definición (`Loaded definition: <id> (combat_regen_per_round=…)`). `_emit_resource_changed()` reenvía a `EventBus.resource_changed`. `has_resource(entity_id, resource_id)` comprueba sin error si el recurso existe (`get_resource_state` da error). **Regeneración:** continua en `_process` (la estamina, 10/s tras `regen_delay = 2.0`); `set_regen_suspended(bool)` la detiene y la gobierna `GameLoop` al entrar/salir de `COMBAT_ACTIVE` (log `Regeneración continua SUSPENDIDA/REANUDADA`). En combate, `apply_combat_round_regen(entity_id) -> Dictionary` suma `ResourceDefinition.combat_regen_per_round` (estamina = 10; es un `@export` de `.tres`, sin `from_dict` ni registry) sin pasar de `max_effective` y devuelve lo añadido. |
+| `Skills` | `core/skills/skill_system.gd` | Registro, acceso y uso de habilidades. `SkillRoller` (estático, no autoload) resuelve D100 con 5 grados: `FUMBLE`/`FAILURE`/`SUCCESS`/`SPECIAL`/`CRITICAL`; `CRITICAL` (skill/20) y `SPECIAL` (skill/5) dinámicos, `FUMBLE` absoluto (≥98). Un único `_roll_d100()` con RNG estático inyectable (`set_seed()`/`set_rng()`/`reset_rng()`; `null` = RNG global); `get_grade_probabilities()` y `get_success_chance()` usan la misma `_determine_result()` que la tirada. `learn_skill()` enseña una skill fuera del kit inicial. **Cooldowns:** fuera de combate corren en segundos (`_process`); con `combat_started` entra en modo combate (`_combat_mode`; red de seguridad por `game_state_changed` y `GameLoop.is_in_combat()`) y los cooldowns pasan a rondas: `request_use` los fija con `SkillInstance.start_cooldown_rounds()`, cada `round_started` los baja 1 (`tick_round_cooldown()`, log `✓ Ronda N: <skill> disponible de nuevo`) y se emite `combat_cooldowns_ticked`. `_process` sale sin avanzar en modo combate. Se ponen a 0 al entrar y al salir de combate. `SkillInstance.cooldown_rounds_for()` es la única conversión `base_cooldown` → rondas (`int()`: ligero 1, esquiva 2, barrido 2, pesado 3, golpe aturdidor 2). Una skill usada en la ronda R con cooldown N vuelve a estar disponible en R+N. `cooldown_started.duration` va en la unidad del modo. `EventBus.skill_used` no tiene emisor; `SkillSystem.skill_used` es local (la escucha `Combat`). `Skills.can_use` no comprueba `is_unlocked`. Los `.tres` de skills se cargan de `data/skills/` de forma recursiva (las de enemigos y de Mira viven en `data/skills/enemy/`). |
 | `SkillProgression` | `core/skills/skill_progression_service.gd` | Progresión y aprendizaje. `notify_skill_outcome()` solo combate; `execute_learning_session()` es el camino fuera de combate (libros, entrenadores, narrativa con `SourceType.NARRATIVE`). |
 | `SkillEventHandler` | `core/skills/skill_event_handler.gd` | Eventos de habilidades. |
 | `Stress` | `core/skills/stress_system.gd` | Estrés del personaje (escucha `character_unregistered`). |
- 
+
 ### Ítems y equipo
 | Singleton | Script | Descripción |
 |---|---|---|
@@ -35,16 +35,16 @@ Este fichero describe **qué existe hoy y cómo se comporta**. El porqué de cad
 | `Inventory` | `core/items/inventory_system.gd` | Inventario por entidad. `add_item` no valida capacidad y devuelve `true` aunque sobrescriba una pila no apilable existente o recorte al tope de pila (quien transfiera pre-valida). |
 | `Equipment` | `core/items/equipment_manager.gd` | Equipo por entidad. **Independiente de `Inventory` por diseño:** equipar no saca el ítem de la mochila y quitarlo de la mochila no lo desequipa. |
 | `Bridge` | `core/items/item_character_bridge.gd` | Adaptador ítems ↔ Characters/Resources/Skills. Ver «ItemCharacterBridge». |
- 
+
 ### Mundo y combate
 | Singleton | Script | Descripción |
 |---|---|---|
-| `Combat` | `core/combat/combat_system.gd` | Combate por turnos. Ejecuta las acciones por `Skills.request_use` (`_on_execute_combat_action`) y escucha la señal local `Skills.skill_used`. Al recibir `combat_ended` limpia buffs, contexto de skill, módulos de defensa y huida y último atacante (no al empezar: `_apply_surprise` aplica buffs antes de `combat_started`, y siguen vigentes al empezar). `next_request_id()` entrega el id de cada petición de acción; `get_last_attacker(id)`. Emite `NO_TARGET`/`DISARMED` como códigos de motivo y reenvía `skill_failed` solo en combate. |
+| `Combat` | `core/combat/combat_system.gd` | Combate por turnos. Ejecuta las acciones por `Skills.request_use` (`_on_execute_combat_action`) y escucha la señal local `Skills.skill_used`. Al recibir `combat_ended` limpia buffs, contexto de skill, módulos de defensa y huida y último atacante (no al empezar: `_apply_surprise` aplica buffs antes de `combat_started`, y siguen vigentes al empezar). `next_request_id()` entrega el id de cada petición de acción; `get_last_attacker(id)`. Emite `NO_TARGET`/`DISARMED`/`INVALID_TARGET` como códigos de motivo (el último se comprueba antes de coste y cooldown; a un actor no jugador le añade `combat_action_completed {skipped: true}`) y reenvía `skill_failed` solo en combate. **Fórmula única de daño:** funciones puras (`_effect_damage`, `_mitigate_damage`, …) que usan por igual el camino real y `estimate_damage()`. **Skills `SELF`:** la rama genérica (`_resolve_self_skill`) solo resuelve si la acción en curso es esa skill (`_pending_skill_context`); efectos `BUFF` (por `_build_buff()`, único constructor de buffs; su `duration` son turnos del dueño y respeta un `expires_on` explícito: `"use"` → `uses_left` 1 y `turns_left` 0; sin él, `duration == 0` = «uso»), `RESTORE` y `FLEE` (`FLED` + `EventBus.enemy_fled`); `dodge` conserva su rama (animación y log) pero construye sus buffs con `_build_buff()` y su `.tres` declara `"expires_on": "use"`. **Multi-objetivo:** `_get_hit_targets(attacker_id, target_id, skill_def)` usa `_get_hit_pool(attacker_id)`: un aliado golpea a `GameLoop.get_active_enemies()` y un enemigo a `_get_opponents()` (jugador y compañeros activos); `sweep` es `MULTI_ENEMY` con `max_targets` 2 y no hay ninguna skill `AREA` pura. **Defensa:** `DefenseModule` (`class_name` activo en `defense_module.gd`) calcula el desbordamiento de estamina antes de tocar recursos; solo funciona para `PLAYER_ID`. **API de lectura (IA-0c; en producción solo la lee la escena de combate para el log de IA-1a, la IA aún no decide con ella):** `get_candidates(actor_id)` (una por skill utilizable × objetivo válido, ordenadas por `action_id` y `target_ids[0]`; excluye lo impagable, en cooldown, bloqueado por `DISARMED` o sin conversión en `effect_value`; `dodge` queda fuera por esto último), `estimate_damage()`, `estimate_threat()` (lee `threat_hint` por `definition.get()`), `get_hp_ratio()`/`get_hp_state()`, `get_visible_conditions()`, `is_fled()`; desde IA-1a también `get_side(id)` (`&"ally"`/`&"enemy"`, envuelve `_is_ally()`) y `get_combatant_ids(side)` (combatientes no huidos con registro de recursos, caídos incluidos; misma lógica de bandos que `_get_opponents()`, pendiente de unificar). |
 | `CombatLootSpawner` | `core/combat/combat_loot_spawner.gd` | Loot al terminar combate. `spawn_pending_loot()` solo la llama una escena de prueba y nadie escucha `combat_loot_bag_spawned` en producción. |
 | `Economy` | `core/economy/economy_system.gd` | Compra, venta y precios. `reset_session()` recarga las `ShopInstance`. El tag `quest_loan` se trata como préstamo (sin coste, no vendible; `trade_type = "loan"`, error `LOAN_ITEM`). |
 | `WorldObjects` / `WorldObjectSystem` | `core/world_objects/` | Objetos interactuables del mundo. Sin uso en el camino jugable actual. |
-| `EnemyWorldLink` | `core/combat/enemy_world_link.gd` | Hueco para limpiar la representación de enemigos que huyen (`enemy_group_fled`). Sin casos de uso reales. |
- 
+| `EnemyWorldLink` | `core/combat/enemy_world_link.gd` | Hueco para limpiar la representación de enemigos que huyen (`enemy_group_fled` y `enemy_fled`). Sin casos de uso reales. |
+
 ### Narrativa y diálogo
 | Singleton | Script | Descripción |
 |---|---|---|
@@ -54,24 +54,26 @@ Este fichero describe **qué existe hoy y cómo se comporta**. El porqué de cad
 | `Dialogue` / `DialogueDB` | `core/dialogue/` | Sistema y registro de diálogos. El registro escanea subcarpetas de forma recursiva. |
 | `NarrativeSceneDB` | `core/narrative_scenes/narrative_scene_registry.gd` | Escenas narrativas desde JSON. Consulta local síncrona, sin estado runtime. |
 | `InteractiveSceneDB` | `core/interactive_scenes/interactive_scene_registry.gd` | Escenas interactivas (mapa de puntos de interés) desde `data/interactive_scenes/*.json`. **Escaneo sin recursión.** Sin estado runtime. |
- 
+
 **No confundir:** `core/narrative/` (hitos/eventos recordados) y `core/narrative_scenes/` (qué nodo de escena se muestra ahora). `InteractionOutcome.narrative_event_id` dispara `NarrativeSystem.apply_event()`, no `GameLoop.enter_narrative_scene()`.
- 
+
 ### Companions
 | Singleton | Script | Descripción |
 |---|---|---|
-| `Party` | `core/companions/party_manager.gd` | Grupo de personajes. `MAX_PARTY_SIZE = 3` (la decisión de diseño era 2: pendiente de decidir; la interfaz de Party no impone máximo). Party no deja pasar un `quest_loan` a un compañero. |
+| `Party` | `core/companions/party_manager.gd` | Grupo de personajes. `MAX_PARTY_SIZE = 3` (la decisión de diseño era 2: pendiente de decidir; la interfaz de Party no impone máximo). Party no deja pasar un `quest_loan` a un compañero. `_register_in_systems()` toma el kit de Mira de `Characters.get_definition(...).skills` y desbloquea todo (conserva un acceso privado a `_entity_skills`). |
 | `PartyEventHandler` | `core/companions/party_event_handler.gd` | Eventos de party. |
- 
+
 ### Clases estáticas y helpers (no autoload)
 - `SessionReset.apply()` y `EntityLifecycle.unregister_everywhere(id)` (`core/session/`). Ver «Reinicio de sesión».
 - `AdventureStarter.apply(adventure_id)` (`core/adventures/`). Ver «Arranque de aventura».
 - `BagCapacity.compute(...)` (`ui/inventory/`): único punto de cálculo de capacidad de mochila.
+- `AIScales` (`core/ai/ai_scales.gd`) lee `data/ai/ai_scales.json` por ruta con puntos (`get_value()`, `validate()`, `reload()`): umbrales de `hp_state` y de amenaza, condiciones visibles, reglas de etiquetas (`costly_cost_fraction`), tabla `effect_value` y `self_risk_factor`; valores provisionales hasta IA-5. `CombatTags` (`core/combat/combat_tags.gd`): constantes de etiquetas, estados, amenaza y bando (`SIDE_ALLY`/`SIDE_ENEMY`).
+- Contratos de la IA de combate (`core/ai/`, IA-1a): ver «Contratos de la IA de combate».
 - `GameSettings` (`ui/options/game_settings.gd`, `RefCounted` estático, sin autoload): lee, escribe y aplica `user://settings.cfg`, sección `[options]`: `language` (`"es"`/`"en"`), `fullscreen` (bool), `music_volume` y `sfx_volume` (0..1). Sin fichero no toca nada (arranque por defecto). Los volúmenes solo se aplican si existen los buses `Music`/`SFX` (hoy no existen: no hay audio diseñado). `apply_saved()` lo llama `MainMenuViewModel._ready()`; el resto lo usa `OptionsViewModel`, único sitio que toca `AudioServer`, `DisplayServer` y `TranslationServer`.
 ---
- 
+
 ## GameLoop — estados y fases de turno
- 
+
 Transiciones válidas de `GameState`:
 ```
 MENU               → EXPLORATION, CHARACTER_CREATION, NARRATIVE_SCENE
@@ -85,7 +87,7 @@ VICTORY            → EXPLORATION, NARRATIVE_SCENE
 DEFEAT             → EXPLORATION, MENU
 ```
 Una transición nueva debe comprobarse contra `VALID_STATE_TRANSITIONS`; una inválida solo emite `push_warning` y es fácil de perder. `DEFEAT` nunca va directo a `CHARACTER_CREATION`.
- 
+
 Fases de turno de combate:
 ```
 ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RESOLVE
@@ -93,15 +95,16 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 → ENEMY_TURN_START → ENEMY_ACTION_RESOLVE (uno por enemigo)
 → TURN_END → ROUND_END → ROUND_START
 ```
- 
+
 - La iniciativa se calcula una sola vez (`_calculate_initiative()`, solo desde `start_combat()`) y se desempata por id (orden determinista). Los companions actúan después del jugador y antes de los enemigos; un companion incapacitado permanece en `turn_order` y `CompanionAI` salta su turno.
 - **Reloj del combate (IA-0b):** `_transition_game_state()` es el único punto que suspende y reanuda la regeneración continua de `Resources` al entrar y salir de `COMBAT_ACTIVE` (cubre victoria, derrota, huida y cualquier cambio directo). `_apply_round_regen()` se llama al empezar cada ronda salvo la primera, tras el log «Round N started» y antes de `round_started`, y solo a participantes con PV > 0; imprime `🔋 Ronda N: <id> recupera {…}` solo si se añadió algo. `presentation_time_scale` (1.0 por defecto, 0 anula las pausas; cada espera dura entonces un frame) y `presentation_delay()` escalan las esperas de `GameLoop` (`enemy_turn_delay`, `companion_turn_delay`, `ROUND_END_PAUSE`) y las de `EnemyAI`/`CompanionAI`. `EnemyAI` y `CompanionAI` comprueban antes de pedir una acción que pueden pagar su coste (`_can_afford()`); si no, pasan el turno con `combat_action_completed` y `actor`.
 - Victoria: todos los enemigos muertos. **Último aliento:** el jugador a 0 PV no termina el combate mientras algún companion siga en pie; si ganan, el jugador se levanta con 1 PV (`player_rescued_by_companions`). Derrota: jugador a 0 PV y ningún companion activo. `_player_downed_announced` evita repetir `player_incapacitated` y `flag.player_downed` en un mismo combate.
-- **Peticiones de acción:** todo productor (`PlayerCombatController`, `HUD`, `EnemyAI`, `CompanionAI`) emite `EventBus.combat_action_requested` con un `request_id` de `Combat.next_request_id()`; `GameLoop` filtra por fase, lo reenvía a `Combat` y descarta las respuestas cuyo `request_id` no es el de la petición en curso (una respuesta sin id se acepta). `combat_action_failed(actor_id, reason, request_id)` lo escucha `GameLoop`: ante un fallo del jugador la fase vuelve a `PLAYER_ACTION_SELECT` (transición permitida). Los fallos de enemigos y companions no tienen gestor hasta la IA.
+- **Peticiones de acción:** todo productor (`PlayerCombatController`, `HUD`, `EnemyAI`, `CompanionAI`) emite `EventBus.combat_action_requested` con un `request_id` de `Combat.next_request_id()`; `GameLoop` filtra por fase, lo reenvía a `Combat` y descarta las respuestas cuyo `request_id` no es el de la petición en curso (una respuesta sin id se acepta). `combat_action_failed(actor_id, reason, request_id)` lo escucha `GameLoop`: ante un fallo del jugador la fase vuelve a `PLAYER_ACTION_SELECT` (transición permitida). `GameLoop` ignora `INVALID_TARGET` de un no jugador (el actor cierra con `combat_action_completed {skipped}`); el resto de fallos de enemigos y companions no tienen gestor hasta la IA.
 - `start_combat(enemy_ids, encounter = null, victory_scene_id = "")` acepta como origen `EXPLORATION`, `DIALOGUE`, `MENU` y `NARRATIVE_SCENE` (guard propio; transiciona con `_transition_game_state()`, sin pasar por `request_state_change()`).
 - **Escena de victoria:** `victory_scene_id` vive en `GameLoop._pending_victory_scene_id` (no en el encuentro, que puede ser `null` y se limpia en `end_combat()`). `consume_pending_victory_scene()` lo devuelve y vacía; `end_combat()` lo descarta tras emitir `combat_ended`, para que no se fugue al combate siguiente.
 - `_transition_to_phase()` devuelve `bool`; `_end_turn()`/`_end_round()` abortan si la transición es rechazada. `_on_combat_action_completed()` compara `result["actor"]` con `_current_acting_entity`.
 - `_start_player_turn()` sale si el combate terminó dentro de `player_turn_started` (la huida se resuelve ahí).
+- **Huida individual (IA-0c):** `GameLoop` escucha `enemy_fled`, anota al huido en `_pending_fled` y lo retira de `participants` y `turn_order` al cerrar la acción en curso (`_retire_fled()`, tras `Enemy action completed`), corrigiendo `current_turn_index` para no saltar al siguiente enemigo, y reevalúa la victoria (un `FLED` cuenta como inactivo; no suelta botín). `_pending_fled` se vacía al empezar y acabar el combate. La huida del jugador sigue en `EscapeModule`.
 - `GameLoop.enter_post_load_state()` decide tras cargar entre `enter_narrative_scene(scene_id)` y `enter_exploration()`.
 ### Encuentros de combate (`CombatEncounterDefinition`, opcional)
 - **Moral de grupo:** `morale_threshold_pct`. Los enemigos supervivientes huyen juntos cuando el HP total del grupo cae bajo el umbral (señal `enemy_group_fled`; nunca pasa por `character_died`: sin loot ni animación de muerte). La base (`_group_morale_base_hp`) es dinámica: un refuerzo marca `_group_morale_base_dirty` y se recalcula en el siguiente `_check_group_morale()` (solo tras una muerte, nunca golpe a golpe).
@@ -109,9 +112,9 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 - **Sorpresa:** `surprise_favors` (`"party"`/`"enemies"`) y `surprise_vulnerable_pct`. No toca `turn_order`: el bando sorprendido recibe el buff `staggered` y, opcionalmente, `vulnerable` (`turns_left` 2 si perjudica a jugador/companions, 1 si perjudica a enemigos). Lógica en `_apply_surprise()`, llamada desde `start_combat()` y `configure_active_encounter()` (necesaria cuando el combate ya está en marcha).
 - **Fondo:** `background_path`; lo carga `CombatArenaViewModel` con `call_deferred()` desde `GameLoop.get_current_encounter()`. Un encuentro sustituido a mitad de combate no actualiza el fondo.
 ---
- 
+
 ## SceneOrchestrator
- 
+
 - Escucha `game_state_changed` y nunca modifica `GameState`. Los overlays se instancian y destruyen en cada apertura (`queue_free`). Tiene un **único `_current_overlay`** (no una pila).
 - **Combate:** carga aditiva (la escena de exploración sigue viva debajo). `SCENE_COMBAT` = `combat_production_scene.tscn` (sin UI: IA + `PlayerCombatController`) y `OVERLAY_COMBAT_HUD` = `combat_arena_panel.tscn`; ambas se instancian en `_handle_combat()`. Fuga conocida: no guarda referencia a `SCENE_COMBAT` ni la libera (mitigado: `combat_production_scene.gd` se libera sola en `combat_ended`). `combat_test.tscn`/`combat_hud.tscn` siguen como escena de test independiente.
 - **Exploración:** `SCENE_EXPLORATION` = `scenes/exploration/interactive_map/exploration_interactive_map.tscn`, que carga `telmori_village` (para pruebas se cambia `interactive_scene_id` a `poi_test_map`). `_ensure_exploration_scene_instantiated()` la crea si no existe (tanto desde `_handle_exploration()` como desde `_handle_narrative_scene()`) y fuerza `name = "ExplorationScene"`, así que el nombre del nodo raíz del `.tscn` es libre. Al ejecutar una escena de exploración suelta con F6, su raíz debe llamarse `"ExplorationScene"`.
@@ -124,19 +127,19 @@ ROUND_START → PLAYER_TURN_START → PLAYER_ACTION_SELECT → PLAYER_ACTION_RES
 - **Game Over:** `_show_game_over()` guarda `_game_over_ui` y no lo instancia dos veces.
 - **Menú principal:** `_handle_main_menu()` libera `GameOverUI`, `CombatHud`, `CombatScene` y `ExplorationScene` y lanza `_run_session_reset()`.
 ---
- 
+
 ## Reinicio de sesión (`core/session/`)
- 
+
 Al entrar en `MENU`, `SceneOrchestrator` libera las escenas de la partida, espera un frame, comprueba que el estado sigue en `MENU`/`CHARACTER_CREATION` y llama a `SessionReset.apply()`, que ejecuta con orden fijo y solo APIs públicas: `Dialogue.reset()`, `Combat.clear_buffs()`, `Party.leave_party()` de cada miembro, baja de todas las entidades de `Characters.get_registered_entities()` con `EntityLifecycle.unregister_everywhere()` (Characters → Resources → Skills → Equipment → Inventory, idempotente; también la usa `PartyManager`), `Narrative.clear_all()`, `Checkpoints.reset()`, `Economy.reset_session()`.
- 
+
 - Pasar por `MENU` por sí solo no limpia nada: lo hace el orquestador + `SessionReset`.
 - La carga **sobrescribe, no borra**: para que cargar equivalga a un arranque en frío, el reinicio debe haber ocurrido antes.
 - Limitación: una entidad registrada solo en `Skills`/`Resources` y no en `Characters` no la vería el reinicio.
 - Game Over: `GameOverViewModel` (una intención, `request_return_to_menu()`; `opened` reabre el botón si `GameLoop` no llega a `MENU`); la View (`GameOverUI`, capa 100) usa un `TitleBackdrop` opaco que bloquea clics, consume todo el input y no conoce sistemas de `core`. La libera el orquestador al entrar en `MENU`.
 ---
- 
+
 ## Guardado
- 
+
 - `save_game` rechaza guardar con `GameLoop.is_in_combat()` (`save_failed` con `IN_COMBAT`).
 - `SaveManager`/`SaveData`, `SAVE_VERSION = 6` (migración rellena `current_narrative_scene_id`). Guarda personaje (`definition_id`, `character_name`, `attributes`), recursos, skills, inventario, equipo, party y `narrative_state` (flags, variables, eventos completados, checkpoints, `current_narrative_scene_id`).
 - **Solo se guarda eligiendo una opción de diálogo con `DialogueOptionDefinition.triggers_save`** (NPCs savepoint concretos, p. ej. el sheriff; `DialogueSystem.select_option()` llama a `SaveManager.save_game()`). F5 está retirado. «Cargar Partida» desde el menú resume en la escena narrativa guardada vía `get_pending_narrative_scene_id()`. F9 (quickload en sesión activa) **no es operativo** y no se vuelve a tratar.
@@ -147,9 +150,9 @@ Al entrar en `MENU`, `SceneOrchestrator` libera las escenas de la partida, esper
 - `playtime_seconds` suma desde que arranca el proceso (también en el menú) y no se reinicia en una partida nueva; solo se sustituye al cargar. Por eso no es fiable para mostrarlo (pendiente de core).
 - Un guardado dentro de una cadena que entrega recompensas permitiría cobrar dos veces: por eso el hub del sheriff no ofrece guardado en la etapa de recompensa.
 ---
- 
+
 ## Escenas de exploración y mapa interactivo
- 
+
 - **Convención de nombres:** `<tipo>_<identificador_semántico>.tscn`, nunca numeración secuencial. Scripts compartidos en la raíz de `scenes/<tipo>/`; cada zona en su subcarpeta. El orden de progresión debe vivir en datos, no en el nombre.
 - **`ExplorationController.request_interaction(type, target_id, enemy_definitions := {})`** es el **único punto de routing** de interacciones (`dialogue` → `GameLoop.enter_dialogue`, `shop` → `enter_shop`, `combat` → registra enemigos y `start_combat`, `narrative_scene` → `enter_narrative_scene`). Tiene guard propio (`is_input_blocked()`); `enemy_definitions` llega como parámetro.
 - **Motor de escenas interactivas** (`core/interactive_scenes/`): `InteractiveSceneDefinition` (`scene_id`, `image_path`, `hotspots`, `on_first_visit_*`) e `InteractiveHotspotDefinition` (`hotspot_id`, `map_position` normalizada 0–1, `icon_path`, `label_key`, `interaction_type`, `target_id`, `enemy_ids_override`, `enemy_definitions`, `required_flags`, `blocked_flags`). `item` no es tipo válido. `validate()` marca error por tipo inválido, `label_key`/target vacío o `hotspot_id` duplicado; warning por posición fuera de 0–1 o icono inexistente. Visibilidad declarativa, recalculada al cargar y en cada `game_state_changed → EXPLORATION` (un flag puesto sin cambio de estado no refresca hasta la siguiente vuelta a `EXPLORATION`). Flujo: View → `InteractiveSceneViewModel.activate_hotspot()` → `hotspot_activated` → escena raíz → `request_interaction()`.
@@ -159,70 +162,70 @@ Al entrar en `MENU`, `SceneOrchestrator` libera las escenas de la partida, esper
 - **Input de exploración:** `ExplorationController._unhandled_input()` gestiona `interact`, `open_inventory`, `open_party`, `open_player_menu`. `ExplorationHUD` comprueba también `GameLoop.is_input_blocked()`. Con el menú del jugador visible, su `_input` consume antes las teclas de apertura (ver `athelia_ui_architecture.md`, «Contextos de apertura»). El nodo `Player` real usa `PlayerExploration`; `player.gd` es código muerto (limpieza bloqueada por `test/test_shop_ui.gd`).
 - **Atajo de desarrollo F2** (keycode crudo, solo `OS.is_debug_build()`): lee `user://debug_shortcut.json` en cada pulsación (no la raíz del proyecto; en Windows `%APPDATA%\Godot\app_userdata\<proyecto>\`), aplica `Narrative.set_flag()` por cada entrada de `"flags"` y `Characters.set_skill_value("player", id, valor)` por cada `"skills"`. Se comprueba antes de `is_input_blocked()`; es mutación en memoria, nunca toca `SaveManager`.
 ---
- 
+
 ## Menú principal, carga y Character Creation
- 
-- **Menú principal:** Main Scene (`MainMenuScreen`, `CanvasLayer`). Estados del ViewModel: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`. Escucha `game_state_changed` (ver `athelia_ui_architecture.md`). Si `GameLoop` rechaza la transición de Nueva/Cargar partida (su estado no cambia), vuelve a `MAIN` (`_recover_if_transition_rejected()`, Spike 24).` Su `_ready()` aplica las opciones guardadas (`GameSettings.apply_saved()`). «Cargar partida» muestra la fecha del guardado (`save_info.timestamp`, ISO local, troceada en el ViewModel); no muestra el tiempo jugado. Las opciones (idioma, pantalla completa, volúmenes) las gestiona `OptionsPanel` + `OptionsViewModel`, reutilizable fuera del menú. El proyecto arranca en pantalla completa (`window/size/mode=3`) salvo que `settings.cfg` diga otra cosa.
+
+- **Menú principal:** Main Scene (`MainMenuScreen`, `CanvasLayer`). Estados del ViewModel: `HIDDEN → MAIN ↔ OPTIONS / CREDITS / CONFIRM_QUIT / TRANSITIONING → HIDDEN`. Escucha `game_state_changed` (ver `athelia_ui_architecture.md`). Si `GameLoop` rechaza la transición de Nueva/Cargar partida (su estado no cambia), vuelve a `MAIN` (`_recover_if_transition_rejected()`, Spike 24). Su `_ready()` aplica las opciones guardadas (`GameSettings.apply_saved()`). «Cargar partida» muestra la fecha del guardado (`save_info.timestamp`, ISO local, troceada en el ViewModel); no muestra el tiempo jugado. Las opciones (idioma, pantalla completa, volúmenes) las gestiona `OptionsPanel` + `OptionsViewModel`, reutilizable fuera del menú. El proyecto arranca en pantalla completa (`window/size/mode=3`) salvo que `settings.cfg` diga otra cosa.
 - **LoadingScreen:** carga asíncrona con barra; implementada y sin conectar al orquestador.
 - **Character Creation:** MVVM. **6 atributos** (no 7 de RuneQuest): `strength, dexterity, constitution, intelligence, wisdom, charisma`. Roll-and-assign: 3D6 (STR/DEX/CHA), 2D6+6 (CON/INT/WIS), 1 reroll. Estados: `ROLLING → ASSIGNING → NAMING → SUMMARY → TRANSITIONING`. Usa `data/characters/player_new.tres` (no `player_base.tres`, plantilla de test). `_create_player_entity()` registra en `Characters`, `Resources`, `Skills`, `Equipment` e `Inventory`; `Resources.register_entity()` debe preceder a `set_base_attribute()` (este dispara `ModifierApplicator` de forma síncrona). El kit de skills se lee de `definition.skills`, nunca de una lista duplicada. Usa `skills.has_entity("player")`.
 ## Arranque de aventura
- 
+
 `AdventureStarter.apply(DEFAULT_ADVENTURE_ID)` se llama una sola vez desde `CharacterCreationViewModel.request_confirm_character()`, tras `_create_player_entity()`: lee `data/adventures/<id>.json` (`schema_version`, `companions`, `starting_gear` por entidad), une companions (`Party.join_party`) y da y equipa el kit (`Inventory.add_item` + `Equipment.equip_item`). **No es idempotente a propósito** (`add_item` suma).
- 
+
 ---
- 
+
 ## Skills — dos accesores de valores
- 
-- **`CharacterState.skill_values`** (`Characters.get_skill_value()`/`list_known_skills()`): se inicializa desde `CharacterDefinition.starting_skill_values`. Es lo que leen combate y tiradas narrativas. `Characters.get_skill_value()` devuelve 0 para una skill fuera del kit.
+
+- **`CharacterState.skill_values`** (`Characters.get_skill_value()`/`list_known_skills()`): se inicializa desde `CharacterDefinition.starting_skill_values`. Es lo que leen combate y tiradas narrativas. `Characters.get_skill_value()` devuelve 0 para una skill fuera del kit; `list_known_skills()` devuelve las claves de `starting_skill_values`, **no** el kit `skills` (una skill del kit sin valor no aparece, como las dos de Mira de IA-0d).
 - **`SkillSystem._entity_skills`** (`Skills.get_skill_instance()`/`register_entity_skills()`): registro separado de un solo uso (`if _entity_skills.has(entity_id): return`), usado para desbloqueo y progresión.
 Si una skill aparece en `list_known_skills()` pero no está en `register_entity_skills()`, el síntoma es un aviso «Skill not found for entity» al terminar combate. Jugador y companions deben pasar `definition.skills` explícitamente (nunca una lista propia ni el array vacío, que registra el catálogo entero).
- 
+
 **Skills fuera del kit:** `Skills.learn_skill(entity_id, skill_id)` crea la instancia si falta y la desbloquea con `unlock_skill()` (se siguen comprobando `prerequisite_requirements`; si falla, retira la instancia). El valor inicial lo fija `ItemCharacterBridge`: clave opcional `initial_value` en `learning_data`, por defecto `base_success_rate`, solo si la entidad no tenía ya un valor > 0. Curtido (`skill.exploration.tanning`) es el primer caso real.
- 
+
 ## ItemCharacterBridge
- 
+
 Target de un modificador: `tipo.id` (`resource.health` → valor **actual**, no el máximo; `attribute.strength` → atributo **base**; `skill.exploration.lockpick` → valor de skill, el id puede contener puntos). Operaciones: `add`, `mul`, `override`.
- 
+
 - `EQUIPMENT` delega a `Equipment.toggle_equipment()` (camino del jugador desde la UI). Para equipar por código, `Equipment.equip_item(entity_id, item_id)` es directo y no exige el ítem en el inventario. El puente emite `item_use_success` también al equipar.
 - **Libros de aprendizaje** (`learning_data`: `skill_id`, `source_level`, `source_type`, `initial_value` opcional): si la entidad tiene la skill, crea una `LearningSession` y delega en `SkillProgression` (tirada de mejora); si no, la primera lectura la enseña (`learn_skill()` + valor inicial, sin tirada). `_apply_learning()` devuelve `bool`: si no se aplicó (`invalid_session`, `skill_locked`, `no_progression`, prerrequisitos) el ítem **no se consume** (`item_use_failed`); una tirada de mejora fallida sí lo consume, y `challenge_too_low` también.
 - `ItemDefinition.item_type` es un enum cerrado: `CONSUMABLE`/`EQUIPMENT`/`MISC` (el botín/trofeo sin mecánica es `MISC`).
 ---
- 
+
 ## Motor narrativo (`core/narrative_scenes/` + `ui/narrative_scene/`)
- 
+
 MVVM estándar (ver `athelia_ui_architecture.md` para la pantalla). Estados del ViewModel: `HIDDEN → SHOWING ↔ WAITING_ROLL → TRANSITIONING → HIDDEN` (`WAITING_ROLL` reservado, no se emite). Sin sistema runtime propio: el progreso de una escena vive en `NarrativeSceneViewModel`.
- 
+
 **Contrato de datos** (`NarrativeSceneDefinition` → `NarrativeSceneOption` → `NarrativeSceneOutcome`, cada uno un `Resource` en fichero propio). Una opción sin `skill_id` resuelve por `outcome_default`; con `skill_id` tira contra `Characters.get_skill_value(entity_id, skill_id) + roll_modifier` y el grado decide el outcome, con fallback fumble→failure, special→success, critical→success.
- 
+
 **Esquema JSON real:**
 - Escena: `scene_id`, `image_path` (validado al cargar con `push_warning`), `text_key`, `options[]`.
 - Opción: `option_id`, `text_key`, `skill_id`, `roll_modifier`, `challenge_level` (0 = sin progresión; >0 engancha a `SkillProgression` con `SourceType.NARRATIVE`, solo en éxito), `required_successes`/`retry_policy` (`"immediate"`/`"blocked"`; una pifia siempre transiciona), `group_aggregate` (`""`/`"worst"`/`"best"`). El contador de racha vive en el ViewModel. La oposición se codifica en `roll_modifier`, sin tabla de resistencia. Ramas planas: `outcome_failure`/`outcome_success`/`outcome_special`/`outcome_critical` (sin `outcome_fumble`).
 - Outcome: `next_scene_id`, `flag_to_set` (un único flag, prefijo `flag.`; solo activa), `combat_enemy_ids` (presentes al inicio), `combat_enemy_definitions` (`entity_id → definition_id` de todo lo que hay que registrar, inicial o de refuerzo), `combat_encounter` (diccionario **inline** con las claves de `CombatEncounterDefinition`, nunca una ruta a `.tres`), `combat_victory_scene_id`, `dialogue_id`, `grant_item_*`, `take_item_*`, `grant_resource_*`.
 **Orden de `_apply_outcome()`:** flag → otorgar ítem → quitar ítem → otorgar recurso → si hay `dialogue_id`, abrir diálogo y **retorno temprano** (los `grant_*` ya se aplicaron) → si hay combate, registrar enemigos (`_register_combat_enemies()`) y avisar a `CombatLootSpawner` antes de `start_combat()` → `next_scene_id`. Todo `grant_*` deja una línea de log.
- 
+
 - **`grant_item_*`**: `Inventory.add_item()`, `grant_item_target` por defecto `"player"`.
 - **`take_item_*`**: `Equipment.unequip_item()` y luego `Inventory.remove_item()`; si la entidad no lo tiene no es error; busca el ítem primero en `take_item_target` (`"player"` por defecto) y, si no lo tiene, en el resto de la party (`_take_item_from_party()`), desequipando y retirando donde lo encuentre (Spike 19b).
 - **`grant_resource_*`**: `Resources.add_resource()`; un recurso por outcome.
 - **`dialogue_id`**: abre `DialoguePanel` como sub-overlay llamando a `Dialogue.start_dialogue()`, sin transición de `GameState`. `next_scene_id` pasa a significar «escena a la que avanzar al cerrar el diálogo» (`resume_after_dialogue()`). El diálogo solo conversa: las entregas van en el outcome que lo abre, antes del diálogo.
 - **`combat_victory_scene_id`**: se pasa a `start_combat()`; al ganar se abre esa escena en vez de volver a `EXPLORATION`. Huir devuelve al pueblo.
-- **Registro de enemigos:** `NarrativeSceneViewModel` y `ExplorationController` pre-registran `Characters`/`Resources` para enemigos pero **nunca `Skills`**; `combat_production_scene.gd` registra Skills con guard idempotente para el roster inicial y los refuerzos.
+- **Registro de enemigos:** `NarrativeSceneViewModel` y `ExplorationController` pre-registran `Characters`/`Resources` para enemigos pero **nunca `Skills`**; `combat_production_scene.gd` registra todo lo demás de cada refuerzo (`Resources.register_entity(enemy_id)` sin lista, tres recursos) y las Skills con guard idempotente para el roster inicial y los refuerzos, leyendo el kit de `CharacterDefinition.skills` (`_get_enemy_kit()`; sin definición o sin skills cae a `basic_attack` con un aviso).
 - **Retorno desde combate:** hoy se hace con `combat_victory_scene_id` (encadenado directo). El patrón antiguo (spawnear un `Interactable` tras `combat_ended`) está obsoleto.
 **Datos por aventura:** personajes e ítems propios en subcarpeta de la aventura (`data/characters/telmori/`, `data/items/telmori/`), salvo ítems de arma con ranura, que se agrupan por tipo (`data/items/weapons/<slot>/`). Localización en un CSV propio por aventura (`_telmori.csv`). Los diálogos llevan prefijo `dlg_` (un diálogo y una escena con el mismo nombre en carpetas distintas se pisan al copiar).
- 
+
 ---
- 
+
 ## Diálogo
- 
+
 - `DialogueNodeDefinition.mood` (por nodo, por defecto `"neutral"`); `DialogueDefinition.portrait_folder` y `background_id` (opcionales, con respaldo: vacíos, el comportamiento es el anterior). Fondo: `res://data/dialogue/backgrounds/<portrait_folder>/<background_id>.png`, con respaldo al genérico de la aventura.
 - `EventBus.dialogue_node_shown` lleva 7 argumentos (`portrait_id`, `mood`, `portrait_folder`, `background_id`, …). GDScript descarta los de más si el callback acepta menos.
 - `DialogueOptionDefinition.triggers_save` (ver «Guardado»). Los eventos narrativos se disparan desde `narrative_events` de la opción, no desde el `trigger_type: DIALOGUE_END` del evento (no hay código que consuma `dialogue_ended` para eso).
 - `DialogueRegistry._load_option_from_dict()` asigna campo a campo: un campo nuevo en el JSON no se lee solo.
 ---
- 
+
 ## Combate — entrada y arena
- 
+
 Los nombres de acción del InputMap de combate (`_unhandled_input`, no `_input`, para no perder prioridad frente a nodos de escenas aditivas):
- 
+
 | Action | Tecla | Skill |
 |---|---|---|
 | `combat_attack_1` | 1 | `skill.attack.light` |
@@ -232,16 +235,40 @@ Los nombres de acción del InputMap de combate (`_unhandled_input`, no `_input`,
 | `combat_defense` | E | `skill.combat.defend` |
 | `combat_scape` | R | `skill.combat.flee` (el nombre real es `scape`, no `escape`) |
 | `cycle_target` | Tab | — |
- 
-- `PlayerCombatController` (grupo `"player_combat_controller"`) es el **único dueño del targeting** (auto-target en `_on_combat_started()`, ciclado con Tab) y del despacho de `combat_action_requested` (`request_skill()`), tras comprobar `Skills.has_skill` y `Skills.can_use` (una skill no registrada se frena sin cambiar de fase). El HUD (`combat_hud.gd`) emite la señal directamente.
+
+- `PlayerCombatController` (grupo `"player_combat_controller"`) es el **único dueño del targeting** (auto-target en `_on_combat_started()`, ciclado con Tab; la lista excluye a los `FLED` con `Combat.is_fled()` y se reasigna al morir o huir el objetivo actual, por `character_died` y `enemy_fled`) y del despacho de `combat_action_requested` (`request_skill()`), tras comprobar `Skills.has_skill` y `Skills.can_use` (una skill no registrada se frena sin cambiar de fase). El HUD (`combat_hud.gd`) emite la señal directamente.
 - El menú del jugador son **8 slots** (3 ataque + esquiva + defensa + huida + 2 consumibles); el `LoadoutState` del jugador debe asignarse desde la pantalla de Loadout (esquiva y defensa se asignan allí; **huida es fija** y no se asigna), o los botones salen sin nombre. Con el loadout actual el HUD muestra vacíos los slots de defensa y huida: `skill.combat.defend`/`flee` no tienen `.tres` y el controlador resuelve `combat_defense`/`combat_scape` por id hardcodeado (pendiente de replantear con el combate).
 - **HUD de combate (`CombatHudViewModel`, IA-0b):** la disponibilidad y el cooldown de cada slot se leen de `Skills.can_use()`/`Skills.get_cooldown_remaining()` (en rondas durante el combate), y la vida y la estamina de `ResourceState` (`current` y `max_effective`, el tope real), no de `CharacterState` ni de `AttributeResolver`. Refresca los slots al cambiar la estamina y con `Skills.combat_cooldowns_ticked`; no depende de `EventBus.skill_used`. `Skills.has_skill` evita avisos por skills sin instancia.
-- `CombatArenaViewModel` compone a `CombatHudViewModel` y se conecta a `Resources.resource_changed` directamente. `EnemyAI`/`CompanionAI` son `Node` sin dependencia de nodo padre; los instancia `combat_production_scene.gd`. `EnemyCombatNode` ya no se usa en producción.
+- `CombatArenaViewModel` compone a `CombatHudViewModel` y se conecta a `Resources.resource_changed` directamente. `EnemyAI`/`CompanionAI` son `Node` sin dependencia de nodo padre (`enemy_ai.gd` se carga por ruta con `preload`, sin `class_name` activo); los instancia `combat_production_scene.gd`. `EnemyAI` pide hoy solo `skill.enemy.basic_attack`. `EnemyCombatNode` ya no se usa en producción.
 - **Tiradas y daño:** `SPECIAL` aplica `special_multiplier` (×1.2) vs crítico (×2); en progresión cuenta como éxito sin tick diferenciado. No hay modificador multiplicativo de combate (decisión explícita: sin caso de uso real).
 - **Cuidado al extender enums:** un `match` sin rama `_:` y un array indexado por enum no avisan si el enum crece; hay que revisar todos sus consumidores.
-- `combat_resolver.gd` fue eliminado (código muerto).
+- `combat_resolver.gd` fue eliminado (código muerto); en IA-0d se borraron también los cinco respaldos de combate (`combat_system_bak`, `defense_module_bak`, `enemy_ai_backup`, `player_combat_controller_bak`, `entity_animation_controller_bak`).
 ---
- 
+
+## Datos de combate (IA-0d)
+
+- **Enemigos** (`data/characters/`: `enemy_base`, `telmori/telmori_warrior_base`, `warrior_weak`, `wolf_base`, `wolf_weak`): vida y estamina derivadas de la constitución (`con` 8 / 12 / 12 / 10 / 9; vida 40 / 60 / 60 / 50 / 45, estamina 28 / 45 / 40,5 / 35 / 31,5). Kits en `skills`: guerreros `basic_attack` + `heavy_attack` + `defend`; lobos `basic_attack` + `heavy_attack` + `recover`; `enemy_base` `basic_attack` + `defend` + `recover`; `flee` sin asignar (lo dará la moral en IA-4). `heavy_attack` tiene el mismo valor de habilidad que `basic_attack` en cada definición.
+- **Mira** (`data/characters/companions/companion_mira.tres`): kit de 8 skills; `skill.companion.defend` y `skill.companion.recover` están en `skills` sin entrada en `starting_skill_values`, así que los selectores heredados de `CompanionAI` no las ven y solo cuentan como candidatas de `Combat`.
+- **Skills nuevas** (`data/skills/enemy/`, claves en `skills.csv`): `skill.enemy.heavy_attack` (15 de estamina, cooldown 3, `DAMAGE` 0,6, `SINGLE_ENEMY`); `skill.companion.defend` (10 de estamina, cooldown 2, `SELF`, `BUFF damage_reduction` 50, 1 turno); `skill.companion.recover` (sin coste, cooldown 2, `SELF`, `RESTORE` de 20 de estamina). Costes y valores provisionales hasta IA-5.
+- **`CharacterDefinition`:** `behavior_profile_id: StringName = &""` y `threat_hint: String = ""` (`""`/`low`/`medium`/`high`, con `push_warning` en `validate()` si es otro); copiados por `duplicate_definition()`; sin `from_dict` ni registry (se carga como `.tres`); desde IA-1a los dan los `.tres` de enemigo y de Mira (ver «Contratos de la IA de combate»).
+- **`fireball`** cuesta solo 15 de estamina (sin `focus`).
+- **Prueba automática:** `test/ia0d_test.tscn` (85 comprobaciones: máximos, registro, kits, campos, skills, candidatas por estamina, `dodge`, multi-objetivo por bando y `DefenseModule`).
+---
+
+## Contratos de la IA de combate (IA-1a)
+
+Solo datos y contratos: **nada decide todavía** (`EnemyAI` y `CompanionAI` no los usan; la elección de objetivo es IA-1c y el evaluador IA-2). Spec en `docs/ia_combate_ia1_spec.md`, informe en `docs/ia_combate_ia1a_informe.md`.
+
+- **`BehaviorProfile`** (`core/ai/behavior_profile.gd`, `Resource`): `id`, `weights` (vacío hasta IA-2), `target_preference` (`weakest`/`most_dangerous`/`last_attacker`/`random`/`none`), `target_bonus`, `decision_flexibility`, `survival_threshold`/`survival_bonus`, `reference_damage`, `obedience`, `can_flee`, `morale` (diccionario con claves cerradas). `validate() -> Array[String]` comprueba rangos, claves cerradas y umbrales de moral `0 <= broken < shaken_enter < shaken_exit <= base`. Las listas cerradas viven en el código, no en `ai_scales.json`. `make_safe_default()` (sin preferencia, sin huida, sin moral; id `safe_default`).
+- **`BehaviorProfileRegistry`** (estático): carga recursiva de `data/ai/profiles/`, rechaza lo inválido, el id distinto del nombre del fichero y los duplicados (`push_error`), e imprime una línea por perfil cargado. `get_profile(id)` entrega un **`duplicate(true)`**; id vacío o inexistente → perfil seguro con `push_warning` una vez por id. Perfiles base: `beast`, `bandit`, `soldier`, `coward` (valores provisionales, IA-5).
+- **Asignación:** lobos → `beast`; `telmori_warrior_base` → `soldier`; `telmori_warrior_weak` y `enemy_base` → `bandit`; Mira → `soldier` (provisional hasta IA-3); `coward` sin asignar. `threat_hint`: `wolf_base` medium, `wolf_weak` low, `warrior_base` high, `warrior_weak` low, `enemy_base` low (Mira, sin valor). `wolf_test.tres` recibe `beast` y `medium` con un parche pendiente de validar; `companion_base.tres` no tiene perfil.
+- **`CombatAIState`** (`RefCounted`, uno por combatiente de IA): perfil duplicado, `requested_profile_id`, `used_fallback`, y campos reservados (`active_order`, `processed_morale_events`, `morale_state`). El jugador no tiene estado de IA.
+- **`CombatAIContext`** (`RefCounted`, **uno por combate**): RNG de IA independiente del de combate (semilla fijable; `rng_seed_string()`, `rng_state_string()` y `restore_rng_state()` como **texto**, porque el estado de 64 bits no sobrevive a JSON), `pick_one()` (no consume RNG con una sola opción) y los estados por combatiente (`register_entity()` idempotente; `release()`). Lo crea `CombatProductionScene._ready()`, lo rellena `_register_ai_state()` (roster y refuerzos) y lo libera en `combat_ended`; imprime `IA-1a contexto de IA creado`, una línea `estado de IA` por combatiente y `contexto de IA liberado (N estados)`.
+- **`CombatSnapshot.build(actor_id)`** (`core/ai/combat_snapshot.gd`): `Dictionary` **congelado en profundidad** y solo de tipos simples. De sí mismo, exacto (`hp_ratio`, `hp_state`, recursos, condiciones, último atacante); de los demás, aparente (`hp_state`, `threat`, condiciones visibles, `targetable`); `candidates` copia las de `Combat.get_candidates()`. Usa solo la API pública de `Combat`, `Resources` y `Characters`. `deep_freeze`, `is_deep_frozen` e `is_plain_data` son estáticos.
+- **Prueba:** `test/ia1a_test.tscn` (159 comprobaciones).
+
+---
+
 ## Nota de convenciones
- 
+
 Ver `athelia_lecciones_tecnicas.md`. Estructura de carpetas: `athelia_estructura_carpetas.md`. Historial de spikes: `athelia_historial_spikes.md`.

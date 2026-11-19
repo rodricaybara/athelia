@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="BehaviorProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/ai/behavior_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = &"coward"
+target_preference = &"weakest"
+target_bonus = 6.0
+decision_flexibility = 10.0
+survival_threshold = 0.5
+survival_bonus = 12.0
+reference_damage = 0.0
+obedience = 0.0
+can_flee = true
+morale = {
+"base": 100,
+"big_hit_pct": 25,
+"conditions": {
+"outnumbered": 25
+},
+"events": {
+"ally_died": 25,
+"big_hit_taken": 20,
+"leader_died": 45
+},
+"health_tiers": [{
+"below": 0.6,
+"penalty": 25
+}, {
+"below": 0.3,
+"penalty": 40
+}],
+"shaken_modifiers": {
+"defensive_mult": 1.3,
+"flexibility_add": 5,
+"offensive_mult": 0.7
+},
+"thresholds": {
+"broken": 50,
+"shaken_enter": 85,
+"shaken_exit": 90
+}
+}

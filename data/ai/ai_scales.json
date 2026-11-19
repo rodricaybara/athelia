@@ -1,0 +1,41 @@
+{
+	"_comment": "Escalas y tablas de la IA de combate (IA-0c). Los valores son PROVISIONALES: se afinan en IA-5. Lee: AIScales (core/ai/ai_scales.gd).",
+	"schema_version": 1,
+	"reference_damage_default": 10.0,
+	"hp_state_thresholds": {
+		"hurt": 0.7,
+		"badly_hurt": 0.3
+	},
+	"threat_thresholds": {
+		"medium": 8.0,
+		"high": 15.0
+	},
+	"visible_conditions": [
+		"staggered",
+		"disarmed",
+		"bleeding",
+		"weakened",
+		"vulnerable",
+		"damage_reduction",
+		"resource_drain"
+	],
+	"tag_rules": {
+		"costly_cost_fraction": 0.4
+	},
+	"effect_value": {
+		"restore": {
+			"health": 1.0,
+			"stamina": 0.5
+		},
+		"defense_buffs": [
+			"damage_reduction"
+		],
+		"flee": 0.0
+	},
+	"self_risk_factor": {
+		"attack": 1.0,
+		"recover": 0.5,
+		"defense": 0.2,
+		"flee": 0.0
+	}
+}

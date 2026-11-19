@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BehaviorProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/ai/behavior_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = &"beast"
+target_preference = &"random"
+target_bonus = 4.0
+decision_flexibility = 15.0
+survival_threshold = 0.2
+survival_bonus = 4.0
+reference_damage = 0.0
+obedience = 0.0
+can_flee = false
+

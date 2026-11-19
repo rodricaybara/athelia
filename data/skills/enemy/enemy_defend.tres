@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://jr1m7twgsql0" path="res://core/skills/skill_definition.gd" id="1_skill_def"]
+
+[resource]
+script = ExtResource("1_skill_def")
+id = "skill.enemy.defend"
+name_key = "SKILL_ENEMY_DEFEND_NAME"
+description_key = "SKILL_ENEMY_DEFEND_DESC"
+mode = "COMBAT"
+subcategory = "ENEMY"
+costs = {
+"stamina": 10.0
+}
+base_cooldown = 2.0
+target_type = "SELF"
+effects = [{
+"buff_type": "damage_reduction",
+"duration": 1,
+"type": "BUFF",
+"value": 50.0
+}]
+tags = Array[String](["enemy", "defense", "utility"])

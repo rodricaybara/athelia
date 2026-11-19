@@ -24,4 +24,6 @@ starting_resources = {
 "stamina": 20
 }
 skills = Array[String](["bite", "howl"])
+behavior_profile_id = &"beast"
+threat_hint = "medium"
 metadata/_custom_type_script = "uid://cmvsxyq5sohf4"

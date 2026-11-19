@@ -1,8 +1,8 @@
 # Athelia — Plan de la fase IA-0 (prerrequisitos de motor de la IA de combate)
 
-**Fecha:** 2026-11-11 (IA-0b actualizada el 2026-11-14) · **Base:** `docs/ia_combate_fase0.md` y `docs/ia_combate_spec_v1_7_1.md`
+**Fecha:** 2026-11-11 (IA-0b y IA-0c actualizadas el 2026-11-15; IA-0d cerrada el 2026-11-16) · **Base:** `docs/ia_combate_fase0.md` y `docs/ia_combate_spec_v1_7_1.md`
 
-IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pueda construir encima: acciones que no cuelgan el turno, estado que no se arrastra entre combates, reglas por turnos, estimaciones públicas y datos coherentes. Se divide en 4 spikes. Cada uno sigue el flujo habitual (Fase 0 con búsquedas → implementación → validación en partida → informe), y el orden es **0a → 0b → 0c → 0d** (0d puede ir en paralelo a 0c).
+IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pueda construir encima: acciones que no cuelgan el turno, estado que no se arrastra entre combates, reglas por turnos, estimaciones públicas y datos coherentes. Se divide en 4 spikes. Cada uno sigue el flujo habitual (Fase 0 con búsquedas → implementación → validación en partida → informe), y el orden fue **0a → 0b → 0c → 0d**. **IA-0 está cerrada; el siguiente paso es IA-1.**
 
 **No se toca en IA-0:** la fórmula de daño (solo se separa la parte pura), las skills del jugador, la moral de grupo (se elimina en IA-4), la pantalla Party (IA-3), la huida del jugador (solo su estado).
 
@@ -10,7 +10,7 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 
 ## IA-0a — Robustez de acciones y estado de combate
 
-**Estado: cerrada el 2026-11-14** (`docs/ia_combate_ia0a_informe.md`). Cambios respecto a lo previsto: la tarea 5d (`_evaluate_outcome()`) pasa a **IA-4**; de la tarea 7 solo se aplicó `Skills.has_entity` (la lectura de skills desde `CharacterDefinition.skills` pasa a **IA-0d**); se añadieron 5c (`get_last_attacker`), `Combat` deja de emitir dos veces el fallo de una skill y la baja de enemigos se difiere.
+**Estado: cerrada el 2026-11-14** (`docs/ia_combate_ia0a_informe.md`). Cambios respecto a lo previsto: la tarea 5d (`_evaluate_outcome()`) pasa a **IA-4**; de la tarea 7 solo se aplicó `Skills.has_entity` (la lectura de skills desde `CharacterDefinition.skills` se hizo en **IA-0d**); se añadieron 5c (`get_last_attacker`), `Combat` deja de emitir dos veces el fallo de una skill y la baja de enemigos se difiere.
 
 | # | Tarea | Ficheros |
 |---|---|---|
@@ -36,7 +36,7 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 
 ## IA-0b — Combate por turnos
 
-**Estado: cerrada el 2026-11-14 (confirmada el 2026-11-15)**, validada en partida (`docs/ia_combate_ia0b_informe.md`; spec en `docs/ia_combate_ia0b_spec.md`). Decisiones confirmadas por Fernando: **1-A** 10 de estamina por ronda · **2-A** `int(base_cooldown)` · **3-A** interruptor global. Pendiente que deja: un enemigo o Mira sin estamina pasando el turno no se ejercitó (revisar en IA-0d). Cambios respecto al plan original: el valor inicial de `combat_regen_per_round` **no** es 0 (con 0 y sin `recover` el jugador se queda sin estamina en 3-4 rondas); la conversión es `int()` y no `ceil` (con `ceil` el ataque ligero quedaría bloqueado una ronda de cada dos); el interruptor es global en `ResourceSystem` y no `set_regen_paused` entidad a entidad; la regeneración por ronda va en `GameLoop` y no en `combat_system.gd`.
+**Estado: cerrada el 2026-11-14 (confirmada el 2026-11-15)**, validada en partida (`docs/ia_combate_ia0b_informe.md`; spec en `docs/ia_combate_ia0b_spec.md`). Decisiones confirmadas por Fernando: **1-A** 10 de estamina por ronda · **2-A** `int(base_cooldown)` · **3-A** interruptor global. Pendiente que deja: un enemigo o Mira sin estamina pasando el turno no se ejercitó (IA-0d no lo ejercita en partida: queda para cuando la IA elija skills con coste). Cambios respecto al plan original: el valor inicial de `combat_regen_per_round` **no** es 0 (con 0 y sin `recover` el jugador se queda sin estamina en 3-4 rondas); la conversión es `int()` y no `ceil` (con `ceil` el ataque ligero quedaría bloqueado una ronda de cada dos); el interruptor es global en `ResourceSystem` y no `set_regen_paused` entidad a entidad; la regeneración por ronda va en `GameLoop` y no en `combat_system.gd`.
 
 | # | Tarea | Ficheros |
 |---|---|---|
@@ -59,6 +59,8 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 
 ## IA-0c — Estimaciones y candidatas de `Combat`
 
+**Estado: cerrada el 2026-11-15** (`docs/ia_combate_ia0c_informe.md`; spec en `docs/ia_combate_ia0c_spec.md`). Prueba automática 67 OK, error de estimación 0,17–0,59 %, validada en partida (huida de uno, varios y todos los enemigos). Decisiones 1-A a 5-A. Cambios respecto a lo previsto: tercera skill de datos (`skill.enemy.flee`), `Resources.has_resource()`, `INVALID_TARGET` incluido (con `skipped` para no jugadores), parche en `PlayerCombatController` (objetivo tras huir un enemigo) y `AIScales`/`CombatTags` nuevos. Pasaron a IA-0d: registrar todos los recursos de enemigos y refuerzos, unificar `dodge` (`expires_on` en su `.tres`) y comprobar `defense_module_bak.gd` (declara `class_name DefenseModule`) antes de borrarlo.
+
 | # | Tarea | Ficheros |
 |---|---|---|
 | 1 | `SkillRoller.get_success_chance(skill_value, bonus...)` junto a `_determine_result`; **una sola fórmula** | `skill_roller.gd` |
@@ -75,32 +77,29 @@ IA-0 no añade IA. Deja el motor de combate en un estado en el que la IA se pued
 
 ## IA-0d — Datos
 
+**Estado: cerrada el 2026-11-16** (`docs/ia_combate_ia0d_informe.md`; spec en `docs/ia_combate_ia0d_spec.md`). Prueba automática 85 OK y validada en partida (combate de seis enemigos con Mira, esquiva y victoria). Decisiones 1-A (kits: guerreros `basic_attack` + `heavy_attack` + `defend`, lobos `basic_attack` + `heavy_attack` + `recover`, `enemy_base` `basic_attack` + `defend` + `recover`; `flee` sin asignar), 2-A (ids `skill.companion.*` para Mira), 3-A (`_get_hit_targets` por bando), 4-B (`fireball` sin `focus`) y 5-A (borrar los cinco respaldos), más la 6 añadida en la Fase 0 (activar el `DefenseModule` real).
+
+Cambios respecto a lo previsto:
+- **Constitución:** no se cambió ningún atributo (la tabla de abajo, con las «constituciones declaradas», quedó descartada por decisión de Fernando: se mantienen los números jugados 40 / 60 / 60 / 50 / 45 y `con` 8 / 12 / 12 / 10 / 9); la tarea 1 solo quitó `health`/`stamina` inertes de `starting_resources`.
+- **Mira** registra sus dos skills nuevas sin entrada en `starting_skill_values`, así que `CompanionAI` no necesitó parche.
+- **`dodge`** se unificó con `expires_on: "use"` en su `.tres` y `_build_buff()` respeta el campo explícito.
+- **`DefenseModule`:** el activo era el de `defense_module_bak.gd` (absorbía daño gratis con estamina insuficiente); se activó el real y se borraron los respaldos.
+- `sweep` es `MULTI_ENEMY`, no `AREA`: la rama `AREA` pura no se ejercita. `narrative_scene_viewmodel.gd` y `exploration_controller.gd` no se tocaron.
+
 | # | Tarea | Ficheros |
 |---|---|---|
-| 1 | **Vida derivada (decisión D8):** eliminar `health` y `stamina` de `starting_resources` en los `.tres` de enemigo y ajustar las constituciones (ver tabla). No se toca a Mira ni al jugador sin confirmación | `data/characters/**/*.tres` |
+| 1 | Quitar `health` y `stamina` de `starting_resources` en los `.tres` de enemigo (los máximos son derivados). No se toca a Mira ni al jugador | `data/characters/**/*.tres` |
 | 2 | Registrar con todos los recursos también a los refuerzos | `combat_production_scene.gd` |
 | 3 | Campo `behavior_profile_id` y `threat_hint` en `CharacterDefinition` (incluidos en `duplicate_definition()`) | `character_definition.gd` |
-| 4 | 2-3 skills de enemigo: ataque fuerte, defender, recuperar (costes y valores orientativos, a tunear en IA-5) y asignación en `skills`/`starting_skill_values` de cada enemigo. **Con IA-0b, comprobar que el coste de `skill.enemy.basic_attack` es sostenible con la estamina del enemigo y `combat_regen_per_round`** (hoy un enemigo sin estamina pasa el turno) | `data/skills/`, `.tres` de enemigos |
-| 5 | 2 skills `SELF` para Mira: defender y recuperar aguante | `data/skills/`, `companion_mira.tres` |
-| 6 | `focus` en `ResourceSystem` (o sacar de `fireball` el coste de foco) para que no sea impagable | `resource_system.gd` |
-| 7 | Borrar `combat_system_bak.gd`, `enemy_ai_backup.gd`, `defense_module_bak.gd` y `ui/entity_animation_controller_bak.gd` | — |
+| 4 | Skills de enemigo (`heavy_attack`) y asignación de kits desde `CharacterDefinition.skills` | `data/skills/enemy/`, `.tres` de enemigos, `combat_production_scene.gd`, `skills.csv` |
+| 5 | 2 skills `SELF` para Mira: defender y recuperar aguante | `data/skills/enemy/`, `companion_mira.tres`, `skills.csv` |
+| 6 | `fireball` sin coste de `focus` | `fireball.tres` |
+| 7 | Unificar `dodge`; `AREA`/`MULTI_ENEMY` por bando; borrar respaldos y activar `DefenseModule` | `combat_system.gd`, `dodge.tres`, `defense_module.gd` |
 
-Constituciones: la vida es `con × 5` y la estamina `con × 2 + fue × 1,5`.
-
-| Definición | HP actual | HP declarada | `con` para la declarada | Estamina actual → nueva |
-|---|---|---|---|---|
-| `enemy_base` | 40 | 50 | 10 | 28 → 32 |
-| `telmori_warrior_base` | 60 | 45 | 9 | 45 → 39 |
-| `telmori_warrior_weak` | 60 | 40 | 8 | 40,5 → 32,5 |
-| `telmori_wolf_base` | 50 | 30 | 6 | 35 → 27 |
-| `telmori_wolf_weak` | 45 | 25 | 5 | 31,5 → 23,5 |
-
-Pendiente de confirmar: si el objetivo son los números **declarados** (columna 3) o los que ya has probado en partida (columna 2).
-
-**Validación:** el log de registro muestra la vida y la estamina esperadas de cada enemigo; los refuerzos tienen estamina; el Depurador no avisa de recursos inexistentes; `fireball` ya no genera errores al comprobar su coste.
+**Validación:** cumplida (ver el informe). `ia0c_test` 67 OK (con el barrido ajustado) y Depurador sin avisos.
 
 ---
 
 ## Después de IA-0
 
-Actualizar `estado_actual.md` (tabla y pendientes), `athelia_referencia_sistemas.md` (reglas por turnos, API de `Combat`), `athelia_lecciones_tecnicas.md` (guarda contradictoria, señales sin oyente, regeneración en tiempo real) y `athelia_historial_spikes.md`. Los pendientes de motor que este plan resuelve se eliminan de `estado_actual.md`; los que no (progresión de Mira sin guardar, `PartyManager._register_in_systems` con acceso privado) se mantienen.
+Siguiente paso: **IA-1** (contratos de perfiles de comportamiento: `BehaviorProfile`, registry y validación), según `docs/ia_combate_spec_v1_7_1.md`. Los pendientes de motor que IA-0 no resolvió (progresión de Mira sin guardar, `PartyManager._register_in_systems` con acceso privado, conversión de `guaranteed_hit`/`evasion` en `effect_value`) están en `estado_actual.md`.

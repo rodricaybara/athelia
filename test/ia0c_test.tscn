@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ddmisx4cbmhup"]
+
+[ext_resource type="Script" uid="uid://dshid103ufj1a" path="res://test/ia0c_test.gd" id="1_ia0c"]
+
+[node name="Ia0cTest" type="Node" unique_id=350427809]
+script = ExtResource("1_ia0c")

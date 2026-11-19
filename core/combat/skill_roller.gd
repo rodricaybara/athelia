@@ -45,6 +45,42 @@ const SPECIAL_DIVISOR: int = 5
 
 
 # ============================================
+# RNG INYECTABLE (IA-0c)
+# ============================================
+
+## null = RNG global de Godot (comportamiento de siempre: seed() lo gobierna).
+## set_seed()/set_rng() lo sustituyen por uno propio, aislado del global (pruebas
+## deterministas, modo sin interfaz). Es ESTÁTICO y dura toda la sesión: quien lo
+## toque debe llamar a reset_rng() al terminar. Los demás llamadores de roll_skill()
+## (narrativa, world objects) no cambian: sin nada inyectado usan el RNG global.
+static var _rng: RandomNumberGenerator = null
+
+
+## Sustituye el RNG por uno propio sembrado con `seed_value`.
+static func set_seed(seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	_rng = rng
+
+
+## Inyecta un RNG ya construido (la prueba conserva la referencia para leer su estado).
+static func set_rng(rng: RandomNumberGenerator) -> void:
+	_rng = rng
+
+
+## Vuelve al RNG global.
+static func reset_rng() -> void:
+	_rng = null
+
+
+## ÚNICO punto del juego donde se tira el D100.
+static func _roll_d100() -> int:
+	if _rng != null:
+		return _rng.randi_range(1, 100)
+	return randi_range(1, 100)
+
+
+# ============================================
 # API PRINCIPAL
 # ============================================
 
@@ -73,7 +109,7 @@ static func roll_skill(skill_value: int, guaranteed: bool = false, critical_bonu
 		push_warning("[SkillRoller] Skill value %d clamped to %d" % [skill_value, clamped_skill])
 	
 	# Tirar D100 (1-100)
-	var roll = randi_range(1, 100)
+	var roll = _roll_d100()
 	
 	# Determinar resultado
 	var result = _determine_result(roll, clamped_skill, critical_bonus)
@@ -110,6 +146,41 @@ static func get_critical_threshold(skill_value: int, critical_bonus: int = 0) ->
 ## No recibe critical_bonus — ese buff solo amplía el umbral de crítico.
 static func get_special_threshold(skill_value: int) -> int:
 	return skill_value / SPECIAL_DIVISOR
+
+
+## Probabilidad de cada grado para una skill (IA-0c).
+## Se obtiene ENUMERANDO las 100 tiradas posibles con _determine_result(): la
+## probabilidad y la tirada real usan la MISMA función, así que no hay una segunda
+## fórmula que mantener (pifia absoluta, crítico dinámico, bonus de crítico, tope
+## del 97 % con skill 100...). Mismo clamp que roll_skill().
+## Devuelve { RollResult: float } con los 5 grados; suman 1.0.
+## No contempla guaranteed_hit: eso lo aplica Combat después de la tirada.
+static func get_grade_probabilities(skill_value: int, critical_bonus: int = 0) -> Dictionary:
+	var clamped_skill: int = clampi(skill_value, 0, 100)
+	var counts: Dictionary = {
+		RollResult.FUMBLE: 0,
+		RollResult.FAILURE: 0,
+		RollResult.SUCCESS: 0,
+		RollResult.SPECIAL: 0,
+		RollResult.CRITICAL: 0,
+	}
+	for roll in range(1, 101):
+		counts[_determine_result(roll, clamped_skill, critical_bonus)] += 1
+
+	var probabilities: Dictionary = {}
+	for grade in counts.keys():
+		probabilities[grade] = counts[grade] / 100.0
+	return probabilities
+
+
+## Probabilidad de acierto (SPECIAL, SUCCESS o CRITICAL) — ver get_grade_probabilities().
+static func get_success_chance(skill_value: int, critical_bonus: int = 0) -> float:
+	var probabilities: Dictionary = get_grade_probabilities(skill_value, critical_bonus)
+	var chance: float = 0.0
+	for grade in probabilities.keys():
+		if _is_success(grade):
+			chance += probabilities[grade]
+	return chance
 
 
 # ============================================

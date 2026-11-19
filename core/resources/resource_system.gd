@@ -86,6 +86,13 @@ func register_entity(entity_id: String, resource_ids: Array = []) -> void:
 func has_entity(entity_id: String) -> bool:
 	return _entities.has(entity_id)
 
+
+## IA-0c — ¿Tiene esta entidad ese recurso? Consulta SIN error (get_resource_state lo da
+## si falta): para listar candidatas de quien no tiene estamina, p. ej. un refuerzo
+## registrado solo con salud.
+func has_resource(entity_id: String, resource_id: String) -> bool:
+	return _entities.has(entity_id) and _entities[entity_id].has(resource_id)
+
 ## Desregistra una entidad
 func unregister_entity(entity_id: String) -> void:
 	if _entities.erase(entity_id):

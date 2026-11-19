@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="BehaviorProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/ai/behavior_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = &"soldier"
+target_preference = &"most_dangerous"
+target_bonus = 8.0
+decision_flexibility = 5.0
+survival_threshold = 0.25
+survival_bonus = 6.0
+reference_damage = 0.0
+obedience = 1.0
+can_flee = true
+morale = {
+"base": 100,
+"big_hit_pct": 25,
+"conditions": {
+"outnumbered": 8
+},
+"events": {
+"ally_died": 8,
+"big_hit_taken": 5,
+"leader_died": 25
+},
+"health_tiers": [{
+"below": 0.5,
+"penalty": 10
+}, {
+"below": 0.25,
+"penalty": 20
+}],
+"shaken_modifiers": {
+"defensive_mult": 1.3,
+"flexibility_add": 5,
+"offensive_mult": 0.7
+},
+"thresholds": {
+"broken": 25,
+"shaken_enter": 55,
+"shaken_exit": 65
+}
+}

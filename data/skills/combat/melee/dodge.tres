@@ -18,11 +18,13 @@ effects = [{
 "buff_type": "guaranteed_hit",
 "description": "Next attack has 100% hit chance",
 "duration": 1,
+"expires_on": "use",
 "type": "BUFF"
 }, {
 "buff_type": "evasion",
 "description": "Dodge next incoming attack",
 "duration": 0.5,
+"expires_on": "use",
 "type": "BUFF",
 "value": 100.0
 }]

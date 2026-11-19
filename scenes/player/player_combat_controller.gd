@@ -87,6 +87,7 @@ func _ready():
 		EventBus.combat_started.connect(_on_combat_started)
 		EventBus.combat_ended.connect(_on_combat_ended)
 		EventBus.character_died.connect(_on_character_died)
+		EventBus.enemy_fled.connect(_on_enemy_fled)
 	else:
 		push_error("[PlayerCombatController] EventBus autoload not found!")
 
@@ -154,7 +155,10 @@ func _update_available_targets() -> void:
 	if not game_loop:
 		return
 
-	available_targets = game_loop.get_active_enemies()
+	available_targets = []
+	for enemy_id in game_loop.get_active_enemies():
+		if not Combat.is_fled(enemy_id):
+			available_targets.append(enemy_id)
 
 	if not current_target in available_targets:
 		if not available_targets.is_empty():
@@ -262,6 +266,12 @@ func _on_combat_ended(result: String) -> void:
 	current_target = ""
 	current_target_index = 0
 	available_targets.clear()
+
+
+func _on_enemy_fled(enemy_id: String) -> void:
+	if enemy_id in available_targets:
+		print("[PlayerCombatController] Target fled: %s" % enemy_id)
+		_update_available_targets()
 
 
 func _on_character_died(character_id: String) -> void:
